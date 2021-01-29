@@ -93,3 +93,20 @@ func (s *Storage) GetInteractions(correlationID string) ([][]byte, error) {
 	value.dataMutex.Unlock()
 	return data, nil
 }
+
+// RemoveID removes data for a correlation ID and data related to it.
+func (s *Storage) RemoveID(correlationID string) error {
+	item := s.cache.Get(correlationID)
+	if item == nil {
+		return errors.New("could not get correlation-id from cache")
+	}
+	value, ok := item.Value().(*CorrelationData)
+	if !ok {
+		return errors.New("invalid correlation-id cache value found")
+	}
+	value.dataMutex.Lock()
+	value.Data = nil
+	value.dataMutex.Unlock()
+	s.cache.Delete(correlationID)
+	return nil
+}

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/projectdiscovery/interactsh/pkg/server"
 	"github.com/stretchr/testify/require"
 )
 
@@ -15,7 +16,7 @@ func TestClient(t *testing.T) {
 		fmt.Printf("URL: %s\n", client.URL())
 	}
 	for i := 0; i < 10; i++ {
-		reflection := URLReflection(client.URL())
+		reflection := server.URLReflection(client.URL())
 		fmt.Printf("reflection: %s\n", reflection)
 	}
 }

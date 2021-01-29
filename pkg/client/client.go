@@ -90,19 +90,14 @@ func (c *Client) StartPolling(duration time.Duration, callback InteractionCallba
 
 // getInteractions returns the interactions from the server.
 func (c *Client) getInteractions(callback InteractionCallback) {
-	data := server.PollRequest{
-		CorrelationID: c.correlationID,
-	}
-	payload, err := jsoniter.Marshal(data)
+	builder := &strings.Builder{}
+	builder.WriteString(c.serverURL.String())
+	builder.WriteString("poll?id=")
+	builder.WriteString(c.correlationID)
+	req, err := retryablehttp.NewRequest("GET", builder.String(), nil)
 	if err != nil {
 		return
 	}
-	URL := c.serverURL.String() + "poll"
-	req, err := retryablehttp.NewRequest("POST", URL, bytes.NewReader(payload))
-	if err != nil {
-		return
-	}
-	req.ContentLength = int64(len(payload))
 
 	resp, err := c.httpClient.Do(req)
 	defer func() {
@@ -237,23 +232,6 @@ func (c *Client) URL() string {
 	builder.WriteString(c.serverURL.Host)
 	URL := builder.String()
 	return URL
-}
-
-// URLReflection returns a reversed part of the URL payload
-// which is checked in theb
-func URLReflection(URL string) string {
-	parts := strings.Split(URL, ".")
-	var randomID string
-	for _, part := range parts {
-		if len(part) == 32 {
-			randomID = part
-		}
-	}
-	rns := []rune(randomID)
-	for i, j := 0, len(rns)-1; i < j; i, j = i+1, j-1 {
-		rns[i], rns[j] = rns[j], rns[i]
-	}
-	return string(rns)
 }
 
 // randInt generates a random uint32

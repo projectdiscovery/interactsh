@@ -1,5 +1,11 @@
 package server
 
+import (
+	"strings"
+
+	"github.com/projectdiscovery/interactsh/pkg/storage"
+)
+
 // Interaction is an interaction recieved to the server.
 type Interaction struct {
 	// Protocol for interaction, can contains HTTP/DNS/SMTP,etc.
@@ -8,42 +14,29 @@ type Interaction struct {
 	UniqueID string `json:"unique-id"`
 }
 
-// RegisterRequest is a request for client registration to interactsh server.
-type RegisterRequest struct {
-	// PublicKey is the public RSA Key of the client.
-	PublicKey []byte `json:"public-key"`
-	// CorrelationID is an ID for correlation with requests.
-	CorrelationID string `json:"correlation-id"`
+// Options contains configuration options for the servers
+type Options struct {
+	// CACert is the CA certificate for TLS servers
+	CACert string
+	// CAKey is the CA key for TLS servers
+	CAKey string
+	// Storage is a storage for interaction data storage
+	Storage *storage.Storage
 }
 
-// RegisterHandler is a handler for client register requests
-func RegisterHandler() {
-
-}
-
-// DeregisterRequest is a request for client deregistration to interactsh server.
-type DeregisterRequest struct {
-	// CorrelationID is an ID for correlation with requests.
-	CorrelationID string `json:"correlation-id"`
-}
-
-// DeregisterHandler is a handler for client deregister requests
-func DeregisterHandler() {
-
-}
-
-// PollRequest is a request for client polling for interactions
-type PollRequest struct {
-	// CorrelationID is an ID for correlation with requests.
-	CorrelationID string `json:"correlation-id"`
-}
-
-// PollResponse is the response for a polling request
-type PollResponse struct {
-	Data [][]byte `json:"data"`
-}
-
-// PollHandler is a handler for client poll requests
-func PollHandler() {
-
+// URLReflection returns a reversed part of the URL payload
+// which is checked in theb
+func URLReflection(URL string) string {
+	parts := strings.Split(URL, ".")
+	var randomID string
+	for _, part := range parts {
+		if len(part) == 32 {
+			randomID = part
+		}
+	}
+	rns := []rune(randomID)
+	for i, j := 0, len(rns)-1; i < j; i, j = i+1, j-1 {
+		rns[i], rns[j] = rns[j], rns[i]
+	}
+	return string(rns)
 }
