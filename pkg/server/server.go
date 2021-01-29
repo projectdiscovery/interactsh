@@ -1,5 +1,11 @@
 package server
 
+// Interaction is an interaction recieved to the server.
+type Interaction struct {
+	// Protocol for interaction, can contains HTTP/DNS/SMTP,etc.
+	Protocol string `json:"protocol,omitempty"`
+}
+
 // RegisterRequest is a request for client registration to interactsh server.
 type RegisterRequest struct {
 	// PublicKey is the public RSA Key of the client.
@@ -21,5 +27,16 @@ type DeregisterRequest struct {
 
 // DeregisterHandler is a handler for client deregister requests
 func DeregisterHandler() {
+
+}
+
+// PollRequest is a request for client polling for interactions
+type PollRequest struct {
+	// CorrelationID is an ID for correlation with requests.
+	CorrelationID string `json:"correlation-id"`
+}
+
+// PollHandler is a handler for client poll requests
+func PollHandler() {
 
 }

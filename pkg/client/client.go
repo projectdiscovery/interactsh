@@ -12,7 +12,10 @@ import (
 	"sync/atomic"
 	"time"
 
+	jsoniter "github.com/json-iterator/go"
 	"github.com/pkg/errors"
+	"github.com/projectdiscovery/interactsh/pkg/server"
+	"github.com/projectdiscovery/retryablehttp-go"
 	"github.com/rs/xid"
 	"gopkg.in/corvus-ch/zbase32.v1"
 )
@@ -21,15 +24,19 @@ var objectIDCounter = uint32(0)
 
 // Client is a client for communicating with interactsh server instance.
 type Client struct {
-	correlationID string
-	serverURL     *url.URL
-	privateKey    *rsa.PrivateKey
+	correlationID     string
+	serverURL         *url.URL
+	httpClient        *retryablehttp.Client
+	privateKey        *rsa.PrivateKey
+	persistentSession bool
 }
 
 // Options contains configuration options for interactsh client
 type Options struct {
 	// ServerURL is the URL for the interactsh server.
 	ServerURL string
+	// PersistentSession keeps the session open for future requests.
+	PersistentSession bool
 }
 
 func init() {
@@ -44,14 +51,45 @@ func New(options *Options) (*Client, error) {
 	}
 	// Generate a random ksuid which will be used as server secret.
 	client := &Client{
-		serverURL:     parsed,
-		correlationID: xid.New().String(),
+		serverURL:         parsed,
+		correlationID:     xid.New().String(),
+		persistentSession: options.PersistentSession,
+		httpClient:        retryablehttp.NewClient(retryablehttp.DefaultOptionsSingle),
 	}
 	// Generate an RSA Public / Private key for interactsh client
 	if err := client.generateRSAKeyPair(); err != nil {
 		return nil, err
 	}
 	return client, nil
+}
+
+// Close closes the collaborator client and deregisters from the
+// collaborator server if not explicitly asked by the user.
+func (c *Client) Close() error {
+	if !c.persistentSession {
+		register := server.DeregisterRequest{
+			CorrelationID: c.correlationID,
+		}
+		data, err := jsoniter.Marshal(register)
+		if err != nil {
+			return errors.Wrap(err, "could not marshal deregister request")
+		}
+		URL := c.serverURL.String() + "deregister"
+		req, err := retryablehttp.NewRequest("POST", URL, bytes.NewReader(data))
+		if err != nil {
+			return errors.Wrap(err, "could not create new request")
+		}
+		req.ContentLength = int64(len(data))
+
+		resp, err := c.httpClient.Do(req)
+		if err != nil {
+			return errors.Wrap(err, "could not make deregister request")
+		}
+		if resp.StatusCode != 200 {
+			return errors.Wrap(err, "could not deregister to server")
+		}
+	}
+	return nil
 }
 
 // generateRSAKeyPair generates an RSA public-private keypair and
@@ -66,6 +104,29 @@ func (c *Client) generateRSAKeyPair() error {
 	buffer := &bytes.Buffer{}
 	if err := gob.NewEncoder(buffer).Encode(privateKey.Public()); err != nil {
 		return errors.Wrap(err, "could not encode rsa public key")
+	}
+
+	register := server.RegisterRequest{
+		PublicKey:     buffer.Bytes(),
+		CorrelationID: c.correlationID,
+	}
+	data, err := jsoniter.Marshal(register)
+	if err != nil {
+		return errors.Wrap(err, "could not marshal register request")
+	}
+	URL := c.serverURL.String() + "register"
+	req, err := retryablehttp.NewRequest("POST", URL, bytes.NewReader(data))
+	if err != nil {
+		return errors.Wrap(err, "could not create new request")
+	}
+	req.ContentLength = int64(len(data))
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return errors.Wrap(err, "could not make register request")
+	}
+	if resp.StatusCode != 200 {
+		return errors.Wrap(err, "could not register to server")
 	}
 	return nil
 }
@@ -87,6 +148,22 @@ func (c *Client) URL() string {
 	builder.WriteString(c.serverURL.Host)
 	URL := builder.String()
 	return URL
+}
+
+// URLReflection returns a reversed part of the URL payload
+func URLReflection(URL string) string {
+	parts := strings.Split(URL, ".")
+	var randomID string
+	for _, part := range parts {
+		if len(part) == 32 {
+			randomID = part
+		}
+	}
+	rns := []rune(randomID)
+	for i, j := 0, len(rns)-1; i < j; i, j = i+1, j-1 {
+		rns[i], rns[j] = rns[j], rns[i]
+	}
+	return string(rns)
 }
 
 // randInt generates a random uint32
