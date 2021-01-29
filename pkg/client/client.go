@@ -2,11 +2,14 @@ package client
 
 import (
 	"bytes"
+	"crypto"
 	"crypto/rand"
 	"crypto/rsa"
 	"encoding/binary"
 	"encoding/gob"
 	"fmt"
+	"io"
+	"io/ioutil"
 	"net/url"
 	"strings"
 	"sync/atomic"
@@ -28,6 +31,7 @@ type Client struct {
 	serverURL         *url.URL
 	httpClient        *retryablehttp.Client
 	privateKey        *rsa.PrivateKey
+	quitChan          chan struct{}
 	persistentSession bool
 }
 
@@ -63,6 +67,79 @@ func New(options *Options) (*Client, error) {
 	return client, nil
 }
 
+// InteractionCallback is a callback function for a reported interaction
+type InteractionCallback func(*server.Interaction)
+
+// StartPolling starts polling the server each duration and returns any events
+// that may have been captured by the collaborator server.
+func (c *Client) StartPolling(duration time.Duration, callback InteractionCallback) {
+	ticker := time.NewTicker(5 * time.Second)
+	c.quitChan = make(chan struct{})
+	go func() {
+		for {
+			select {
+			case <-ticker.C:
+				c.getInteractions(callback)
+			case <-c.quitChan:
+				ticker.Stop()
+				return
+			}
+		}
+	}()
+}
+
+// getInteractions returns the interactions from the server.
+func (c *Client) getInteractions(callback InteractionCallback) {
+	data := server.PollRequest{
+		CorrelationID: c.correlationID,
+	}
+	payload, err := jsoniter.Marshal(data)
+	if err != nil {
+		return
+	}
+	URL := c.serverURL.String() + "poll"
+	req, err := retryablehttp.NewRequest("POST", URL, bytes.NewReader(payload))
+	if err != nil {
+		return
+	}
+	req.ContentLength = int64(len(payload))
+
+	resp, err := c.httpClient.Do(req)
+	defer func() {
+		if resp != nil && resp.Body != nil {
+			resp.Body.Close()
+			io.Copy(ioutil.Discard, resp.Body)
+		}
+	}()
+	if err != nil {
+		return
+	}
+	if resp.StatusCode != 200 {
+		return
+	}
+	response := &server.PollResponse{}
+	if err := jsoniter.NewDecoder(resp.Body).Decode(response); err != nil {
+		return
+	}
+
+	for _, data := range response.Data {
+		plaintext, err := c.privateKey.Decrypt(nil, data, &rsa.OAEPOptions{Hash: crypto.SHA256})
+		if err != nil {
+			continue
+		}
+		interaction := &server.Interaction{}
+		if err := jsoniter.Unmarshal(plaintext, interaction); err != nil {
+			continue
+		}
+		callback(interaction)
+	}
+}
+
+// StopPolling stops the polling to the interactsh server.
+func (c *Client) StopPolling() {
+	close(c.quitChan)
+}
+
 // Close closes the collaborator client and deregisters from the
 // collaborator server if not explicitly asked by the user.
 func (c *Client) Close() error {
@@ -82,6 +159,12 @@ func (c *Client) Close() error {
 		req.ContentLength = int64(len(data))
 
 		resp, err := c.httpClient.Do(req)
+		defer func() {
+			if resp != nil && resp.Body != nil {
+				resp.Body.Close()
+				io.Copy(ioutil.Discard, resp.Body)
+			}
+		}()
 		if err != nil {
 			return errors.Wrap(err, "could not make deregister request")
 		}
@@ -122,6 +205,12 @@ func (c *Client) generateRSAKeyPair() error {
 	req.ContentLength = int64(len(data))
 
 	resp, err := c.httpClient.Do(req)
+	defer func() {
+		if resp != nil && resp.Body != nil {
+			resp.Body.Close()
+			io.Copy(ioutil.Discard, resp.Body)
+		}
+	}()
 	if err != nil {
 		return errors.Wrap(err, "could not make register request")
 	}
@@ -151,6 +240,7 @@ func (c *Client) URL() string {
 }
 
 // URLReflection returns a reversed part of the URL payload
+// which is checked in theb
 func URLReflection(URL string) string {
 	parts := strings.Split(URL, ".")
 	var randomID string

@@ -3,7 +3,9 @@ package server
 // Interaction is an interaction recieved to the server.
 type Interaction struct {
 	// Protocol for interaction, can contains HTTP/DNS/SMTP,etc.
-	Protocol string `json:"protocol,omitempty"`
+	Protocol string `json:"protocol"`
+	// UniqueID is the uniqueID for the subdomain recieving the interaction.
+	UniqueID string `json:"unique-id"`
 }
 
 // RegisterRequest is a request for client registration to interactsh server.
@@ -34,6 +36,11 @@ func DeregisterHandler() {
 type PollRequest struct {
 	// CorrelationID is an ID for correlation with requests.
 	CorrelationID string `json:"correlation-id"`
+}
+
+// PollResponse is the response for a polling request
+type PollResponse struct {
+	Data [][]byte `json:"data"`
 }
 
 // PollHandler is a handler for client poll requests
