@@ -16,6 +16,8 @@ type Interaction struct {
 
 // Options contains configuration options for the servers
 type Options struct {
+	// Domain is the domain for the instance.
+	Domain string
 	// CACert is the CA certificate for TLS servers
 	CACert string
 	// CAKey is the CA key for TLS servers

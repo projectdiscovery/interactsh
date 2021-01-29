@@ -92,7 +92,7 @@ func (c *Client) StartPolling(duration time.Duration, callback InteractionCallba
 func (c *Client) getInteractions(callback InteractionCallback) {
 	builder := &strings.Builder{}
 	builder.WriteString(c.serverURL.String())
-	builder.WriteString("poll?id=")
+	builder.WriteString("/poll?id=")
 	builder.WriteString(c.correlationID)
 	req, err := retryablehttp.NewRequest("GET", builder.String(), nil)
 	if err != nil {
@@ -146,7 +146,7 @@ func (c *Client) Close() error {
 		if err != nil {
 			return errors.Wrap(err, "could not marshal deregister request")
 		}
-		URL := c.serverURL.String() + "deregister"
+		URL := c.serverURL.String() + "/deregister"
 		req, err := retryablehttp.NewRequest("POST", URL, bytes.NewReader(data))
 		if err != nil {
 			return errors.Wrap(err, "could not create new request")
@@ -192,7 +192,7 @@ func (c *Client) generateRSAKeyPair() error {
 	if err != nil {
 		return errors.Wrap(err, "could not marshal register request")
 	}
-	URL := c.serverURL.String() + "register"
+	URL := c.serverURL.String() + "/register"
 	req, err := retryablehttp.NewRequest("POST", URL, bytes.NewReader(data))
 	if err != nil {
 		return errors.Wrap(err, "could not create new request")
