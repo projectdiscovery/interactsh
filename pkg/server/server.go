@@ -46,7 +46,7 @@ func URLReflection(URL string) string {
 	parts := strings.Split(URL, ".")
 	var randomID string
 	for _, part := range parts {
-		if len(part) == 32 {
+		if len(part) == 33 {
 			randomID = part
 		}
 	}

@@ -82,7 +82,7 @@ func (h *DNSServer) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 	if strings.HasSuffix(domain, h.dotDomain) {
 		parts := strings.Split(domain, ".")
 		for _, part := range parts {
-			if len(part) == 32 {
+			if len(part) == 33 {
 				uniqueID = part
 			}
 		}
@@ -102,7 +102,7 @@ func (h *DNSServer) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 		if err := jsoniter.NewEncoder(buffer).Encode(interaction); err != nil {
 			gologger.Warning().Msgf("Could not encode dns interaction: %s\n", err)
 		} else {
-			gologger.Debug().Msgf("%s\n", string(buffer.Bytes()))
+			gologger.Debug().Msgf("DNS Interaction: \n%s\n", string(buffer.Bytes()))
 			if err := h.options.Storage.AddInteraction(correlationID, buffer.Bytes()); err != nil {
 				gologger.Warning().Msgf("Could not store dns interaction: %s\n", err)
 			}

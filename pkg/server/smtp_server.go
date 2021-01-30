@@ -74,10 +74,10 @@ func (h *SMTPServer) defaultHandler(remoteAddr net.Addr, from string, to []strin
 	gologger.Debug().Msgf("New SMTP request: %s %s %s %s\n", remoteAddr, from, to, string(data))
 
 	for _, addr := range to {
-		if len(addr) > 32 && strings.Contains(addr, "@") {
+		if len(addr) > 33 && strings.Contains(addr, "@") {
 			parts := strings.Split(addr[strings.Index(addr, "@")+1:], ".")
 			for _, part := range parts {
-				if len(part) == 32 {
+				if len(part) == 33 {
 					uniqueID = part
 				}
 			}

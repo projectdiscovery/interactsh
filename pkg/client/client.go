@@ -2,9 +2,7 @@ package client
 
 import (
 	"bytes"
-	"crypto/rand"
 	"encoding/binary"
-	"fmt"
 	"io"
 	"io/ioutil"
 	"net/url"
@@ -44,10 +42,6 @@ type Options struct {
 	ServerURL string
 	// PersistentSession keeps the session open for future requests.
 	PersistentSession bool
-}
-
-func init() {
-	objectIDCounter = randInt()
 }
 
 // New creates a new client instance based on provided options
@@ -239,12 +233,10 @@ func (c *Client) generateRSAKeyPair() error {
 
 // URL returns a new URL that can be be used for external interaction requests.
 func (c *Client) URL() string {
-	random := make([]byte, 7)
-	binary.BigEndian.PutUint32(random[:], uint32(time.Now().Unix()))
+	random := make([]byte, 8)
 	i := atomic.AddUint32(&objectIDCounter, 1)
-	random[4] = byte(i >> 16)
-	random[5] = byte(i >> 8)
-	random[6] = byte(i)
+	binary.BigEndian.PutUint32(random[0:4], uint32(time.Now().Unix()))
+	binary.BigEndian.PutUint32(random[4:8], i)
 
 	builder := &strings.Builder{}
 	builder.WriteString(c.correlationID)
@@ -254,13 +246,4 @@ func (c *Client) URL() string {
 	builder.WriteString(c.serverURL.Host)
 	URL := builder.String()
 	return URL
-}
-
-// randInt generates a random uint32
-func randInt() uint32 {
-	b := make([]byte, 3)
-	if _, err := rand.Reader.Read(b); err != nil {
-		panic(fmt.Errorf("xid: cannot generate random number: %v;", err))
-	}
-	return uint32(b[0])<<16 | uint32(b[1])<<8 | uint32(b[2])
 }

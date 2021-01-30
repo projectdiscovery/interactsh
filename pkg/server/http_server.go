@@ -71,7 +71,7 @@ func (h *HTTPServer) logger(handler http.Handler) http.HandlerFunc {
 		var uniqueID string
 		parts := strings.Split(r.Host, ".")
 		for _, part := range parts {
-			if len(part) == 32 {
+			if len(part) == 33 {
 				uniqueID = part
 			}
 		}
@@ -90,7 +90,7 @@ func (h *HTTPServer) logger(handler http.Handler) http.HandlerFunc {
 			if err := jsoniter.NewEncoder(buffer).Encode(interaction); err != nil {
 				gologger.Warning().Msgf("Could not encode http interaction: %s\n", err)
 			} else {
-				gologger.Debug().Msgf("%s\n", string(buffer.Bytes()))
+				gologger.Debug().Msgf("HTTP Interaction: \n%s\n", string(buffer.Bytes()))
 				if err := h.options.Storage.AddInteraction(correlationID, buffer.Bytes()); err != nil {
 					gologger.Warning().Msgf("Could not store http interaction: %s\n", err)
 				}

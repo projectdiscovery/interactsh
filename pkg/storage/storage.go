@@ -43,7 +43,9 @@ func New(evictionTTL time.Duration) *Storage {
 // SetIDPublicKey sets the correlation ID and publicKey into the cache for further operations.
 func (s *Storage) SetIDPublicKey(correlationID, secretKey string, publicKey []byte) error {
 	khPub, err := insecurecleartextkeyset.Read(keyset.NewBinaryReader(bytes.NewReader(publicKey)))
-
+	if err != nil {
+		return errors.Wrap(err, "could not read public key")
+	}
 	he, err := hybrid.NewHybridEncrypt(khPub)
 	if err != nil {
 		return errors.Wrap(err, "could not create encrypter")
