@@ -89,12 +89,14 @@ func (h *DNSServer) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 	}
 	if uniqueID != "" {
 		correlationID := uniqueID[:20]
+		host, _, _ := net.SplitHostPort(w.RemoteAddr().String())
 		interaction := &Interaction{
-			Protocol:    "dns",
-			UniqueID:    uniqueID,
-			QType:       toQType(r.Question[0].Qtype),
-			RawRequest:  r.String(),
-			RawResponse: m.String(),
+			Protocol:      "dns",
+			UniqueID:      uniqueID,
+			QType:         toQType(r.Question[0].Qtype),
+			RawRequest:    r.String(),
+			RawResponse:   m.String(),
+			RemoteAddress: host,
 		}
 		buffer := &bytes.Buffer{}
 		if err := jsoniter.NewEncoder(buffer).Encode(interaction); err != nil {

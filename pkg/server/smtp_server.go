@@ -75,7 +75,7 @@ func (h *SMTPServer) defaultHandler(remoteAddr net.Addr, from string, to []strin
 
 	for _, addr := range to {
 		if len(addr) > 32 && strings.Contains(addr, "@") {
-			parts := strings.Split(addr[strings.Index(addr, "@"):], ".")
+			parts := strings.Split(addr[strings.Index(addr, "@")+1:], ".")
 			for _, part := range parts {
 				if len(part) == 32 {
 					uniqueID = part
@@ -83,7 +83,6 @@ func (h *SMTPServer) defaultHandler(remoteAddr net.Addr, from string, to []strin
 			}
 		}
 	}
-
 	if uniqueID != "" {
 		host, _, _ := net.SplitHostPort(remoteAddr.String())
 
