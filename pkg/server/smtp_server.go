@@ -2,10 +2,10 @@ package server
 
 import (
 	"bytes"
-	"fmt"
 	"net"
-	"net/mail"
+	"strings"
 
+	jsoniter "github.com/json-iterator/go"
 	"github.com/projectdiscovery/gologger"
 	"github.com/prologic/smtpd"
 )
@@ -69,11 +69,39 @@ func (h *SMTPServer) ListenAndServe() {
 
 // defaultHandler is a handler for default collaborator requests
 func (h *SMTPServer) defaultHandler(remoteAddr net.Addr, from string, to []string, data []byte) error {
-	msg, err := mail.ReadMessage(bytes.NewReader(data))
-	if err != nil {
-		gologger.Warning().Msgf("Could not read SMTP message: %s\n", err)
+	var uniqueID string
+
+	for _, addr := range to {
+		if len(addr) > 32 && strings.Contains(addr, "@") {
+			parts := strings.Split(addr[strings.Index(addr, "@"):], ".")
+			for _, part := range parts {
+				if len(part) == 32 {
+					uniqueID = part
+				}
+			}
+		}
 	}
-	fmt.Printf("%v %v %v %v %v\n", msg, remoteAddr, from, to, string(data))
-	//reflection := URLReflection()
+
+	if uniqueID != "" {
+		host, _, _ := net.SplitHostPort(remoteAddr.String())
+
+		correlationID := uniqueID[:20]
+		interaction := &Interaction{
+			Protocol:      "smtp",
+			UniqueID:      uniqueID,
+			RawRequest:    string(data),
+			SMTPFrom:      from,
+			RemoteAddress: host,
+		}
+		buffer := &bytes.Buffer{}
+		if err := jsoniter.NewEncoder(buffer).Encode(interaction); err != nil {
+			gologger.Warning().Msgf("Could not encode smtp interaction: %s\n", err)
+		} else {
+			gologger.Debug().Msgf("%s\n", string(buffer.Bytes()))
+			if err := h.options.Storage.AddInteraction(correlationID, buffer.Bytes()); err != nil {
+				gologger.Warning().Msgf("Could not store smtp interaction: %s\n", err)
+			}
+		}
+	}
 	return nil
 }

@@ -12,6 +12,16 @@ type Interaction struct {
 	Protocol string `json:"protocol"`
 	// UniqueID is the uniqueID for the subdomain recieving the interaction.
 	UniqueID string `json:"unique-id"`
+	// QType is the question type for the interaction
+	QType string `json:"q-type,omitempty"`
+	// RawRequest is the raw request recieved by the interactsh server.
+	RawRequest string `json:"raw-request,omitempty"`
+	// RawResponse is the raw response sent by the interactsh server.
+	RawResponse string `json:"raw-response,omitempty"`
+	// SMTPFrom is the mail form field
+	SMTPFrom string `json:"smtp-from,omitempty"`
+	// RemoteAddress is the remote address for interaction
+	RemoteAddress string `json:"remote-address"`
 }
 
 // Options contains configuration options for the servers
@@ -20,6 +30,8 @@ type Options struct {
 	Domain string
 	// IPAddress is the IP address of the current server.
 	IPAddress string
+	// Hostmaster is the hostmaster email for the server.
+	Hostmaster string
 	// CACert is the CA certificate for TLS servers
 	CACert string
 	// CAKey is the CA key for TLS servers

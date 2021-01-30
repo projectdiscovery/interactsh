@@ -25,7 +25,7 @@ func TestClient(t *testing.T) {
 		log.Fatal(err)
 	}
 
-	// Set the sender and recipient first
+	//// Set the sender and recipient first
 	if err := c.Mail("sender@example.org"); err != nil {
 		log.Fatal(err)
 	}
@@ -33,7 +33,7 @@ func TestClient(t *testing.T) {
 		log.Fatal(err)
 	}
 
-	// Send the email body.
+	//// Send the email body.
 	wc, err := c.Data()
 	if err != nil {
 		log.Fatal(err)
@@ -47,7 +47,7 @@ func TestClient(t *testing.T) {
 		log.Fatal(err)
 	}
 
-	// Send the QUIT command and close the connection.
+	//// Send the QUIT command and close the connection.
 	err = c.Quit()
 	if err != nil {
 		log.Fatal(err)

@@ -1,8 +1,11 @@
 package server
 
 import (
+	"bytes"
 	"fmt"
 	"net/http"
+	"net/http/httptest"
+	"net/http/httputil"
 	"os"
 	"strings"
 
@@ -24,7 +27,7 @@ func NewHTTPServer(options *Options) (*HTTPServer, error) {
 	server := &HTTPServer{options: options}
 
 	router := &http.ServeMux{}
-	router.Handle("/", handlers.CombinedLoggingHandler(os.Stderr, http.HandlerFunc(server.defaultHandler)))
+	router.Handle("/", handlers.CombinedLoggingHandler(os.Stderr, server.logger(http.HandlerFunc(server.defaultHandler))))
 	router.Handle("/register", handlers.CombinedLoggingHandler(os.Stderr, http.HandlerFunc(server.registerHandler)))
 	router.Handle("/deregister", handlers.CombinedLoggingHandler(os.Stderr, http.HandlerFunc(server.deregisterHandler)))
 	router.Handle("/poll", handlers.CombinedLoggingHandler(os.Stderr, http.HandlerFunc(server.pollHandler)))
@@ -47,6 +50,52 @@ func (h *HTTPServer) ListenAndServe() {
 			gologger.Error().Msgf("Could not serve http: %s\n", err)
 		}
 	}()
+}
+
+func (h *HTTPServer) logger(handler http.Handler) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		req, _ := httputil.DumpRequest(r, true)
+
+		rec := httptest.NewRecorder()
+		handler.ServeHTTP(rec, r)
+
+		resp, _ := httputil.DumpResponse(rec.Result(), true)
+		for k, v := range rec.Header() {
+			w.Header()[k] = v
+		}
+		data := rec.Body.Bytes()
+
+		w.WriteHeader(rec.Result().StatusCode)
+		w.Write(data)
+
+		domain := r.URL.Hostname()
+		var uniqueID string
+		parts := strings.Split(domain, ".")
+		for _, part := range parts {
+			if len(part) == 32 {
+				uniqueID = part
+			}
+		}
+		if uniqueID != "" {
+			correlationID := uniqueID[:20]
+
+			interaction := &Interaction{
+				Protocol:    "http",
+				UniqueID:    uniqueID,
+				RawRequest:  string(req),
+				RawResponse: string(resp),
+			}
+			buffer := &bytes.Buffer{}
+			if err := jsoniter.NewEncoder(buffer).Encode(interaction); err != nil {
+				gologger.Warning().Msgf("Could not encode http interaction: %s\n", err)
+			} else {
+				gologger.Debug().Msgf("%s\n", string(buffer.Bytes()))
+				if err := h.options.Storage.AddInteraction(correlationID, buffer.Bytes()); err != nil {
+					gologger.Warning().Msgf("Could not store http interaction: %s\n", err)
+				}
+			}
+		}
+	}
 }
 
 // defaultHandler is a handler for default collaborator requests
