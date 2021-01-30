@@ -47,14 +47,14 @@ func TestStorageAddGetInteractions(t *testing.T) {
 	err = gob.NewEncoder(buffer).Encode(privateKey.Public())
 	require.Nil(t, err, "could not encode rsa public key")
 
-	err = storage.SetIDPublicKey(correlationID, buffer.Bytes())
+	err = storage.SetIDPublicKey(correlationID, "test", buffer.Bytes())
 	require.Nil(t, err, "could not set correlation-id and rsa public key in storage")
 
 	dataOriginal := []byte("hello world, this is unencrypted interaction")
 	err = storage.AddInteraction(correlationID, dataOriginal)
 	require.Nil(t, err, "could not add interaction to storage")
 
-	data, err := storage.GetInteractions(correlationID)
+	data, err := storage.GetInteractions(correlationID, "test")
 	require.Nil(t, err, "could not get interaction from storage")
 
 	plaintext, err := privateKey.Decrypt(nil, data[0], &rsa.OAEPOptions{Hash: crypto.SHA256})

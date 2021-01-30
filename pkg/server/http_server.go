@@ -3,6 +3,7 @@ package server
 import (
 	"bytes"
 	"fmt"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"net/http/httputil"
@@ -45,17 +46,16 @@ func (h *HTTPServer) ListenAndServe() {
 			}
 		}()
 	}
-	go func() {
-		if err := h.nontlsserver.ListenAndServe(); err != nil {
-			gologger.Error().Msgf("Could not serve http: %s\n", err)
-		}
-	}()
+	if err := h.nontlsserver.ListenAndServe(); err != nil {
+		gologger.Error().Msgf("Could not serve http: %s\n", err)
+	}
 }
 
 func (h *HTTPServer) logger(handler http.Handler) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		req, _ := httputil.DumpRequest(r, true)
 
+		gologger.Debug().Msgf("New HTTP request: %s\n", string(req))
 		rec := httptest.NewRecorder()
 		handler.ServeHTTP(rec, r)
 
@@ -68,9 +68,8 @@ func (h *HTTPServer) logger(handler http.Handler) http.HandlerFunc {
 		w.WriteHeader(rec.Result().StatusCode)
 		w.Write(data)
 
-		domain := r.URL.Hostname()
 		var uniqueID string
-		parts := strings.Split(domain, ".")
+		parts := strings.Split(r.Host, ".")
 		for _, part := range parts {
 			if len(part) == 32 {
 				uniqueID = part
@@ -79,11 +78,13 @@ func (h *HTTPServer) logger(handler http.Handler) http.HandlerFunc {
 		if uniqueID != "" {
 			correlationID := uniqueID[:20]
 
+			host, _, _ := net.SplitHostPort(r.RemoteAddr)
 			interaction := &Interaction{
-				Protocol:    "http",
-				UniqueID:    uniqueID,
-				RawRequest:  string(req),
-				RawResponse: string(resp),
+				Protocol:      "http",
+				UniqueID:      uniqueID,
+				RawRequest:    string(req),
+				RawResponse:   string(resp),
+				RemoteAddress: host,
 			}
 			buffer := &bytes.Buffer{}
 			if err := jsoniter.NewEncoder(buffer).Encode(interaction); err != nil {
@@ -100,7 +101,7 @@ func (h *HTTPServer) logger(handler http.Handler) http.HandlerFunc {
 
 // defaultHandler is a handler for default collaborator requests
 func (h *HTTPServer) defaultHandler(w http.ResponseWriter, req *http.Request) {
-	reflection := URLReflection(req.URL.Hostname())
+	reflection := URLReflection(req.Host)
 
 	if strings.EqualFold(req.URL.Path, "/robots.txt") {
 		fmt.Fprintf(w, "User-agent: *\nDisallow: / # %s", reflection)
@@ -111,7 +112,7 @@ func (h *HTTPServer) defaultHandler(w http.ResponseWriter, req *http.Request) {
 		fmt.Fprintf(w, "<data>%s</data>", reflection)
 		w.Header().Set("Content-Type", "application/xml")
 	} else {
-		fmt.Fprintf(w, "%s", reflection)
+		fmt.Fprintf(w, "<html><head></head><body>%s</body></html>", reflection)
 	}
 }
 
@@ -119,6 +120,8 @@ func (h *HTTPServer) defaultHandler(w http.ResponseWriter, req *http.Request) {
 type RegisterRequest struct {
 	// PublicKey is the public RSA Key of the client.
 	PublicKey []byte `json:"public-key"`
+	// SecretKey is the secret-key for correlation ID registered for the client.
+	SecretKey string `json:"secret-key"`
 	// CorrelationID is an ID for correlation with requests.
 	CorrelationID string `json:"correlation-id"`
 }
@@ -131,7 +134,7 @@ func (h *HTTPServer) registerHandler(w http.ResponseWriter, req *http.Request) {
 		gologger.Warning().Msgf("Could not decode json body: %s\n", err)
 		return
 	}
-	if err := h.options.Storage.SetIDPublicKey(r.CorrelationID, r.PublicKey); err != nil {
+	if err := h.options.Storage.SetIDPublicKey(r.CorrelationID, r.SecretKey, r.PublicKey); err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		gologger.Warning().Msgf("Could not set id and public key for %s: %s\n", r.CorrelationID, err)
 		return
@@ -173,8 +176,13 @@ func (h *HTTPServer) pollHandler(w http.ResponseWriter, req *http.Request) {
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
+	secret := req.URL.Query().Get("secret")
+	if secret == "" {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
 
-	data, err := h.options.Storage.GetInteractions(ID)
+	data, err := h.options.Storage.GetInteractions(ID, secret)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		gologger.Warning().Msgf("Could not get interactions for %s: %s\n", ID, err)

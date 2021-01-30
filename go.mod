@@ -3,6 +3,9 @@ module github.com/projectdiscovery/interactsh
 go 1.15
 
 require (
+	github.com/golang/protobuf v1.4.3
+	github.com/google/tink/go v1.5.0
+	github.com/google/uuid v1.2.0
 	github.com/gorilla/handlers v1.5.1
 	github.com/json-iterator/go v1.1.10
 	github.com/karlseguin/ccache/v2 v2.0.7
@@ -13,5 +16,6 @@ require (
 	github.com/prologic/smtpd v0.0.0-20210126001904-0893ad18168e
 	github.com/rs/xid v1.2.1
 	github.com/stretchr/testify v1.7.0
+	google.golang.org/protobuf v1.25.0
 	gopkg.in/corvus-ch/zbase32.v1 v1.0.0
 )

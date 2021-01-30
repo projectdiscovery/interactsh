@@ -24,6 +24,7 @@ type DNSServer struct {
 
 // NewDNSServer returns a new DNS server.
 func NewDNSServer(options *Options) (*DNSServer, error) {
+	options.Domain = dns.Fqdn(options.Domain)
 	server := &DNSServer{
 		options:    options,
 		ipAddress:  net.ParseIP(options.IPAddress),
@@ -44,25 +45,21 @@ func NewDNSServer(options *Options) (*DNSServer, error) {
 
 // ListenAndServe listens on dns ports for the server.
 func (h *DNSServer) ListenAndServe() {
-	go func() {
-		if err := h.server.ListenAndServe(); err != nil {
-			gologger.Error().Msgf("Could not serve smtp on port 25: %s\n", err)
-		}
-	}()
+	if err := h.server.ListenAndServe(); err != nil {
+		gologger.Error().Msgf("Could not serve dns on port 53: %s\n", err)
+	}
 }
 
 // ServeDNS is the default handler for DNS queries.
 func (h *DNSServer) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 	m := new(dns.Msg)
 	m.SetReply(r)
-	m.Compress = false
 
 	// bail early for no queries.
 	if len(r.Question) == 0 {
-		w.WriteMsg(m)
 		return
 	}
-	m.Authoritative = true
+	gologger.Debug().Msgf("New DNS request: %s\n", r.String())
 	domain := m.Question[0].Name
 
 	var uniqueID string
@@ -109,7 +106,9 @@ func (h *DNSServer) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 			}
 		}
 	}
-	w.WriteMsg(m)
+	if err := w.WriteMsg(m); err != nil {
+		gologger.Warning().Msgf("Could not write DNS response: %s\n", err)
+	}
 }
 
 func toQType(ttype uint16) (rtype string) {

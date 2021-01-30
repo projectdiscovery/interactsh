@@ -2,54 +2,30 @@ package client
 
 import (
 	"fmt"
-	"log"
-	"net/smtp"
+	"os"
+	"os/signal"
 	"testing"
+	"time"
+
+	"github.com/projectdiscovery/interactsh/pkg/server"
+	"github.com/stretchr/testify/require"
 )
 
 func TestClient(t *testing.T) {
-	//client, err := New(&Options{"http://127.0.0.1", false})
-	//require.Nil(t, err, "could not create client")
-	//
-	//for i := 0; i < 10; i++ {
-	//	fmt.Printf("URL: %s\n", client.URL())
-	//}
-	//for i := 0; i < 10; i++ {
-	//	reflection := server.URLReflection(client.URL())
-	//	fmt.Printf("reflection: %s\n", reflection)
-	//}
-	//
-	// Connect to the remote SMTP server.
-	c, err := smtp.Dial("127.0.0.1:25")
-	if err != nil {
-		log.Fatal(err)
-	}
+	client, err := New(&Options{"https://interact.sh", false})
+	require.Nil(t, err, "could not create client")
 
-	//// Set the sender and recipient first
-	if err := c.Mail("sender@example.org"); err != nil {
-		log.Fatal(err)
-	}
-	if err := c.Rcpt("recipient@example.net"); err != nil {
-		log.Fatal(err)
-	}
+	fmt.Printf("URL: %s\n", client.URL())
 
-	//// Send the email body.
-	wc, err := c.Data()
-	if err != nil {
-		log.Fatal(err)
-	}
-	_, err = fmt.Fprintf(wc, "This is the email body")
-	if err != nil {
-		log.Fatal(err)
-	}
-	err = wc.Close()
-	if err != nil {
-		log.Fatal(err)
-	}
+	client.StartPolling(5*time.Second, func(interaction *server.Interaction) {
+		fmt.Printf("%+v\n", interaction)
+	})
 
-	//// Send the QUIT command and close the connection.
-	err = c.Quit()
-	if err != nil {
-		log.Fatal(err)
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, os.Interrupt)
+	for range c {
+		client.StopPolling()
+		client.Close()
+		os.Exit(1)
 	}
 }

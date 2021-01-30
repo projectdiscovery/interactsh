@@ -2,11 +2,8 @@ package client
 
 import (
 	"bytes"
-	"crypto"
 	"crypto/rand"
-	"crypto/rsa"
 	"encoding/binary"
-	"encoding/gob"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -15,6 +12,11 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/google/tink/go/hybrid"
+	"github.com/google/tink/go/insecurecleartextkeyset"
+	"github.com/google/tink/go/keyset"
+	"github.com/google/tink/go/tink"
+	"github.com/google/uuid"
 	jsoniter "github.com/json-iterator/go"
 	"github.com/pkg/errors"
 	"github.com/projectdiscovery/interactsh/pkg/server"
@@ -28,9 +30,10 @@ var objectIDCounter = uint32(0)
 // Client is a client for communicating with interactsh server instance.
 type Client struct {
 	correlationID     string
+	secretKey         string
 	serverURL         *url.URL
 	httpClient        *retryablehttp.Client
-	privateKey        *rsa.PrivateKey
+	decrypter         tink.HybridDecrypt
 	quitChan          chan struct{}
 	persistentSession bool
 }
@@ -56,6 +59,7 @@ func New(options *Options) (*Client, error) {
 	// Generate a random ksuid which will be used as server secret.
 	client := &Client{
 		serverURL:         parsed,
+		secretKey:         uuid.New().String(), // uuid as more secure
 		correlationID:     xid.New().String(),
 		persistentSession: options.PersistentSession,
 		httpClient:        retryablehttp.NewClient(retryablehttp.DefaultOptionsSingle),
@@ -73,7 +77,7 @@ type InteractionCallback func(*server.Interaction)
 // StartPolling starts polling the server each duration and returns any events
 // that may have been captured by the collaborator server.
 func (c *Client) StartPolling(duration time.Duration, callback InteractionCallback) {
-	ticker := time.NewTicker(5 * time.Second)
+	ticker := time.NewTicker(duration)
 	c.quitChan = make(chan struct{})
 	go func() {
 		for {
@@ -94,6 +98,8 @@ func (c *Client) getInteractions(callback InteractionCallback) {
 	builder.WriteString(c.serverURL.String())
 	builder.WriteString("/poll?id=")
 	builder.WriteString(c.correlationID)
+	builder.WriteString("&secret=")
+	builder.WriteString(c.secretKey)
 	req, err := retryablehttp.NewRequest("GET", builder.String(), nil)
 	if err != nil {
 		return
@@ -118,7 +124,7 @@ func (c *Client) getInteractions(callback InteractionCallback) {
 	}
 
 	for _, data := range response.Data {
-		plaintext, err := c.privateKey.Decrypt(nil, data, &rsa.OAEPOptions{Hash: crypto.SHA256})
+		plaintext, err := c.decrypter.Decrypt(data, nil)
 		if err != nil {
 			continue
 		}
@@ -174,18 +180,34 @@ func (c *Client) Close() error {
 // registers the current client with the master server using the
 // provided RSA Public Key as well as Correlation Key.
 func (c *Client) generateRSAKeyPair() error {
-	privateKey, err := rsa.GenerateKey(rand.Reader, 2048)
+	khPriv, err := keyset.NewHandle(hybrid.ECIESHKDFAES128CTRHMACSHA256KeyTemplate())
 	if err != nil {
-		return errors.Wrap(err, "could not create rsa private key")
+		return errors.Wrap(err, "could not generate encryption keyset")
+	}
+	hd, err := hybrid.NewHybridDecrypt(khPriv)
+	if err != nil {
+		return errors.Wrap(err, "could not create new decrypter")
+	}
+	c.decrypter = hd
+
+	khPub, err := khPriv.Public()
+	if err != nil {
+		return errors.Wrap(err, "could not get keyset public-key")
 	}
 
-	buffer := &bytes.Buffer{}
-	if err := gob.NewEncoder(buffer).Encode(privateKey.Public()); err != nil {
-		return errors.Wrap(err, "could not encode rsa public key")
+	exportedPub := &keyset.MemReaderWriter{}
+	if err = insecurecleartextkeyset.Write(khPub, exportedPub); err != nil {
+		return errors.Wrap(err, "could not write keyset public key")
+	}
+	keyset, err := exportedPub.Read()
+	key, err := keyset.XXX_Marshal(nil, false)
+	if err != nil {
+		return errors.Wrap(err, "could not marshal public key")
 	}
 
 	register := server.RegisterRequest{
-		PublicKey:     buffer.Bytes(),
+		PublicKey:     key,
+		SecretKey:     c.secretKey,
 		CorrelationID: c.correlationID,
 	}
 	data, err := jsoniter.Marshal(register)

@@ -61,15 +61,17 @@ func (h *SMTPServer) ListenAndServe() {
 		if err := h.port25server.ListenAndServe(); err != nil {
 			gologger.Error().Msgf("Could not serve smtp on port 25: %s\n", err)
 		}
-		if err := h.port587server.ListenAndServe(); err != nil {
-			gologger.Error().Msgf("Could not serve smtp on port 587: %s\n", err)
-		}
 	}()
+	if err := h.port587server.ListenAndServe(); err != nil {
+		gologger.Error().Msgf("Could not serve smtp on port 587: %s\n", err)
+	}
 }
 
 // defaultHandler is a handler for default collaborator requests
 func (h *SMTPServer) defaultHandler(remoteAddr net.Addr, from string, to []string, data []byte) error {
 	var uniqueID string
+
+	gologger.Debug().Msgf("New SMTP request: %s %s %s %s\n", remoteAddr, from, to, string(data))
 
 	for _, addr := range to {
 		if len(addr) > 32 && strings.Contains(addr, "@") {

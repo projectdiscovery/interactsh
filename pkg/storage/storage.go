@@ -4,13 +4,14 @@ package storage
 
 import (
 	"bytes"
-	"crypto/rand"
-	"crypto/rsa"
-	"crypto/sha256"
-	"encoding/gob"
+	"strings"
 	"sync"
 	"time"
 
+	"github.com/google/tink/go/hybrid"
+	"github.com/google/tink/go/insecurecleartextkeyset"
+	"github.com/google/tink/go/keyset"
+	"github.com/google/tink/go/tink"
 	"github.com/karlseguin/ccache/v2"
 	"github.com/pkg/errors"
 )
@@ -28,8 +29,10 @@ type CorrelationData struct {
 	Data [][]byte `json:"data"`
 	// dataMutex is a mutex for the data slice.
 	dataMutex *sync.Mutex `json:"-"`
+	// secretkey is a secret key for original user verification
+	secretKey string `json:"-"`
 	// publicKey is the public RSA key for a correlation client.
-	publicKey *rsa.PublicKey `json:"-"`
+	publicKey tink.HybridEncrypt `json:"-"`
 }
 
 // New creates a new storage instance for interactsh data.
@@ -38,14 +41,17 @@ func New(evictionTTL time.Duration) *Storage {
 }
 
 // SetIDPublicKey sets the correlation ID and publicKey into the cache for further operations.
-func (s *Storage) SetIDPublicKey(correlationID string, publicKey []byte) error {
-	key := &rsa.PublicKey{}
-	if err := gob.NewDecoder(bytes.NewReader(publicKey)).Decode(key); err != nil {
-		return errors.Wrap(err, "could not decode rsa public key")
+func (s *Storage) SetIDPublicKey(correlationID, secretKey string, publicKey []byte) error {
+	khPub, err := insecurecleartextkeyset.Read(keyset.NewBinaryReader(bytes.NewReader(publicKey)))
+
+	he, err := hybrid.NewHybridEncrypt(khPub)
+	if err != nil {
+		return errors.Wrap(err, "could not create encrypter")
 	}
 	data := &CorrelationData{
 		Data:      make([][]byte, 0),
-		publicKey: key,
+		publicKey: he,
+		secretKey: secretKey,
 		dataMutex: &sync.Mutex{},
 	}
 	s.cache.Set(correlationID, data, s.evictionTTL)
@@ -64,20 +70,19 @@ func (s *Storage) AddInteraction(correlationID string, data []byte) error {
 		return errors.New("invalid correlation-id cache value found")
 	}
 
-	encryptedBytes, err := rsa.EncryptOAEP(sha256.New(), rand.Reader, value.publicKey, data, nil)
+	ct, err := value.publicKey.Encrypt(data, nil)
 	if err != nil {
-		return errors.Wrap(err, "could not encrypt data with RSA public key")
+		return errors.New("could not encrypt event data")
 	}
-
 	value.dataMutex.Lock()
-	value.Data = append(value.Data, encryptedBytes)
+	value.Data = append(value.Data, ct)
 	value.dataMutex.Unlock()
 	return nil
 }
 
 // GetInteractions returns the interactions for a correlationID and removes
 // it from the storage.
-func (s *Storage) GetInteractions(correlationID string) ([][]byte, error) {
+func (s *Storage) GetInteractions(correlationID, secret string) ([][]byte, error) {
 	item := s.cache.Get(correlationID)
 	if item == nil {
 		return nil, errors.New("could not get correlation-id from cache")
@@ -86,7 +91,9 @@ func (s *Storage) GetInteractions(correlationID string) ([][]byte, error) {
 	if !ok {
 		return nil, errors.New("invalid correlation-id cache value found")
 	}
-
+	if !strings.EqualFold(value.secretKey, secret) {
+		return nil, errors.New("invalid secret key passed for user")
+	}
 	value.dataMutex.Lock()
 	data := value.Data
 	value.Data = make([][]byte, 0)
