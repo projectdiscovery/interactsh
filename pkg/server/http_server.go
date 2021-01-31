@@ -102,6 +102,7 @@ func (h *HTTPServer) logger(handler http.Handler) http.HandlerFunc {
 // defaultHandler is a handler for default collaborator requests
 func (h *HTTPServer) defaultHandler(w http.ResponseWriter, req *http.Request) {
 	reflection := URLReflection(req.Host)
+	w.Header().Set("Server", "interact.sh")
 
 	if strings.EqualFold(req.URL.Path, "/robots.txt") {
 		fmt.Fprintf(w, "User-agent: *\nDisallow: / # %s", reflection)
