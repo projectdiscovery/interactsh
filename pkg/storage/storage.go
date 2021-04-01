@@ -10,7 +10,6 @@ import (
 	"crypto/sha256"
 	"crypto/x509"
 	"encoding/base64"
-	"encoding/hex"
 	"encoding/pem"
 	"io"
 	"strings"
@@ -53,7 +52,7 @@ func (s *Storage) SetIDPublicKey(correlationID, secretKey string, publicKey []by
 	if err != nil {
 		return errors.Wrap(err, "could not read public Key")
 	}
-	aesKey := uuid.New().String()
+	aesKey := uuid.New().String()[:32]
 
 	ciphertext, err := rsa.EncryptOAEP(sha256.New(), rand.Reader, publicKeyData, []byte(aesKey), nil)
 	if err != nil {
@@ -65,7 +64,7 @@ func (s *Storage) SetIDPublicKey(correlationID, secretKey string, publicKey []by
 		secretKey: secretKey,
 		dataMutex: &sync.Mutex{},
 		aesKey:    []byte(aesKey),
-		AESKey:    hex.EncodeToString(ciphertext),
+		AESKey:    base64.StdEncoding.EncodeToString(ciphertext),
 	}
 	s.cache.Set(correlationID, data, s.evictionTTL)
 	return nil
@@ -85,7 +84,7 @@ func (s *Storage) AddInteraction(correlationID string, data []byte) error {
 
 	ct, err := aesEncrypt(value.aesKey, data)
 	if err != nil {
-		return errors.New("could not encrypt event data")
+		return errors.Wrap(err, "could not encrypt event data")
 	}
 	value.dataMutex.Lock()
 	value.Data = append(value.Data, ct)

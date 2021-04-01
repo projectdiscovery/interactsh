@@ -10,7 +10,6 @@ import (
 	"crypto/x509"
 	"encoding/base64"
 	"encoding/binary"
-	"encoding/hex"
 	"encoding/pem"
 	"fmt"
 	"io"
@@ -124,6 +123,7 @@ func (c *Client) getInteractions(callback InteractionCallback) {
 		gologger.Error().Msgf("Could not decode interactions: %v\n", err)
 		return
 	}
+	fmt.Printf("poll: %v\n", response)
 
 	for _, data := range response.Data {
 		plaintext, err := c.decryptMessage(response.AESKey, data)
@@ -222,9 +222,6 @@ func (c *Client) generateRSAKeyPair() error {
 	defer func() {
 		if resp != nil && resp.Body != nil {
 			resp.Body.Close()
-
-			data, _ := ioutil.ReadAll(resp.Body)
-			fmt.Printf("%v\n", string(data))
 			io.Copy(ioutil.Discard, resp.Body)
 		}
 	}()
@@ -256,7 +253,7 @@ func (c *Client) URL() string {
 
 // decryptMessage decrypts an AES-256-RSA-OAEP encrypted message to string
 func (c *Client) decryptMessage(key string, secureMessage string) ([]byte, error) {
-	decodedKey, err := hex.DecodeString(key)
+	decodedKey, err := base64.StdEncoding.DecodeString(key)
 	if err != nil {
 		return nil, err
 	}
@@ -287,8 +284,7 @@ func (c *Client) decryptMessage(key string, secureMessage string) ([]byte, error
 
 	// XORKeyStream can work in-place if the two arguments are the same.
 	stream := cipher.NewCFBDecrypter(block, iv)
-	var decoded []byte
+	decoded := make([]byte, len(cipherText))
 	stream.XORKeyStream(decoded, cipherText)
-
 	return decoded, nil
 }

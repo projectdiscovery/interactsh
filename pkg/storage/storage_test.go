@@ -1,29 +1,45 @@
 package storage
 
-/*
+import (
+	"crypto/aes"
+	"crypto/cipher"
+	"crypto/rand"
+	"crypto/rsa"
+	"crypto/sha256"
+	"crypto/x509"
+	"encoding/base64"
+	"encoding/pem"
+	"testing"
+	"time"
+
+	"github.com/google/uuid"
+	"github.com/rs/xid"
+	"github.com/stretchr/testify/require"
+)
+
 func TestStorageSetIDPublicKey(t *testing.T) {
 	storage := New(1 * time.Hour)
 
 	secret := uuid.New().String()
 	correlationID := xid.New().String()
 
-	khPriv, err := keyset.NewHandle(hybrid.ECIESHKDFAES128CTRHMACSHA256KeyTemplate())
-	require.Nil(t, err, "could not generate encryption keyset")
+	// Generate a 2048-bit private-key
+	priv, err := rsa.GenerateKey(rand.Reader, 2048)
+	require.Nil(t, err, "could not generate rsa key")
 
-	khPub, err := khPriv.Public()
-	require.Nil(t, err, "could not get keyset public-key")
+	pub := priv.Public()
 
-	exportedPub := &keyset.MemReaderWriter{}
-	err = insecurecleartextkeyset.Write(khPub, exportedPub)
-	require.Nil(t, err, "could not write keyset public key")
-
-	keyset, err := exportedPub.Read()
-	require.Nil(t, err, "could not read public key of pk")
-
-	key, err := keyset.XXX_Marshal(nil, false)
+	pubkeyBytes, err := x509.MarshalPKIXPublicKey(pub)
 	require.Nil(t, err, "could not marshal public key")
 
-	err = storage.SetIDPublicKey(correlationID, secret, key)
+	pubkeyPem := pem.EncodeToMemory(&pem.Block{
+		Type:  "RSA PUBLIC KEY",
+		Bytes: pubkeyBytes,
+	})
+
+	encoded := base64.StdEncoding.EncodeToString(pubkeyPem)
+
+	err = storage.SetIDPublicKey(correlationID, secret, []byte(encoded))
 	require.Nil(t, err, "could not set correlation-id and rsa public key in storage")
 
 	item := storage.cache.Get(correlationID)
@@ -41,38 +57,57 @@ func TestStorageAddGetInteractions(t *testing.T) {
 	secret := uuid.New().String()
 	correlationID := xid.New().String()
 
-	khPriv, err := keyset.NewHandle(hybrid.ECIESHKDFAES128CTRHMACSHA256KeyTemplate())
-	require.Nil(t, err, "could not generate encryption keyset")
+	// Generate a 2048-bit private-key
+	priv, err := rsa.GenerateKey(rand.Reader, 2048)
+	require.Nil(t, err, "could not generate rsa key")
 
-	khPub, err := khPriv.Public()
-	require.Nil(t, err, "could not get keyset public-key")
+	pub := priv.Public()
 
-	exportedPub := &keyset.MemReaderWriter{}
-	err = insecurecleartextkeyset.Write(khPub, exportedPub)
-	require.Nil(t, err, "could not write keyset public key")
-
-	keyset, err := exportedPub.Read()
-	require.Nil(t, err, "could not read public key of pk")
-
-	key, err := keyset.XXX_Marshal(nil, false)
+	pubkeyBytes, err := x509.MarshalPKIXPublicKey(pub)
 	require.Nil(t, err, "could not marshal public key")
 
-	err = storage.SetIDPublicKey(correlationID, secret, key)
+	pubkeyPem := pem.EncodeToMemory(&pem.Block{
+		Type:  "RSA PUBLIC KEY",
+		Bytes: pubkeyBytes,
+	})
+
+	encoded := base64.StdEncoding.EncodeToString(pubkeyPem)
+
+	err = storage.SetIDPublicKey(correlationID, secret, []byte(encoded))
 	require.Nil(t, err, "could not set correlation-id and rsa public key in storage")
 
 	dataOriginal := []byte("hello world, this is unencrypted interaction")
 	err = storage.AddInteraction(correlationID, dataOriginal)
 	require.Nil(t, err, "could not add interaction to storage")
 
-	data, err := storage.GetInteractions(correlationID, secret)
+	data, key, err := storage.GetInteractions(correlationID, secret)
 	require.Nil(t, err, "could not get interaction from storage")
 
-	hd, err := hybrid.NewHybridDecrypt(khPriv)
-	require.Nil(t, err, "could not create new decrypter")
+	decodedKey, err := base64.StdEncoding.DecodeString(key)
+	require.Nil(t, err, "could not decode key")
 
-	plaintext, err := hd.Decrypt(data[0], nil)
-	require.Nil(t, err, "could not decrypt encrypted interaction data")
+	// Decrypt the key plaintext first
+	keyPlaintext, err := rsa.DecryptOAEP(sha256.New(), rand.Reader, priv, decodedKey, nil)
+	require.Nil(t, err, "could not decrypt key to plaintext")
 
-	require.Equal(t, dataOriginal, plaintext, "could not get correct decrypted interaction")
+	cipherText, err := base64.StdEncoding.DecodeString(data[0])
+	require.Nil(t, err, "could not decode ciphertext")
+
+	block, err := aes.NewCipher(keyPlaintext)
+	require.Nil(t, err, "could not create aes cipher")
+
+	if len(cipherText) < aes.BlockSize {
+		require.Fail(t, "Cipher text is less than block size")
+	}
+
+	// IV is at the start of the Ciphertext
+	iv := cipherText[:aes.BlockSize]
+	cipherText = cipherText[aes.BlockSize:]
+
+	// XORKeyStream can work in-place if the two arguments are the same.
+	stream := cipher.NewCFBDecrypter(block, iv)
+	decoded := make([]byte, len(cipherText))
+	stream.XORKeyStream(decoded, cipherText)
+
+	require.Equal(t, dataOriginal, decoded, "could not get correct decrypted interaction")
 }
-*/
