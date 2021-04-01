@@ -133,9 +133,7 @@ func (s *Storage) RemoveID(correlationID string) error {
 
 // parseB64RSAPublicKeyFromPEM parses a base64 encoded rsa pem to a public key structure
 func parseB64RSAPublicKeyFromPEM(pubPEM []byte) (*rsa.PublicKey, error) {
-	var decoded []byte
-
-	_, err := base64.StdEncoding.Decode(decoded, pubPEM)
+	decoded, err := base64.StdEncoding.DecodeString(string(pubPEM))
 	if err != nil {
 		return nil, err
 	}

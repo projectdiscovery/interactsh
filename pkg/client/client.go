@@ -12,6 +12,7 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"encoding/pem"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"net/url"
@@ -22,6 +23,7 @@ import (
 	"github.com/google/uuid"
 	jsoniter "github.com/json-iterator/go"
 	"github.com/pkg/errors"
+	"github.com/projectdiscovery/gologger"
 	"github.com/projectdiscovery/interactsh/pkg/server"
 	"github.com/projectdiscovery/retryablehttp-go"
 	"github.com/rs/xid"
@@ -119,16 +121,19 @@ func (c *Client) getInteractions(callback InteractionCallback) {
 	}
 	response := &server.PollResponse{}
 	if err := jsoniter.NewDecoder(resp.Body).Decode(response); err != nil {
+		gologger.Error().Msgf("Could not decode interactions: %v\n", err)
 		return
 	}
 
 	for _, data := range response.Data {
 		plaintext, err := c.decryptMessage(response.AESKey, data)
 		if err != nil {
+			gologger.Error().Msgf("Could not decrypt interaction: %v\n", err)
 			continue
 		}
 		interaction := &server.Interaction{}
 		if err := jsoniter.Unmarshal(plaintext, interaction); err != nil {
+			gologger.Error().Msgf("Could not unmarshal interaction data interaction: %v\n", err)
 			continue
 		}
 		callback(interaction)
@@ -196,11 +201,9 @@ func (c *Client) generateRSAKeyPair() error {
 		Bytes: pubkeyBytes,
 	})
 
-	var encoded []byte
-	base64.StdEncoding.Encode(encoded, pubkeyPem)
-
+	encoded := base64.StdEncoding.EncodeToString(pubkeyPem)
 	register := server.RegisterRequest{
-		PublicKey:     encoded,
+		PublicKey:     []byte(encoded),
 		SecretKey:     c.secretKey,
 		CorrelationID: c.correlationID,
 	}
@@ -219,6 +222,9 @@ func (c *Client) generateRSAKeyPair() error {
 	defer func() {
 		if resp != nil && resp.Body != nil {
 			resp.Body.Close()
+
+			data, _ := ioutil.ReadAll(resp.Body)
+			fmt.Printf("%v\n", string(data))
 			io.Copy(ioutil.Discard, resp.Body)
 		}
 	}()
