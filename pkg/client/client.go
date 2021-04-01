@@ -2,7 +2,16 @@ package client
 
 import (
 	"bytes"
+	"crypto/aes"
+	"crypto/cipher"
+	"crypto/rand"
+	"crypto/rsa"
+	"crypto/sha256"
+	"crypto/x509"
+	"encoding/base64"
 	"encoding/binary"
+	"encoding/hex"
+	"encoding/pem"
 	"io"
 	"io/ioutil"
 	"net/url"
@@ -10,10 +19,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/google/tink/go/hybrid"
-	"github.com/google/tink/go/insecurecleartextkeyset"
-	"github.com/google/tink/go/keyset"
-	"github.com/google/tink/go/tink"
 	"github.com/google/uuid"
 	jsoniter "github.com/json-iterator/go"
 	"github.com/pkg/errors"
@@ -31,7 +36,7 @@ type Client struct {
 	secretKey         string
 	serverURL         *url.URL
 	httpClient        *retryablehttp.Client
-	decrypter         tink.HybridDecrypt
+	privKey           *rsa.PrivateKey
 	quitChan          chan struct{}
 	persistentSession bool
 }
@@ -118,7 +123,7 @@ func (c *Client) getInteractions(callback InteractionCallback) {
 	}
 
 	for _, data := range response.Data {
-		plaintext, err := c.decrypter.Decrypt(data, nil)
+		plaintext, err := c.decryptMessage(response.AESKey, data)
 		if err != nil {
 			continue
 		}
@@ -174,33 +179,28 @@ func (c *Client) Close() error {
 // registers the current client with the master server using the
 // provided RSA Public Key as well as Correlation Key.
 func (c *Client) generateRSAKeyPair() error {
-	khPriv, err := keyset.NewHandle(hybrid.ECIESHKDFAES128CTRHMACSHA256KeyTemplate())
+	// Generate a 2048-bit private-key
+	priv, err := rsa.GenerateKey(rand.Reader, 2048)
 	if err != nil {
-		return errors.Wrap(err, "could not generate encryption keyset")
+		return errors.Wrap(err, "could not generate rsa private key")
 	}
-	hd, err := hybrid.NewHybridDecrypt(khPriv)
-	if err != nil {
-		return errors.Wrap(err, "could not create new decrypter")
-	}
-	c.decrypter = hd
+	c.privKey = priv
+	pub := priv.Public()
 
-	khPub, err := khPriv.Public()
-	if err != nil {
-		return errors.Wrap(err, "could not get keyset public-key")
-	}
-
-	exportedPub := &keyset.MemReaderWriter{}
-	if err = insecurecleartextkeyset.Write(khPub, exportedPub); err != nil {
-		return errors.Wrap(err, "could not write keyset public key")
-	}
-	keyset, err := exportedPub.Read()
-	key, err := keyset.XXX_Marshal(nil, false)
+	pubkeyBytes, err := x509.MarshalPKIXPublicKey(pub)
 	if err != nil {
 		return errors.Wrap(err, "could not marshal public key")
 	}
+	pubkeyPem := pem.EncodeToMemory(&pem.Block{
+		Type:  "RSA PUBLIC KEY",
+		Bytes: pubkeyBytes,
+	})
+
+	var encoded []byte
+	base64.StdEncoding.Encode(encoded, pubkeyPem)
 
 	register := server.RegisterRequest{
-		PublicKey:     key,
+		PublicKey:     encoded,
 		SecretKey:     c.secretKey,
 		CorrelationID: c.correlationID,
 	}
@@ -246,4 +246,43 @@ func (c *Client) URL() string {
 	builder.WriteString(c.serverURL.Host)
 	URL := builder.String()
 	return URL
+}
+
+// decryptMessage decrypts an AES-256-RSA-OAEP encrypted message to string
+func (c *Client) decryptMessage(key string, secureMessage string) ([]byte, error) {
+	decodedKey, err := hex.DecodeString(key)
+	if err != nil {
+		return nil, err
+	}
+
+	// Decrypt the key plaintext first
+	keyPlaintext, err := rsa.DecryptOAEP(sha256.New(), rand.Reader, c.privKey, decodedKey, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	cipherText, err := base64.StdEncoding.DecodeString(secureMessage)
+	if err != nil {
+		return nil, err
+	}
+
+	block, err := aes.NewCipher(keyPlaintext)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(cipherText) < aes.BlockSize {
+		return nil, errors.New("ciphertext block size is too small")
+	}
+
+	// IV is at the start of the Ciphertext
+	iv := cipherText[:aes.BlockSize]
+	cipherText = cipherText[aes.BlockSize:]
+
+	// XORKeyStream can work in-place if the two arguments are the same.
+	stream := cipher.NewCFBDecrypter(block, iv)
+	var decoded []byte
+	stream.XORKeyStream(decoded, cipherText)
+
+	return decoded, nil
 }

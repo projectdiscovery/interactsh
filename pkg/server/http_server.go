@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/http/httputil"
-	"os"
 	"strings"
 
 	"github.com/gorilla/handlers"
@@ -19,19 +18,20 @@ import (
 // TLS and Non-TLS based servers.
 type HTTPServer struct {
 	options      *Options
+	domain       string
 	tlsserver    http.Server
 	nontlsserver http.Server
 }
 
 // NewHTTPServer returns a new TLS & Non-TLS HTTP server.
 func NewHTTPServer(options *Options) (*HTTPServer, error) {
-	server := &HTTPServer{options: options}
+	server := &HTTPServer{options: options, domain: strings.TrimSuffix(options.Domain, ".")}
 
 	router := &http.ServeMux{}
-	router.Handle("/", handlers.CombinedLoggingHandler(os.Stderr, server.logger(http.HandlerFunc(server.defaultHandler))))
-	router.Handle("/register", handlers.CombinedLoggingHandler(os.Stderr, http.HandlerFunc(server.registerHandler)))
-	router.Handle("/deregister", handlers.CombinedLoggingHandler(os.Stderr, http.HandlerFunc(server.deregisterHandler)))
-	router.Handle("/poll", handlers.CombinedLoggingHandler(os.Stderr, http.HandlerFunc(server.pollHandler)))
+	router.Handle("/", server.logger(http.HandlerFunc(server.defaultHandler)))
+	router.Handle("/register", http.HandlerFunc(server.registerHandler))
+	router.Handle("/deregister", http.HandlerFunc(server.deregisterHandler))
+	router.Handle("/poll", http.HandlerFunc(server.pollHandler))
 	server.tlsserver = http.Server{Addr: "0.0.0.0:443", Handler: handlers.CompressHandler(router)}
 	server.nontlsserver = http.Server{Addr: "0.0.0.0:80", Handler: handlers.CompressHandler(router)}
 	return server, nil
@@ -102,7 +102,7 @@ func (h *HTTPServer) logger(handler http.Handler) http.HandlerFunc {
 // defaultHandler is a handler for default collaborator requests
 func (h *HTTPServer) defaultHandler(w http.ResponseWriter, req *http.Request) {
 	reflection := URLReflection(req.Host)
-	w.Header().Set("Server", "interact.sh")
+	w.Header().Set("Server", h.domain)
 
 	if strings.EqualFold(req.URL.Path, "/robots.txt") {
 		fmt.Fprintf(w, "User-agent: *\nDisallow: / # %s", reflection)
@@ -140,7 +140,7 @@ func (h *HTTPServer) registerHandler(w http.ResponseWriter, req *http.Request) {
 		gologger.Warning().Msgf("Could not set id and public key for %s: %s\n", r.CorrelationID, err)
 		return
 	}
-	gologger.Info().Msgf("Registered correlationID %s for key\n", r.CorrelationID)
+	gologger.Debug().Msgf("Registered correlationID %s for key\n", r.CorrelationID)
 }
 
 // DeregisterRequest is a request for client deregistration to interactsh server.
@@ -162,12 +162,13 @@ func (h *HTTPServer) deregisterHandler(w http.ResponseWriter, req *http.Request)
 		gologger.Warning().Msgf("Could not remove id for %s: %s\n", r.CorrelationID, err)
 		return
 	}
-	gologger.Info().Msgf("Deregistered correlationID %s for key\n", r.CorrelationID)
+	gologger.Debug().Msgf("Deregistered correlationID %s for key\n", r.CorrelationID)
 }
 
 // PollResponse is the response for a polling request
 type PollResponse struct {
-	Data [][]byte `json:"data"`
+	Data   []string `json:"data"`
+	AESKey string   `json:"aes_key"`
 }
 
 // pollHandler is a handler for client poll requests
@@ -183,17 +184,17 @@ func (h *HTTPServer) pollHandler(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	data, err := h.options.Storage.GetInteractions(ID, secret)
+	data, aesKey, err := h.options.Storage.GetInteractions(ID, secret)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		gologger.Warning().Msgf("Could not get interactions for %s: %s\n", ID, err)
 		return
 	}
-	response := &PollResponse{Data: data}
+	response := &PollResponse{Data: data, AESKey: aesKey}
 	if err := jsoniter.NewEncoder(w).Encode(response); err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		gologger.Warning().Msgf("Could not encode interactions for %s: %s\n", ID, err)
 		return
 	}
-	gologger.Info().Msgf("Polled %d interactions for %s correlationID\n", len(data), ID)
+	gologger.Debug().Msgf("Polled %d interactions for %s correlationID\n", len(data), ID)
 }

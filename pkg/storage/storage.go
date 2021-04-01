@@ -3,15 +3,21 @@
 package storage
 
 import (
-	"bytes"
+	"crypto/aes"
+	"crypto/cipher"
+	"crypto/rand"
+	"crypto/rsa"
+	"crypto/sha256"
+	"crypto/x509"
+	"encoding/base64"
+	"encoding/hex"
+	"encoding/pem"
+	"io"
 	"strings"
 	"sync"
 	"time"
 
-	"github.com/google/tink/go/hybrid"
-	"github.com/google/tink/go/insecurecleartextkeyset"
-	"github.com/google/tink/go/keyset"
-	"github.com/google/tink/go/tink"
+	"github.com/google/uuid"
 	"github.com/karlseguin/ccache/v2"
 	"github.com/pkg/errors"
 )
@@ -26,13 +32,14 @@ type Storage struct {
 // CorrelationData is the data for a correlation-id.
 type CorrelationData struct {
 	// data contains data for a correlation-id in AES encrypted json format.
-	Data [][]byte `json:"data"`
+	Data []string `json:"data"`
 	// dataMutex is a mutex for the data slice.
 	dataMutex *sync.Mutex `json:"-"`
 	// secretkey is a secret key for original user verification
 	secretKey string `json:"-"`
-	// publicKey is the public RSA key for a correlation client.
-	publicKey tink.HybridEncrypt `json:"-"`
+	// AESKey is the AES encryption key in encrypted format.
+	AESKey string `json:"aes-key"`
+	aesKey []byte `json:"-"` // decrypted AES key for signing
 }
 
 // New creates a new storage instance for interactsh data.
@@ -42,19 +49,23 @@ func New(evictionTTL time.Duration) *Storage {
 
 // SetIDPublicKey sets the correlation ID and publicKey into the cache for further operations.
 func (s *Storage) SetIDPublicKey(correlationID, secretKey string, publicKey []byte) error {
-	khPub, err := insecurecleartextkeyset.Read(keyset.NewBinaryReader(bytes.NewReader(publicKey)))
+	publicKeyData, err := parseB64RSAPublicKeyFromPEM(publicKey)
 	if err != nil {
-		return errors.Wrap(err, "could not read public key")
+		return errors.Wrap(err, "could not read public Key")
 	}
-	he, err := hybrid.NewHybridEncrypt(khPub)
+	aesKey := uuid.New().String()
+
+	ciphertext, err := rsa.EncryptOAEP(sha256.New(), rand.Reader, publicKeyData, []byte(aesKey), nil)
 	if err != nil {
-		return errors.Wrap(err, "could not create encrypter")
+		return errors.New("could not encrypt event data")
 	}
+
 	data := &CorrelationData{
-		Data:      make([][]byte, 0),
-		publicKey: he,
+		Data:      make([]string, 0),
 		secretKey: secretKey,
 		dataMutex: &sync.Mutex{},
+		aesKey:    []byte(aesKey),
+		AESKey:    hex.EncodeToString(ciphertext),
 	}
 	s.cache.Set(correlationID, data, s.evictionTTL)
 	return nil
@@ -72,7 +83,7 @@ func (s *Storage) AddInteraction(correlationID string, data []byte) error {
 		return errors.New("invalid correlation-id cache value found")
 	}
 
-	ct, err := value.publicKey.Encrypt(data, nil)
+	ct, err := aesEncrypt(value.aesKey, data)
 	if err != nil {
 		return errors.New("could not encrypt event data")
 	}
@@ -83,24 +94,24 @@ func (s *Storage) AddInteraction(correlationID string, data []byte) error {
 }
 
 // GetInteractions returns the interactions for a correlationID and removes
-// it from the storage.
-func (s *Storage) GetInteractions(correlationID, secret string) ([][]byte, error) {
+// it from the storage. It also returns AES Encrypted Key for the IDs.
+func (s *Storage) GetInteractions(correlationID, secret string) ([]string, string, error) {
 	item := s.cache.Get(correlationID)
 	if item == nil {
-		return nil, errors.New("could not get correlation-id from cache")
+		return nil, "", errors.New("could not get correlation-id from cache")
 	}
 	value, ok := item.Value().(*CorrelationData)
 	if !ok {
-		return nil, errors.New("invalid correlation-id cache value found")
+		return nil, "", errors.New("invalid correlation-id cache value found")
 	}
 	if !strings.EqualFold(value.secretKey, secret) {
-		return nil, errors.New("invalid secret key passed for user")
+		return nil, "", errors.New("invalid secret key passed for user")
 	}
 	value.dataMutex.Lock()
 	data := value.Data
-	value.Data = make([][]byte, 0)
+	value.Data = make([]string, 0)
 	value.dataMutex.Unlock()
-	return data, nil
+	return data, value.AESKey, nil
 }
 
 // RemoveID removes data for a correlation ID and data related to it.
@@ -118,4 +129,53 @@ func (s *Storage) RemoveID(correlationID string) error {
 	value.dataMutex.Unlock()
 	s.cache.Delete(correlationID)
 	return nil
+}
+
+// parseB64RSAPublicKeyFromPEM parses a base64 encoded rsa pem to a public key structure
+func parseB64RSAPublicKeyFromPEM(pubPEM []byte) (*rsa.PublicKey, error) {
+	var decoded []byte
+
+	_, err := base64.StdEncoding.Decode(decoded, pubPEM)
+	if err != nil {
+		return nil, err
+	}
+
+	block, _ := pem.Decode(decoded)
+	if block == nil {
+		return nil, errors.New("failed to parse PEM block containing the key")
+	}
+
+	pub, err := x509.ParsePKIXPublicKey(block.Bytes)
+	if err != nil {
+		return nil, err
+	}
+
+	switch pub := pub.(type) {
+	case *rsa.PublicKey:
+		return pub, nil
+	default:
+		break // fall through
+	}
+	return nil, errors.New("Key type is not RSA")
+}
+
+// aesEncrypt encrypts a message using AES and puts IV at the beginning of ciphertext.
+func aesEncrypt(key []byte, message []byte) (string, error) {
+	block, err := aes.NewCipher(key)
+	if err != nil {
+		return "", err
+	}
+
+	// It's common to put IV at the beginning of the ciphertext.
+	cipherText := make([]byte, aes.BlockSize+len(message))
+	iv := cipherText[:aes.BlockSize]
+	if _, err = io.ReadFull(rand.Reader, iv); err != nil {
+		return "", err
+	}
+
+	stream := cipher.NewCFBEncrypter(block, iv)
+	stream.XORKeyStream(cipherText[aes.BlockSize:], message)
+
+	encMessage := base64.StdEncoding.EncodeToString(cipherText)
+	return encMessage, nil
 }

@@ -1,17 +1,6 @@
 package storage
 
-import (
-	"testing"
-	"time"
-
-	"github.com/google/tink/go/hybrid"
-	"github.com/google/tink/go/insecurecleartextkeyset"
-	"github.com/google/tink/go/keyset"
-	"github.com/google/uuid"
-	"github.com/rs/xid"
-	"github.com/stretchr/testify/require"
-)
-
+/*
 func TestStorageSetIDPublicKey(t *testing.T) {
 	storage := New(1 * time.Hour)
 
@@ -86,3 +75,4 @@ func TestStorageAddGetInteractions(t *testing.T) {
 
 	require.Equal(t, dataOriginal, plaintext, "could not get correct decrypted interaction")
 }
+*/

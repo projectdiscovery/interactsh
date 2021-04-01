@@ -16,7 +16,7 @@ var (
 	serverURL    = flag.String("url", "https://interact.sh", "URL of the interactsh server")
 	n            = flag.Int("n", 1, "Number of interactable URLs to generate")
 	pollInterval = flag.Int("poll-interval", 5, "Number of seconds between each poll request")
-	persistent   = flag.Bool("persistent", false, "Enables persistent interactsh sessions")
+	persistent   = flag.Bool("persist", false, "Enables persistent interactsh sessions")
 )
 
 func main() {
