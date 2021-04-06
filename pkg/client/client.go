@@ -11,7 +11,6 @@ import (
 	"encoding/base64"
 	"encoding/binary"
 	"encoding/pem"
-	"fmt"
 	"io"
 	"io/ioutil"
 	"net/url"
@@ -123,7 +122,6 @@ func (c *Client) getInteractions(callback InteractionCallback) {
 		gologger.Error().Msgf("Could not decode interactions: %v\n", err)
 		return
 	}
-	fmt.Printf("poll: %v\n", response)
 
 	for _, data := range response.Data {
 		plaintext, err := c.decryptMessage(response.AESKey, data)
