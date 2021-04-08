@@ -11,6 +11,7 @@ import (
 
 	jsoniter "github.com/json-iterator/go"
 	"github.com/projectdiscovery/gologger"
+	"github.com/projectdiscovery/gologger/levels"
 )
 
 // HTTPServer is a http server instance that listens both
@@ -24,6 +25,8 @@ type HTTPServer struct {
 
 // NewHTTPServer returns a new TLS & Non-TLS HTTP server.
 func NewHTTPServer(options *Options) (*HTTPServer, error) {
+	gologger.DefaultLogger.SetMaxLevel(levels.LevelDebug)
+
 	server := &HTTPServer{options: options, domain: strings.TrimSuffix(options.Domain, ".")}
 
 	router := &http.ServeMux{}
