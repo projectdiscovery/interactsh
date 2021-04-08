@@ -9,7 +9,6 @@ import (
 	"net/http/httputil"
 	"strings"
 
-	"github.com/gorilla/handlers"
 	jsoniter "github.com/json-iterator/go"
 	"github.com/projectdiscovery/gologger"
 )
@@ -33,8 +32,8 @@ func NewHTTPServer(options *Options) (*HTTPServer, error) {
 	router.Handle("/deregister", http.HandlerFunc(server.deregisterHandler))
 	router.Handle("/poll", http.HandlerFunc(server.pollHandler))
 
-	server.tlsserver = http.Server{Addr: "0.0.0.0:443", Handler: handlers.CompressHandler(router)}
-	server.nontlsserver = http.Server{Addr: "0.0.0.0:80", Handler: handlers.CompressHandler(router)}
+	server.tlsserver = http.Server{Addr: "0.0.0.0:443", Handler: router}
+	server.nontlsserver = http.Server{Addr: "0.0.0.0:80", Handler: router}
 	return server, nil
 }
 
