@@ -130,7 +130,7 @@ type RegisterRequest struct {
 
 // registerHandler is a handler for client register requests
 func (h *HTTPServer) registerHandler(w http.ResponseWriter, req *http.Request) {
-	w.Header().Set("Access-Control-Allow-Origin", "*")
+	CORSEnabledFunction(w, req)
 
 	r := &RegisterRequest{}
 	if err := jsoniter.NewDecoder(req.Body).Decode(r); err != nil {
@@ -154,7 +154,7 @@ type DeregisterRequest struct {
 
 // deregisterHandler is a handler for client deregister requests
 func (h *HTTPServer) deregisterHandler(w http.ResponseWriter, req *http.Request) {
-	w.Header().Set("Access-Control-Allow-Origin", "*")
+	CORSEnabledFunction(w, req)
 
 	r := &DeregisterRequest{}
 	if err := jsoniter.NewDecoder(req.Body).Decode(r); err != nil {
@@ -178,7 +178,7 @@ type PollResponse struct {
 
 // pollHandler is a handler for client poll requests
 func (h *HTTPServer) pollHandler(w http.ResponseWriter, req *http.Request) {
-	w.Header().Set("Access-Control-Allow-Origin", "*")
+	CORSEnabledFunction(w, req)
 
 	ID := req.URL.Query().Get("id")
 	if ID == "" {
@@ -204,4 +204,18 @@ func (h *HTTPServer) pollHandler(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 	gologger.Debug().Msgf("Polled %d interactions for %s correlationID\n", len(data), ID)
+}
+
+// CORSEnabledFunction is an example of setting CORS headers.
+// For more information about CORS and CORS preflight requests, see
+// https://developer.mozilla.org/en-US/docs/Glossary/Preflight_request.
+// Taken from https://github.com/GoogleCloudPlatform/golang-samples/blob/master/functions/http/cors.go
+func CORSEnabledFunction(w http.ResponseWriter, r *http.Request) {
+	// Set CORS headers for the preflight request
+	if r.Method == http.MethodOptions {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
+	w.Header().Set("Access-Control-Allow-Origin", "*")
 }

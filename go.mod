@@ -14,7 +14,7 @@ require (
 	github.com/projectdiscovery/retryablehttp-go v1.0.1
 	github.com/prologic/smtpd v0.0.0-20210126001904-0893ad18168e
 	github.com/rs/xid v1.2.1
-	github.com/stretchr/testify v1.7.0 // indirect
+	github.com/stretchr/testify v1.7.0
 	golang.org/x/crypto v0.0.0-20201002170205-7f63de1d35b0 // indirect
 	golang.org/x/net v0.0.0-20200822124328-c89045814202 // indirect
 	golang.org/x/sync v0.0.0-20200625203802-6e8e738ad208 // indirect
