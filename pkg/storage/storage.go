@@ -47,7 +47,7 @@ func New(evictionTTL time.Duration) *Storage {
 }
 
 // SetIDPublicKey sets the correlation ID and publicKey into the cache for further operations.
-func (s *Storage) SetIDPublicKey(correlationID, secretKey string, publicKey []byte) error {
+func (s *Storage) SetIDPublicKey(correlationID, secretKey string, publicKey string) error {
 	publicKeyData, err := parseB64RSAPublicKeyFromPEM(publicKey)
 	if err != nil {
 		return errors.Wrap(err, "could not read public Key")
@@ -131,8 +131,8 @@ func (s *Storage) RemoveID(correlationID string) error {
 }
 
 // parseB64RSAPublicKeyFromPEM parses a base64 encoded rsa pem to a public key structure
-func parseB64RSAPublicKeyFromPEM(pubPEM []byte) (*rsa.PublicKey, error) {
-	decoded, err := base64.StdEncoding.DecodeString(string(pubPEM))
+func parseB64RSAPublicKeyFromPEM(pubPEM string) (*rsa.PublicKey, error) {
+	decoded, err := base64.StdEncoding.DecodeString(pubPEM)
 	if err != nil {
 		return nil, err
 	}

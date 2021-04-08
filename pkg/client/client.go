@@ -201,7 +201,7 @@ func (c *Client) generateRSAKeyPair() error {
 
 	encoded := base64.StdEncoding.EncodeToString(pubkeyPem)
 	register := server.RegisterRequest{
-		PublicKey:     []byte(encoded),
+		PublicKey:     encoded,
 		SecretKey:     c.secretKey,
 		CorrelationID: c.correlationID,
 	}
