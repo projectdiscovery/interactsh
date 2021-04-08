@@ -32,6 +32,7 @@ func NewHTTPServer(options *Options) (*HTTPServer, error) {
 	router.Handle("/register", http.HandlerFunc(server.registerHandler))
 	router.Handle("/deregister", http.HandlerFunc(server.deregisterHandler))
 	router.Handle("/poll", http.HandlerFunc(server.pollHandler))
+
 	server.tlsserver = http.Server{Addr: "0.0.0.0:443", Handler: handlers.CompressHandler(router)}
 	server.nontlsserver = http.Server{Addr: "0.0.0.0:80", Handler: handlers.CompressHandler(router)}
 	return server, nil
@@ -129,6 +130,8 @@ type RegisterRequest struct {
 
 // registerHandler is a handler for client register requests
 func (h *HTTPServer) registerHandler(w http.ResponseWriter, req *http.Request) {
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+
 	r := &RegisterRequest{}
 	if err := jsoniter.NewDecoder(req.Body).Decode(r); err != nil {
 		w.WriteHeader(http.StatusBadRequest)
@@ -151,6 +154,8 @@ type DeregisterRequest struct {
 
 // deregisterHandler is a handler for client deregister requests
 func (h *HTTPServer) deregisterHandler(w http.ResponseWriter, req *http.Request) {
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+
 	r := &DeregisterRequest{}
 	if err := jsoniter.NewDecoder(req.Body).Decode(r); err != nil {
 		w.WriteHeader(http.StatusBadRequest)
@@ -173,6 +178,8 @@ type PollResponse struct {
 
 // pollHandler is a handler for client poll requests
 func (h *HTTPServer) pollHandler(w http.ResponseWriter, req *http.Request) {
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+
 	ID := req.URL.Query().Get("id")
 	if ID == "" {
 		w.WriteHeader(http.StatusBadRequest)
