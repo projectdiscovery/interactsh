@@ -213,9 +213,11 @@ func (h *HTTPServer) pollHandler(w http.ResponseWriter, req *http.Request) {
 func CORSEnabledFunction(w http.ResponseWriter, r *http.Request) {
 	// Set CORS headers for the preflight request
 	if r.Method == http.MethodOptions {
-		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Origin", "http://localhost:8090")
+		w.Header().Set("Access-Control-Allow-Credentials", "true")
 		w.WriteHeader(http.StatusNoContent)
 		return
 	}
-	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Access-Control-Allow-Origin", "http://localhost:8090")
+	w.Header().Set("Access-Control-Allow-Credentials", "true")
 }
