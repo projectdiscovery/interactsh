@@ -2,6 +2,7 @@ package server
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"net"
 	"net/http"
@@ -10,6 +11,7 @@ import (
 	"strings"
 
 	jsoniter "github.com/json-iterator/go"
+	"github.com/pkg/errors"
 	"github.com/projectdiscovery/gologger"
 	"github.com/projectdiscovery/gologger/levels"
 )
@@ -138,11 +140,13 @@ func (h *HTTPServer) registerHandler(w http.ResponseWriter, req *http.Request) {
 	if err := jsoniter.NewDecoder(req.Body).Decode(r); err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		gologger.Warning().Msgf("Could not decode json body: %s\n", err)
+		jsonError(w, errors.Wrap(err, "could not decode json body"), http.StatusBadRequest)
 		return
 	}
 	if err := h.options.Storage.SetIDPublicKey(r.CorrelationID, r.SecretKey, r.PublicKey); err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		gologger.Warning().Msgf("Could not set id and public key for %s: %s\n", r.CorrelationID, err)
+		jsonError(w, errors.Wrap(err, "could not set id and public key"), http.StatusBadRequest)
 		return
 	}
 	gologger.Debug().Msgf("Registered correlationID %s for key\n", r.CorrelationID)
@@ -162,11 +166,13 @@ func (h *HTTPServer) deregisterHandler(w http.ResponseWriter, req *http.Request)
 	if err := jsoniter.NewDecoder(req.Body).Decode(r); err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		gologger.Warning().Msgf("Could not decode json body: %s\n", err)
+		jsonError(w, errors.Wrap(err, "could not decode json body"), http.StatusBadRequest)
 		return
 	}
 	if err := h.options.Storage.RemoveID(r.CorrelationID); err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		gologger.Warning().Msgf("Could not remove id for %s: %s\n", r.CorrelationID, err)
+		jsonError(w, errors.Wrap(err, "could not remove id"), http.StatusBadRequest)
 		return
 	}
 	gologger.Debug().Msgf("Deregistered correlationID %s for key\n", r.CorrelationID)
@@ -184,12 +190,12 @@ func (h *HTTPServer) pollHandler(w http.ResponseWriter, req *http.Request) {
 
 	ID := req.URL.Query().Get("id")
 	if ID == "" {
-		w.WriteHeader(http.StatusBadRequest)
+		jsonError(w, errors.New("no id specified for poll"), http.StatusBadRequest)
 		return
 	}
 	secret := req.URL.Query().Get("secret")
 	if secret == "" {
-		w.WriteHeader(http.StatusBadRequest)
+		jsonError(w, errors.New("no secret specified for poll"), http.StatusBadRequest)
 		return
 	}
 
@@ -197,12 +203,14 @@ func (h *HTTPServer) pollHandler(w http.ResponseWriter, req *http.Request) {
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		gologger.Warning().Msgf("Could not get interactions for %s: %s\n", ID, err)
+		jsonError(w, errors.Wrap(err, "could not get interactions"), http.StatusBadRequest)
 		return
 	}
 	response := &PollResponse{Data: data, AESKey: aesKey}
 	if err := jsoniter.NewEncoder(w).Encode(response); err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		gologger.Warning().Msgf("Could not encode interactions for %s: %s\n", ID, err)
+		jsonError(w, errors.Wrap(err, "could not encode interactions"), http.StatusBadRequest)
 		return
 	}
 	gologger.Debug().Msgf("Polled %d interactions for %s correlationID\n", len(data), ID)
@@ -224,4 +232,11 @@ func CORSEnabledFunction(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Access-Control-Allow-Origin", "http://localhost:8090")
 	w.Header().Set("Access-Control-Allow-Credentials", "true")
 	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+}
+
+func jsonError(w http.ResponseWriter, err interface{}, code int) {
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.Header().Set("X-Content-Type-Options", "nosniff")
+	w.WriteHeader(code)
+	json.NewEncoder(w).Encode(err)
 }
