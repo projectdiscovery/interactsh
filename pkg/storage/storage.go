@@ -54,7 +54,7 @@ func (s *Storage) SetIDPublicKey(correlationID, secretKey string, publicKey stri
 	}
 	aesKey := uuid.New().String()[:32]
 
-	ciphertext, err := rsa.EncryptOAEP(sha256.New(), rand.Reader, publicKeyData, []byte(aesKey), nil)
+	ciphertext, err := rsa.EncryptOAEP(sha256.New(), rand.Reader, publicKeyData, []byte(aesKey), []byte(""))
 	if err != nil {
 		return errors.New("could not encrypt event data")
 	}

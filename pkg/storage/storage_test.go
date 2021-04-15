@@ -9,6 +9,7 @@ import (
 	"crypto/x509"
 	"encoding/base64"
 	"encoding/pem"
+	"fmt"
 	"testing"
 	"time"
 
@@ -71,6 +72,10 @@ func TestStorageAddGetInteractions(t *testing.T) {
 		Bytes: pubkeyBytes,
 	})
 
+	ciphertext, err := rsa.EncryptOAEP(sha256.New(), rand.Reader, &priv.PublicKey, []byte("this is a test"), []byte(""))
+	require.Nil(t, err, "could not marshal public key")
+
+	fmt.Printf("%s\n", base64.StdEncoding.EncodeToString(ciphertext))
 	encoded := base64.StdEncoding.EncodeToString(pubkeyPem)
 
 	err = storage.SetIDPublicKey(correlationID, secret, encoded)
