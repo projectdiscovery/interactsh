@@ -2,6 +2,7 @@ package server
 
 import (
 	"strings"
+	"time"
 
 	"github.com/projectdiscovery/interactsh/pkg/storage"
 )
@@ -22,6 +23,8 @@ type Interaction struct {
 	SMTPFrom string `json:"smtp-from,omitempty"`
 	// RemoteAddress is the remote address for interaction
 	RemoteAddress string `json:"remote-address"`
+	// Timestamp is the timestamp for the interaction
+	Timestamp time.Time `json:"timestamp"`
 }
 
 // Options contains configuration options for the servers

@@ -9,6 +9,7 @@ import (
 	"net/http/httptest"
 	"net/http/httputil"
 	"strings"
+	"time"
 
 	jsoniter "github.com/json-iterator/go"
 	"github.com/pkg/errors"
@@ -90,6 +91,7 @@ func (h *HTTPServer) logger(handler http.Handler) http.HandlerFunc {
 				RawRequest:    string(req),
 				RawResponse:   string(resp),
 				RemoteAddress: host,
+				Timestamp:     time.Now(),
 			}
 			buffer := &bytes.Buffer{}
 			if err := jsoniter.NewEncoder(buffer).Encode(interaction); err != nil {

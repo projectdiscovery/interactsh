@@ -72,7 +72,28 @@ func TestStorageAddGetInteractions(t *testing.T) {
 		Bytes: pubkeyBytes,
 	})
 
-	ciphertext, err := rsa.EncryptOAEP(sha256.New(), rand.Reader, &priv.PublicKey, []byte("this is a test"), []byte(""))
+	// Decode and get the first block in the PEM file.
+	// In our case it should be the Public key block.
+	pemBlock, _ := pem.Decode([]byte(`-----BEGIN PUBLIC KEY-----
+MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAnX9FrceoIYvZn2rpOQXK
+zM6VVCURKVKuKaZEUST2hQD3S2TLQL7QrAZe2U4ME4oGqU6z0m0uLgOrCmQ7uwWC
+3x3wPMQPZE717T0SlGyp/FKs4AK+Wh2UQHGEnvXwdulTN1XgsVLSg+bwNlE0u7Nj
+7zyb+XNeryzuM73xC6YEC7V1Md6fvmL6yk9QK8iLEWf9aXpU1ErTAd5TIKJ05XQ6
+WdUYTfZI5vPhUur9raTJVGeWgphGN7LPHmCLbx/vu3iS8UoZ9U4l6/7NeskVXxyT
+RXlCsV8ZYZce6TF51p+g+47HewoKpV1xFoqPMQPJK3uDEjr8mkLIs4RPXfMp75mh
+9wIDAQAB
+-----END PUBLIC KEY-----`))
+	require.Nil(t, err, "could not marshal public key")
+
+	// Convert to rsa
+	rsaPubKey, err := x509.ParsePKIXPublicKey(pemBlock.Bytes)
+	require.Nil(t, err, "could not marshal public key")
+
+	// Confirm we got an rsa public key. Returned value is an interface{}
+	sshKey, _ := rsaPubKey.(*rsa.PublicKey)
+	require.Nil(t, err, "could not marshal public key")
+
+	ciphertext, err := rsa.EncryptOAEP(sha256.New(), rand.Reader, sshKey, []byte("this is a test"), []byte(""))
 	require.Nil(t, err, "could not marshal public key")
 
 	fmt.Printf("%s\n", base64.StdEncoding.EncodeToString(ciphertext))

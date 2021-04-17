@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"net"
 	"strings"
+	"time"
 
 	jsoniter "github.com/json-iterator/go"
 	"github.com/miekg/dns"
@@ -97,6 +98,7 @@ func (h *DNSServer) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 			RawRequest:    r.String(),
 			RawResponse:   m.String(),
 			RemoteAddress: host,
+			Timestamp:     time.Now(),
 		}
 		buffer := &bytes.Buffer{}
 		if err := jsoniter.NewEncoder(buffer).Encode(interaction); err != nil {

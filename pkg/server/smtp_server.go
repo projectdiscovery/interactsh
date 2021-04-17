@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"net"
 	"strings"
+	"time"
 
 	jsoniter "github.com/json-iterator/go"
 	"github.com/projectdiscovery/gologger"
@@ -93,6 +94,7 @@ func (h *SMTPServer) defaultHandler(remoteAddr net.Addr, from string, to []strin
 			RawRequest:    string(data),
 			SMTPFrom:      from,
 			RemoteAddress: host,
+			Timestamp:     time.Now(),
 		}
 		buffer := &bytes.Buffer{}
 		if err := jsoniter.NewEncoder(buffer).Encode(interaction); err != nil {
