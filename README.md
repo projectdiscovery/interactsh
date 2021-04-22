@@ -1,12 +1,76 @@
-# Interactsh
+<h1 align="center">Interactsh</h1>
+<h4 align="center">An OOB interaction gathering server and client library</h4>
 
-Interactsh is an Open-Source solution of Out of band Data Extraction tool designed to detect bugs that cause external interactions, For example - Blind SQLi, Blind CMDi, SSRF, etc.
+
+<p align="center">
+<a href="https://opensource.org/licenses/MIT"><img src="https://img.shields.io/badge/license-MIT-_red.svg"></a>
+<a href="https://github.com/projectdiscovery/interactsh/issues"><img src="https://img.shields.io/badge/contributions-welcome-brightgreen.svg?style=flat"></a>
+<a href="https://goreportcard.com/badge/github.com/projectdiscovery/interactsh"><img src="https://goreportcard.com/badge/github.com/projectdiscovery/interactsh"></a>
+<a href="https://twitter.com/pdiscoveryio"><img src="https://img.shields.io/twitter/follow/pdiscoveryio.svg?logo=twitter"></a>
+<a href="https://discord.gg/projectdiscovery"><img src="https://img.shields.io/discord/695645237418131507.svg?logo=discord"></a>
+</p>
+
+<p align="center">
+  <a href="#features">Features</a> •
+  <a href="#installing-interactsh-client">Installation</a> •
+  <a href="#usage">Usage</a> •
+  <a href="#running-interactsh-client">Run Interactsh</a> •
+  <a href="https://discord.gg/projectdiscovery">Join Discord</a>
+</p>
+
+---
+
+Interactsh is an Open-Source solution for Out of band Data Extraction, A tool designed to detect bugs that cause external interactions, For example - Blind SQLi, Blind CMDi, SSRF, etc.
+
+
+# Features
+
+- DNS/HTTP/SMTP Interaction support
+- Self-hosted version support
+- Secure Cryptography implementation with zero logging
+- CLI client for query
+- Ready to use hosted version support
 
 A hosted instance of the service is available at https://interact.sh.
 
+# Installing Interactsh Client
+
+Interactsh Client requires **go1.15+** to install successfully. Run the following command to get the repo - 
+
+```sh
+▶ GO111MODULE=on go get -v github.com/projectdiscovery/interactsh/cmd/interactsh-client
+```
+
+As default Interactsh Client make use of cloud hosted instance https://interact.sh, self-hosted instance can be used by passing self-hosted URL using `-url` flag.
+
+# Usage
+
+```sh
+interactsh-client -h
+```
+
+This will display help for the tool. Here are all the switches it supports.
+
+| Flag          | Description                                                  | Example                                    |
+| ------------- | ------------------------------------------------------------ | ------------------------------------------ |
+| n             | Number of interactable URLs to generate (default 1)          | interactsh-client -n 10                    |
+| persistent    | Enables persistent interactsh sessions                       | interactsh-client persistent               |
+| poll-interval | Number of seconds between each poll request (default 5)      | interactsh-client -poll-interval 1         |
+| url           | URL of the interactsh server (default "hxxps://interact.sh") | interactsh-client -url hxxps://example.com |
+
+### Running Interactsh Client
+
+This will generate single URL that can be used for interaction.
+
+```sh
+▶ interactsh-client
+[INF] Listing 1 URLs
+c20isc20kl1sha8n70e0cny1hceyyyyyn.interact.sh
+```
+### Installation instructions for self-hosted version of interactsh
 
 <details>
-<summary>Installation instructions for self-hosted version of interactsh</summary>
+<summary>Click here for details</summary>
 <br>
 
 1. We will be using [lego](https://github.com/go-acme/lego), Let's Encrypt client and ACME library for setting up **wildcard certificate** and [GoDaddy](https://godaddy.com) domain provider.
