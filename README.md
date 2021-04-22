@@ -1,10 +1,13 @@
 # Interactsh
 
-Interact.sh is an Open-Source OOB Data Extraction tool designed to detect bugs that cause external interactions, For example - Blind SQLi, Blind CMDi, SSRF, etc.
+Interactsh is an Open-Source solution of Out of band Data Extraction tool designed to detect bugs that cause external interactions, For example - Blind SQLi, Blind CMDi, SSRF, etc.
 
 A hosted instance of the service is available at https://interact.sh.
 
-### Installation instruction for self-hosting interactsh client / server
+
+<details>
+<summary>Installation instructions for self-hosted version of interactsh</summary>
+<br>
 
 1. We will be using [lego](https://github.com/go-acme/lego), Let's Encrypt client and ACME library for setting up **wildcard certificate** and [GoDaddy](https://godaddy.com) domain provider.
 
@@ -55,4 +58,6 @@ GO111MODULE=on go get -v github.com/projectdiscovery/interactsh/cmd/interactsh-c
 ```
 interactsh-client -url https://{{your_domain}}
 ```
+
+</details>
 
