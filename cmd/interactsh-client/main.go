@@ -2,13 +2,13 @@ package main
 
 import (
 	"bytes"
+	jsonpkg "encoding/json"
 	"flag"
 	"fmt"
 	"os"
 	"os/signal"
 	"time"
 
-	jsoniter "github.com/json-iterator/go"
 	"github.com/projectdiscovery/gologger"
 	"github.com/projectdiscovery/interactsh/pkg/client"
 	"github.com/projectdiscovery/interactsh/pkg/server"
@@ -25,10 +25,11 @@ var (
 )
 
 const banner = `
-   _      __                   __      __ 
-  (_)__  / /____ _______ _____/ /____ / / 
- / / _ \/ __/ -_) __/  _ / __/ __(_-</ _ \
-/_/_//_/\__/\__/_/  \_,_/\__/\__/___/_//_/  v0.0.1
+    _       __                       __       __  
+   (_)___  / /____  _________ ______/ /______/ /_ 
+  / / __ \/ __/ _ \/ ___/ __ '/ ___/ __/ ___/ __ \
+ / / / / / /_/  __/ /  / /_/ / /__/ /_(__  ) / / /
+/_/_/ /_/\__/\___/_/   \__,_/\___/\__/____/_/ /_/ v0.0.1
 `
 
 const Version = `0.0.1`
@@ -94,14 +95,16 @@ func main() {
 			}
 			gologger.Silent().Msgf("%s", builder.String())
 		} else {
-			b, err := jsoniter.MarshalIndent(interaction, "", "\t")
+			b, err := jsonpkg.MarshalIndent(interaction, "", "\t")
 			if err != nil {
 				gologger.Error().Msgf("Could not marshal json output: %s\n", err)
 			} else {
 				os.Stdout.Write(b)
+				os.Stdout.Write([]byte("\n"))
 			}
 			if outputFile != nil {
 				outputFile.Write(b)
+				outputFile.Write([]byte("\n"))
 			}
 		}
 	})
