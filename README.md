@@ -53,10 +53,14 @@ This will display help for the tool. Here are all the switches it supports.
 
 | Flag          | Description                                                  | Example                                    |
 | ------------- | ------------------------------------------------------------ | ------------------------------------------ |
-| n             | Number of interactable URLs to generate (default 1)          | interactsh-client -n 10                    |
+| n             | Number of interactable URLs to generate (default 1)          | interactsh-client -n 2                    	|
 | persistent    | Enables persistent interactsh sessions                       | interactsh-client persistent               |
 | poll-interval | Number of seconds between each poll request (default 5)      | interactsh-client -poll-interval 1         |
 | url           | URL of the interactsh server (default "hxxps://interact.sh") | interactsh-client -url hxxps://example.com |
+| json          | Show JSON output                                             | interactsh-client -json                    |
+| o             | Store interaction logs to file                               | interactsh-client -o logs.txt              |
+| v             | Show verbose interaction                                     | interactsh-client -v                       |
+
 
 ### Running Interactsh Client
 
