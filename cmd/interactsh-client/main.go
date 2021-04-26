@@ -24,8 +24,27 @@ var (
 	persistent   = flag.Bool("persist", false, "Enables persistent interactsh sessions")
 )
 
+const banner = `
+   _      __                   __      __ 
+  (_)__  / /____ _______ _____/ /____ / / 
+ / / _ \/ __/ -_) __/  _ / __/ __(_-</ _ \
+/_/_//_/\__/\__/_/  \_,_/\__/\__/___/_//_/  v0.0.1
+`
+
+const Version = `0.0.1`
+
+func showBanner() {
+	gologger.Print().Msgf("%s\n", banner)
+	gologger.Print().Msgf("\t\tprojectdiscovery.io\n\n")
+
+	gologger.Warning().Msgf("Use with caution. You are responsible for your actions\n")
+	gologger.Warning().Msgf("Developers assume no liability and are not responsible for any misuse or damage.\n")
+}
+
 func main() {
 	flag.Parse()
+
+	showBanner()
 
 	var outputFile *os.File
 	var err error
