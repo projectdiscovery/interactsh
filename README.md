@@ -31,7 +31,7 @@ Interactsh is an Open-Source solution for Out of band Data Extraction, A tool de
 - AES encryption with zero logging
 - SELF Hosting support
 
-A hosted instance of the service is available at https://interact.sh
+A hosted instance of the service with WEB UI is available at https://interact.sh
 
 
 
