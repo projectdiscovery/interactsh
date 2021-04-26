@@ -1,12 +1,14 @@
 package main
 
 import (
+	"bytes"
 	"flag"
+	"fmt"
 	"os"
 	"os/signal"
-	"strings"
 	"time"
 
+	jsoniter "github.com/json-iterator/go"
 	"github.com/projectdiscovery/gologger"
 	"github.com/projectdiscovery/interactsh/pkg/client"
 	"github.com/projectdiscovery/interactsh/pkg/server"
@@ -15,12 +17,24 @@ import (
 var (
 	serverURL    = flag.String("url", "https://interact.sh", "URL of the interactsh server")
 	n            = flag.Int("n", 1, "Number of interactable URLs to generate")
+	output       = flag.String("o", "", "File to write output to")
+	json         = flag.Bool("json", false, "Show JSON output")
+	verbose      = flag.Bool("v", false, "Show verbose output")
 	pollInterval = flag.Int("poll-interval", 5, "Number of seconds between each poll request")
 	persistent   = flag.Bool("persist", false, "Enables persistent interactsh sessions")
 )
 
 func main() {
 	flag.Parse()
+
+	var outputFile *os.File
+	var err error
+	if *output != "" {
+		if outputFile, err = os.Create(*output); err != nil {
+			gologger.Fatal().Msgf("Could not create output file: %s\n", err)
+		}
+		defer outputFile.Close()
+	}
 
 	client, err := client.New(&client.Options{
 		ServerURL:         *serverURL,
@@ -36,18 +50,41 @@ func main() {
 	}
 
 	client.StartPolling(time.Duration(*pollInterval)*time.Second, func(interaction *server.Interaction) {
-		gologger.Silent().Msgf(
-			"[%s] %s interaction from %s",
-			interaction.UniqueID, strings.ToUpper(interaction.Protocol), interaction.RemoteAddress,
-		)
-		if interaction.QType != "" {
-			gologger.Silent().Msgf("DNS Request Type: %s", interaction.QType)
+		if !*json {
+			builder := &bytes.Buffer{}
+
+			switch interaction.Protocol {
+			case "dns":
+				builder.WriteString(fmt.Sprintf("[%s] Recieved DNS interaction (%s) from %s at %s", interaction.UniqueID, interaction.QType, interaction.RemoteAddress, interaction.Timestamp.Format("2006-02-02 15:04")))
+				if *verbose {
+					builder.WriteString(fmt.Sprintf("\n-----------\nDNS Request\n-----------\n\n%s\n\n------------\nDNS Response\n------------\n\n%s\n\n", interaction.RawRequest, interaction.RawResponse))
+				}
+			case "http":
+				builder.WriteString(fmt.Sprintf("[%s] Recieved HTTP interaction from %s at %s", interaction.UniqueID, interaction.RemoteAddress, interaction.Timestamp.Format("2006-02-02 15:04")))
+				if *verbose {
+					builder.WriteString(fmt.Sprintf("\n------------\nHTTP Request\n------------\n\n%s\n\n-------------\nHTTP Response\n-------------\n\n%s\n\n", interaction.RawRequest, interaction.RawResponse))
+				}
+			case "smtp":
+				builder.WriteString(fmt.Sprintf("[%s] Recieved SMTP interaction from %s at %s", interaction.UniqueID, interaction.RemoteAddress, interaction.Timestamp.Format("2006-02-02 15:04")))
+				if *verbose {
+					builder.WriteString(fmt.Sprintf("\n------------\nSMTP Interaction\n------------\n\n%s\n\n", interaction.RawRequest))
+				}
+			}
+			if outputFile != nil {
+				outputFile.Write(builder.Bytes())
+			}
+			gologger.Silent().Msgf("%s", builder.String())
+		} else {
+			b, err := jsoniter.MarshalIndent(interaction, "", "\t")
+			if err != nil {
+				gologger.Error().Msgf("Could not marshal json output: %s\n", err)
+			} else {
+				os.Stdout.Write(b)
+			}
+			if outputFile != nil {
+				outputFile.Write(b)
+			}
 		}
-		if interaction.SMTPFrom != "" {
-			gologger.Silent().Msgf("SMTP Request From: %s", interaction.SMTPFrom)
-		}
-		gologger.Silent().Msgf("\nRequest:\n%s\n", interaction.RawRequest)
-		gologger.Silent().Msgf("\nResponse:\n%s\n", interaction.RawResponse)
 	})
 
 	c := make(chan os.Signal, 1)

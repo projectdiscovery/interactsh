@@ -4,7 +4,6 @@ go 1.15
 
 require (
 	github.com/google/uuid v1.2.0
-	github.com/gorilla/handlers v1.5.1
 	github.com/json-iterator/go v1.1.10
 	github.com/karlseguin/ccache/v2 v2.0.7
 	github.com/kr/pretty v0.1.0 // indirect
