@@ -68,8 +68,24 @@ This will generate single URL that can be used for interaction.
 
 ```sh
 ▶ interactsh-client
+
+    _       __                       __       __  
+   (_)___  / /____  _________ ______/ /______/ /_ 
+  / / __ \/ __/ _ \/ ___/ __ '/ ___/ __/ ___/ __ \
+ / / / / / /_/  __/ /  / /_/ / /__/ /_(__  ) / / /
+/_/_/ /_/\__/\___/_/   \__,_/\___/\__/____/_/ /_/ v0.0.1
+
+		projectdiscovery.io
+
 [INF] Listing 1 URLs
-c20isc20kl1sha8n70e0cny1hceyyyyyn.interact.sh
+c23b2la0kl1krjcrdj10cndmnioyyyyyn.interact.sh
+
+[c23b2la0kl1krjcrdj10cndmnioyyyyyn] Recieved DNS interaction (A) from 172.253.226.100 at 2021-26-26 12:26
+[c23b2la0kl1krjcrdj10cndmnioyyyyyn] Recieved DNS interaction (AAAA) from 32.3.34.129 at 2021-26-26 12:26
+[c23b2la0kl1krjcrdj10cndmnioyyyyyn] Recieved HTTP interaction from 43.22.22.50 at 2021-26-26 12:26
+[c23b2la0kl1krjcrdj10cndmnioyyyyyn] Recieved DNS interaction (MX) from 43.3.192.3 at 2021-26-26 12:26
+[c23b2la0kl1krjcrdj10cndmnioyyyyyn] Recieved DNS interaction (TXT) from 74.32.183.135 at 2021-26-26 12:26
+[c23b2la0kl1krjcrdj10cndmnioyyyyyn] Recieved SMTP interaction from 32.85.166.50 at 2021-26-26 12:26
 ```
 ### Installation instructions for self-hosted version of interactsh
 
