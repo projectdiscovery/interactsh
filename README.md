@@ -15,6 +15,7 @@
   <a href="#installing-interactsh-client">Installation</a> •
   <a href="#usage">Usage</a> •
   <a href="#running-interactsh-client">Run Interactsh</a> •
+  <a href="#setting-up-self-hosted-instance">Self-Hosting</a> •
   <a href="https://discord.gg/projectdiscovery">Join Discord</a>
 </p>
 
@@ -26,12 +27,13 @@ Interactsh is an Open-Source solution for Out of band Data Extraction, A tool de
 # Features
 
 - DNS/HTTP/SMTP Interaction support
-- Self-hosted version support
-- Secure Cryptography implementation with zero logging
-- CLI client for query
-- Ready to use hosted version support
+- CLI Client / Web Dashboard support
+- AES encryption with zero logging
+- SELF Hosting support
 
-A hosted instance of the service is available at https://interact.sh.
+A hosted instance of the service with WEB UI is available at https://interact.sh
+
+
 
 # Installing Interactsh Client
 
@@ -41,7 +43,7 @@ Interactsh Client requires **go1.15+** to install successfully. Run the followin
 ▶ GO111MODULE=on go get -v github.com/projectdiscovery/interactsh/cmd/interactsh-client
 ```
 
-As default Interactsh Client make use of cloud hosted instance https://interact.sh, self-hosted instance can be used by passing self-hosted URL using `-url` flag.
+As default Interactsh client make use of cloud hosted instance https://interact.sh, self-hosted instance can be used with `-url` flag.
 
 # Usage
 
@@ -53,10 +55,14 @@ This will display help for the tool. Here are all the switches it supports.
 
 | Flag          | Description                                                  | Example                                    |
 | ------------- | ------------------------------------------------------------ | ------------------------------------------ |
-| n             | Number of interactable URLs to generate (default 1)          | interactsh-client -n 10                    |
+| n             | Number of interactable URLs to generate (default 1)          | interactsh-client -n 2                    	|
 | persistent    | Enables persistent interactsh sessions                       | interactsh-client persistent               |
 | poll-interval | Number of seconds between each poll request (default 5)      | interactsh-client -poll-interval 1         |
 | url           | URL of the interactsh server (default "hxxps://interact.sh") | interactsh-client -url hxxps://example.com |
+| json          | Show JSON output                                             | interactsh-client -json                    |
+| o             | Store interaction logs to file                               | interactsh-client -o logs.txt              |
+| v             | Show verbose interaction                                     | interactsh-client -v                       |
+
 
 ### Running Interactsh Client
 
@@ -64,10 +70,26 @@ This will generate single URL that can be used for interaction.
 
 ```sh
 ▶ interactsh-client
+
+    _       __                       __       __  
+   (_)___  / /____  _________ ______/ /______/ /_ 
+  / / __ \/ __/ _ \/ ___/ __ '/ ___/ __/ ___/ __ \
+ / / / / / /_/  __/ /  / /_/ / /__/ /_(__  ) / / /
+/_/_/ /_/\__/\___/_/   \__,_/\___/\__/____/_/ /_/ v0.0.1
+
+		projectdiscovery.io
+
 [INF] Listing 1 URLs
-c20isc20kl1sha8n70e0cny1hceyyyyyn.interact.sh
+c23b2la0kl1krjcrdj10cndmnioyyyyyn.interact.sh
+
+[c23b2la0kl1krjcrdj10cndmnioyyyyyn] Recieved DNS interaction (A) from 172.253.226.100 at 2021-26-26 12:26
+[c23b2la0kl1krjcrdj10cndmnioyyyyyn] Recieved DNS interaction (AAAA) from 32.3.34.129 at 2021-26-26 12:26
+[c23b2la0kl1krjcrdj10cndmnioyyyyyn] Recieved HTTP interaction from 43.22.22.50 at 2021-26-26 12:26
+[c23b2la0kl1krjcrdj10cndmnioyyyyyn] Recieved DNS interaction (MX) from 43.3.192.3 at 2021-26-26 12:26
+[c23b2la0kl1krjcrdj10cndmnioyyyyyn] Recieved DNS interaction (TXT) from 74.32.183.135 at 2021-26-26 12:26
+[c23b2la0kl1krjcrdj10cndmnioyyyyyn] Recieved SMTP interaction from 32.85.166.50 at 2021-26-26 12:26
 ```
-### Installation instructions for self-hosted version of interactsh
+### Setting up self-hosted instance 
 
 <details>
 <summary>Click here for details</summary>
@@ -124,4 +146,3 @@ interactsh-client -url https://{{your_domain}}
 ```
 
 </details>
-
