@@ -64,9 +64,9 @@ func main() {
 		gologger.Fatal().Msgf("Could not create client: %s\n", err)
 	}
 
-	gologger.Info().Msgf("Listing %d URLs\n", *n)
+	gologger.Info().Msgf("Listing %d URL for OOB Testing\n", *n)
 	for i := 0; i < *n; i++ {
-		gologger.Silent().Msgf("%s\n", client.URL())
+		gologger.Info().Msgf("%s\n", client.URL())
 	}
 
 	client.StartPolling(time.Duration(*pollInterval)*time.Second, func(interaction *server.Interaction) {
@@ -92,6 +92,7 @@ func main() {
 			}
 			if outputFile != nil {
 				outputFile.Write(builder.Bytes())
+				outputFile.Write([]byte("\n"))
 			}
 			gologger.Silent().Msgf("%s", builder.String())
 		} else {
