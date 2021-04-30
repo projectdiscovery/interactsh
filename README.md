@@ -32,7 +32,7 @@
 - Automatic ACME based Wildcard TLS w/ Auto Renewal
 - SELF Hosting version support
 
-A hosted instance of the service with WEB UI is available at https://app.interact.sh
+A hosted instance of the service with WEB UI is available at https://interact.projectdiscovery.io
 
 
 
