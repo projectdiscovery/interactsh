@@ -13,16 +13,15 @@ import (
 
 // DNSServer is a DNS server instance that listens on port 53.
 type DNSServer struct {
-	options       *Options
-	mxDomain      string
-	ns1Domain     string
-	ns2Domain     string
-	dotDomain     string
-	ipAddress     net.IP
-	appInteractIP net.IP
-	timeToLive    uint32
-	server        *dns.Server
-	TxtRecord     string // used for ACME verification
+	options    *Options
+	mxDomain   string
+	ns1Domain  string
+	ns2Domain  string
+	dotDomain  string
+	ipAddress  net.IP
+	timeToLive uint32
+	server     *dns.Server
+	TxtRecord  string // used for ACME verification
 }
 
 // NewDNSServer returns a new DNS server.
@@ -36,9 +35,6 @@ func NewDNSServer(options *Options) (*DNSServer, error) {
 		ns2Domain:  "ns2." + options.Domain,
 		dotDomain:  "." + options.Domain,
 		timeToLive: 3600,
-	}
-	if options.AppInteractIP != "" {
-		server.appInteractIP = net.ParseIP(options.AppInteractIP)
 	}
 	server.server = &dns.Server{
 		Addr:    "0.0.0.0:53",
@@ -70,14 +66,8 @@ func (h *DNSServer) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 	var uniqueID string
 
 	// pd specific line.
-	if h.appInteractIP != nil && strings.HasPrefix(domain, "app.interact.sh") {
-		nsHeader := dns.RR_Header{Name: domain, Rrtype: dns.TypeNS, Class: dns.ClassINET, Ttl: h.timeToLive}
-
-		m.Answer = append(m.Answer, &dns.A{Hdr: dns.RR_Header{Name: domain, Rrtype: dns.TypeA, Class: dns.ClassINET, Ttl: h.timeToLive}, A: h.appInteractIP})
-		m.Ns = append(m.Ns, &dns.NS{Hdr: nsHeader, Ns: h.ns1Domain})
-		m.Ns = append(m.Ns, &dns.NS{Hdr: nsHeader, Ns: h.ns2Domain})
-		m.Extra = append(m.Extra, &dns.A{Hdr: dns.RR_Header{Name: h.ns1Domain, Rrtype: dns.TypeA, Class: dns.ClassINET, Ttl: h.timeToLive}, A: h.ipAddress})
-		m.Extra = append(m.Extra, &dns.A{Hdr: dns.RR_Header{Name: h.ns2Domain, Rrtype: dns.TypeA, Class: dns.ClassINET, Ttl: h.timeToLive}, A: h.ipAddress})
+	if h.options.AppInteractCNAME != "" && strings.HasPrefix(domain, "app.interact.sh") {
+		m.Answer = append(m.Answer, &dns.CNAME{Hdr: dns.RR_Header{Name: domain, Rrtype: dns.TypeCNAME, Class: dns.ClassINET, Ttl: h.timeToLive}, Target: h.options.AppInteractCNAME})
 	} else if r.Question[0].Qtype == dns.TypeTXT {
 		m.Answer = append(m.Answer, &dns.TXT{Hdr: dns.RR_Header{Name: domain, Rrtype: dns.TypeTXT, Class: dns.ClassINET, Ttl: 0}, Txt: []string{h.TxtRecord}})
 	} else if r.Question[0].Qtype == dns.TypeA || r.Question[0].Qtype == dns.TypeANY {
