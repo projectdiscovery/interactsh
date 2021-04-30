@@ -65,10 +65,7 @@ func (h *DNSServer) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 
 	var uniqueID string
 
-	// pd specific line.
-	if h.options.AppInteractCNAME != "" && strings.HasPrefix(domain, "app.interact.sh") {
-		m.Answer = append(m.Answer, &dns.CNAME{Hdr: dns.RR_Header{Name: domain, Rrtype: dns.TypeCNAME, Class: dns.ClassINET, Ttl: h.timeToLive}, Target: h.options.AppInteractCNAME})
-	} else if r.Question[0].Qtype == dns.TypeTXT {
+	if r.Question[0].Qtype == dns.TypeTXT {
 		m.Answer = append(m.Answer, &dns.TXT{Hdr: dns.RR_Header{Name: domain, Rrtype: dns.TypeTXT, Class: dns.ClassINET, Ttl: 0}, Txt: []string{h.TxtRecord}})
 	} else if r.Question[0].Qtype == dns.TypeA || r.Question[0].Qtype == dns.TypeANY {
 		nsHeader := dns.RR_Header{Name: domain, Rrtype: dns.TypeNS, Class: dns.ClassINET, Ttl: h.timeToLive}

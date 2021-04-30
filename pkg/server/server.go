@@ -33,8 +33,6 @@ type Options struct {
 	Domain string
 	// IPAddress is the IP address of the current server.
 	IPAddress string
-	// AppInteractCNAME is the cname address for app.interact.sh (related to pd)
-	AppInteractCNAME string
 	// Hostmaster is the hostmaster email for the server.
 	Hostmaster string
 	// Storage is a storage for interaction data storage
