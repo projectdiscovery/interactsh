@@ -106,7 +106,7 @@ func (h *DNSServer) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 		if err := jsoniter.NewEncoder(buffer).Encode(interaction); err != nil {
 			gologger.Warning().Msgf("Could not encode dns interaction: %s\n", err)
 		} else {
-			gologger.Debug().Msgf("DNS Interaction: \n%s\n", string(buffer.Bytes()))
+			gologger.Debug().Msgf("DNS Interaction: \n%s\n", buffer.String())
 			if err := h.options.Storage.AddInteraction(correlationID, buffer.Bytes()); err != nil {
 				gologger.Warning().Msgf("Could not store dns interaction: %s\n", err)
 			}

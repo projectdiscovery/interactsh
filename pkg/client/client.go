@@ -108,7 +108,7 @@ func (c *Client) getInteractions(callback InteractionCallback) {
 	defer func() {
 		if resp != nil && resp.Body != nil {
 			resp.Body.Close()
-			io.Copy(ioutil.Discard, resp.Body)
+			_, _ = io.Copy(ioutil.Discard, resp.Body)
 		}
 	}()
 	if err != nil {
@@ -165,7 +165,7 @@ func (c *Client) Close() error {
 		defer func() {
 			if resp != nil && resp.Body != nil {
 				resp.Body.Close()
-				io.Copy(ioutil.Discard, resp.Body)
+				_, _ = io.Copy(ioutil.Discard, resp.Body)
 			}
 		}()
 		if err != nil {
@@ -220,7 +220,7 @@ func (c *Client) generateRSAKeyPair() error {
 	defer func() {
 		if resp != nil && resp.Body != nil {
 			resp.Body.Close()
-			io.Copy(ioutil.Discard, resp.Body)
+			_, _ = io.Copy(ioutil.Discard, resp.Body)
 		}
 	}()
 	if err != nil {

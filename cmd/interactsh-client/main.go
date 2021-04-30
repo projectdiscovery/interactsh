@@ -32,8 +32,6 @@ const banner = `
 /_/_/ /_/\__/\___/_/   \__,_/\___/\__/____/_/ /_/ v0.0.1
 `
 
-const Version = `0.0.1`
-
 func showBanner() {
 	gologger.Print().Msgf("%s\n", banner)
 	gologger.Print().Msgf("\t\tprojectdiscovery.io\n\n")
@@ -91,8 +89,8 @@ func main() {
 				}
 			}
 			if outputFile != nil {
-				outputFile.Write(builder.Bytes())
-				outputFile.Write([]byte("\n"))
+				_, _ = outputFile.Write(builder.Bytes())
+				_, _ = outputFile.Write([]byte("\n"))
 			}
 			gologger.Silent().Msgf("%s", builder.String())
 		} else {
@@ -104,8 +102,8 @@ func main() {
 				os.Stdout.Write([]byte("\n"))
 			}
 			if outputFile != nil {
-				outputFile.Write(b)
-				outputFile.Write([]byte("\n"))
+				_, _ = outputFile.Write(b)
+				_, _ = outputFile.Write([]byte("\n"))
 			}
 		}
 	})

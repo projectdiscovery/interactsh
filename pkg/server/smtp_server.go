@@ -105,7 +105,7 @@ func (h *SMTPServer) defaultHandler(remoteAddr net.Addr, from string, to []strin
 		if err := jsoniter.NewEncoder(buffer).Encode(interaction); err != nil {
 			gologger.Warning().Msgf("Could not encode smtp interaction: %s\n", err)
 		} else {
-			gologger.Debug().Msgf("%s\n", string(buffer.Bytes()))
+			gologger.Debug().Msgf("%s\n", buffer.String())
 			if err := h.options.Storage.AddInteraction(correlationID, buffer.Bytes()); err != nil {
 				gologger.Warning().Msgf("Could not store smtp interaction: %s\n", err)
 			}

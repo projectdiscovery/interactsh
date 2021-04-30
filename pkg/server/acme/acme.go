@@ -219,7 +219,7 @@ func NewAutomaticTLS(email, domains string, txtCallback TXTUpdateCallback) (*Aut
 	if !certNotExists {
 		acmeUpdateFunc() // Run at once on startup and then run in gocron
 	}
-	gocron.Every(1).Day().Do(acmeUpdateFunc)
+	_ = gocron.Every(1).Day().Do(acmeUpdateFunc)
 	return result, nil
 }
 

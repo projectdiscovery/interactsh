@@ -33,12 +33,12 @@ type CorrelationData struct {
 	// data contains data for a correlation-id in AES encrypted json format.
 	Data []string `json:"data"`
 	// dataMutex is a mutex for the data slice.
-	dataMutex *sync.Mutex `json:"-"`
+	dataMutex *sync.Mutex
 	// secretkey is a secret key for original user verification
-	secretKey string `json:"-"`
+	secretKey string
 	// AESKey is the AES encryption key in encrypted format.
 	AESKey string `json:"aes-key"`
-	aesKey []byte `json:"-"` // decrypted AES key for signing
+	aesKey []byte // decrypted AES key for signing
 }
 
 // New creates a new storage instance for interactsh data.

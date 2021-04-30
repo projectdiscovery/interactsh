@@ -76,7 +76,7 @@ func (h *HTTPServer) logger(handler http.Handler) http.HandlerFunc {
 		data := rec.Body.Bytes()
 
 		w.WriteHeader(rec.Result().StatusCode)
-		w.Write(data)
+		_, _ = w.Write(data)
 
 		var uniqueID string
 		parts := strings.Split(r.Host, ".")
@@ -101,7 +101,7 @@ func (h *HTTPServer) logger(handler http.Handler) http.HandlerFunc {
 			if err := jsoniter.NewEncoder(buffer).Encode(interaction); err != nil {
 				gologger.Warning().Msgf("Could not encode http interaction: %s\n", err)
 			} else {
-				gologger.Debug().Msgf("HTTP Interaction: \n%s\n", string(buffer.Bytes()))
+				gologger.Debug().Msgf("HTTP Interaction: \n%s\n", buffer.String())
 				if err := h.options.Storage.AddInteraction(correlationID, buffer.Bytes()); err != nil {
 					gologger.Warning().Msgf("Could not store http interaction: %s\n", err)
 				}
@@ -254,5 +254,5 @@ func CORSEnabledFunction(w http.ResponseWriter, r *http.Request) {
 func jsonError(w http.ResponseWriter, err interface{}, code int) {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.Header().Set("X-Content-Type-Options", "nosniff")
-	json.NewEncoder(w).Encode(err)
+	_ = json.NewEncoder(w).Encode(err)
 }
