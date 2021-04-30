@@ -4,6 +4,7 @@ before:
 
 builds:
   - binary: interactsh-client
+    id: interactsh-client
     main: cmd/interactsh-client/main.go
     goos:
       - linux
@@ -15,6 +16,7 @@ builds:
       - arm
       - arm64
   - binary: interactsh-server
+    id: interactsh-server
     main: cmd/interactsh-server/main.go
     goos:
       - linux
