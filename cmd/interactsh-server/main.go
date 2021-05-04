@@ -62,7 +62,13 @@ func main() {
 	}
 	go smtpServer.ListenAndServe(autoTLS)
 
-	log.Printf("Listening on DNS, SMTP and HTTP ports\n")
+	log.Printf("Listening on DNS, SMTP, HTTP ports and ICMP protocol\n")
+
+	icmpServer, err := server.NewICMPServer(options)
+	if err != nil {
+		gologger.Fatal().Msgf("Could not create SMTP server")
+	}
+	go icmpServer.ListenAndServe()
 
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt)
