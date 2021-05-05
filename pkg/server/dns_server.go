@@ -37,7 +37,7 @@ func NewDNSServer(options *Options) (*DNSServer, error) {
 		timeToLive: 3600,
 	}
 	server.server = &dns.Server{
-		Addr:    options.IPAddress+":53",
+		Addr:    options.IPAddress + ":53",
 		Net:     "udp",
 		Handler: server,
 	}
@@ -55,6 +55,7 @@ func (h *DNSServer) ListenAndServe() {
 func (h *DNSServer) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 	m := new(dns.Msg)
 	m.SetReply(r)
+	m.Authoritative = true
 
 	// bail early for no queries.
 	if len(r.Question) == 0 {
