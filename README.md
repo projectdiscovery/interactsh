@@ -32,7 +32,9 @@
 - Automatic ACME based Wildcard TLS w/ Auto Renewal
 - SELF Hosting version support
 
-A hosted instance of the service with WEB UI is available at https://interact.projectdiscovery.io
+A hosted instance of the service with WEB UI is available at https://interact.projectdiscovery.io.
+
+**Note:** As hosted version doesn't store anything locally, restarting server for maintenance / unexpected server crash / updates will result into loss of previous data.
 
 
 
@@ -104,7 +106,7 @@ This will generate single URL that can be used for interaction.
 <summary>Click here for details</summary>
 <br>
 
-1. Start with setting up Debian box, Debian is required as you need to setup your own Name servers.
+1. Start with setting up **Debian** box, Debian is required as you need to setup your own Name servers.
 
 2. Navigate to `https://dcc.godaddy.com/manage/{{domain}}/dns/hosts` > Advanced Features > Host names, add `ns1` and `ns2` as hostnames with the **IP** of your server.
  

@@ -40,8 +40,8 @@ func NewHTTPServer(options *Options) (*HTTPServer, error) {
 	router.Handle("/deregister", http.HandlerFunc(server.deregisterHandler))
 	router.Handle("/poll", http.HandlerFunc(server.pollHandler))
 
-	server.tlsserver = http.Server{Addr: "0.0.0.0:443", Handler: router}
-	server.nontlsserver = http.Server{Addr: "0.0.0.0:80", Handler: router}
+	server.tlsserver = http.Server{Addr: options.ListenIP + ":443", Handler: router}
+	server.nontlsserver = http.Server{Addr: options.ListenIP + ":80", Handler: router}
 	return server, nil
 }
 
@@ -114,7 +114,7 @@ const banner = `<h1> Interactsh Server </h1>
 
 <a href='https://github.com/projectdiscovery/interactsh'>Interact.sh </a> is an <b>open-source solution</b> for out-of-band data extraction. It is a tool designed to detect bugs that cause external interactions. These bugs include, Blind SQLi, Blind CMDi, SSRF, etc. <br><br>
 
-If you find communications or exchanges with the Interact.sh server in your logs, it is possible that someone has been testing your applications using our hosted service, app.interact.sh.<br><br>
+If you find communications or exchanges with the <b>%s</b> server in your logs, it is possible that someone has been testing your applications.<br><br>
 
 You should review the time when these interactions were initiated to identify the person responsible for this testing.
 `
@@ -125,7 +125,7 @@ func (h *HTTPServer) defaultHandler(w http.ResponseWriter, req *http.Request) {
 	w.Header().Set("Server", h.domain)
 
 	if req.URL.Path == "/" && reflection == "" {
-		fmt.Fprintf(w, "%s", banner)
+		fmt.Fprintf(w, banner, h.domain)
 	} else if strings.EqualFold(req.URL.Path, "/robots.txt") {
 		fmt.Fprintf(w, "User-agent: *\nDisallow: / # %s", reflection)
 	} else if strings.HasSuffix(req.URL.Path, ".json") {
