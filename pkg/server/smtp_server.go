@@ -32,7 +32,7 @@ func NewSMTPServer(options *Options) (*SMTPServer, error) {
 		return true
 	}
 	server.port25server = smtpd.Server{
-		Addr:        "0.0.0.0:25",
+		Addr:        options.ListenIP + ":25",
 		AuthHandler: authHandler,
 		HandlerRcpt: rcptHandler,
 		Hostname:    options.Domain,
@@ -40,7 +40,7 @@ func NewSMTPServer(options *Options) (*SMTPServer, error) {
 		Handler:     smtpd.Handler(server.defaultHandler),
 	}
 	server.port587server = smtpd.Server{
-		Addr:        "0.0.0.0:487",
+		Addr:        options.ListenIP + ":587",
 		AuthHandler: authHandler,
 		HandlerRcpt: rcptHandler,
 		Hostname:    options.Domain,
@@ -53,7 +53,7 @@ func NewSMTPServer(options *Options) (*SMTPServer, error) {
 // ListenAndServe listens on smtp and/or smtps ports for the server.
 func (h *SMTPServer) ListenAndServe(autoTLS *acme.AutoTLS) {
 	go func() {
-		srv := &smtpd.Server{Addr: "0.0.0.0:465", Handler: h.defaultHandler, Appname: "interactsh", Hostname: h.options.Domain}
+		srv := &smtpd.Server{Addr: h.options.ListenIP + ":465", Handler: h.defaultHandler, Appname: "interactsh", Hostname: h.options.Domain}
 		srv.TLSConfig = &tls.Config{}
 		srv.TLSConfig.GetCertificate = autoTLS.GetCertificateFunc()
 

@@ -37,7 +37,7 @@ func NewDNSServer(options *Options) (*DNSServer, error) {
 		timeToLive: 3600,
 	}
 	server.server = &dns.Server{
-		Addr:    options.IPAddress + ":53",
+		Addr:    options.ListenIP + ":53",
 		Net:     "udp",
 		Handler: server,
 	}

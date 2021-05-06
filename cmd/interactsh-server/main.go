@@ -24,6 +24,7 @@ func main() {
 	flag.BoolVar(&debug, "debug", false, "Use interactsh in debug mode")
 	flag.StringVar(&options.Domain, "domain", "", "Domain to use for interactsh server")
 	flag.StringVar(&options.IPAddress, "ip", "", "IP Address to use for interactsh server")
+	flag.StringVar(&options.ListenIP, "listen-ip", "0.0.0.0", "IP Address to listen on")
 	flag.StringVar(&options.Hostmaster, "hostmaster", "", "Hostmaster email to use for interactsh server")
 	flag.IntVar(&eviction, "eviction", 7, "Number of days to persist interactions for")
 	flag.Parse()

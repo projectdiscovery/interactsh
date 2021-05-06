@@ -40,8 +40,8 @@ func NewHTTPServer(options *Options) (*HTTPServer, error) {
 	router.Handle("/deregister", http.HandlerFunc(server.deregisterHandler))
 	router.Handle("/poll", http.HandlerFunc(server.pollHandler))
 
-	server.tlsserver = http.Server{Addr: "0.0.0.0:443", Handler: router}
-	server.nontlsserver = http.Server{Addr: "0.0.0.0:80", Handler: router}
+	server.tlsserver = http.Server{Addr: options.ListenIP + ":443", Handler: router}
+	server.nontlsserver = http.Server{Addr: options.ListenIP + ":80", Handler: router}
 	return server, nil
 }
 
