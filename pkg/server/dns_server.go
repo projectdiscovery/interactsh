@@ -37,7 +37,7 @@ func NewDNSServer(options *Options) (*DNSServer, error) {
 		timeToLive: 3600,
 	}
 	server.server = &dns.Server{
-		Addr:    options.IPAddress + ":53",
+		Addr:    options.ListenIP + ":53",
 		Net:     "udp",
 		Handler: server,
 	}
@@ -82,6 +82,11 @@ func (h *DNSServer) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 	} else if r.Question[0].Qtype == dns.TypeMX {
 		nsHdr := dns.RR_Header{Name: domain, Rrtype: dns.TypeMX, Class: dns.ClassINET, Ttl: h.timeToLive}
 		m.Answer = append(m.Answer, &dns.MX{Hdr: nsHdr, Mx: h.mxDomain, Preference: 1})
+	} else if r.Question[0].Qtype == dns.TypeNS {
+		nsHeader := dns.RR_Header{Name: domain, Rrtype: dns.TypeNS, Class: dns.ClassINET, Ttl: h.timeToLive}
+
+		m.Ns = append(m.Ns, &dns.NS{Hdr: nsHeader, Ns: h.ns1Domain})
+		m.Ns = append(m.Ns, &dns.NS{Hdr: nsHeader, Ns: h.ns2Domain})
 	}
 	if strings.HasSuffix(domain, h.dotDomain) {
 		parts := strings.Split(domain, ".")

@@ -33,6 +33,8 @@ type Options struct {
 	Domain string
 	// IPAddress is the IP address of the current server.
 	IPAddress string
+	// ListenIP is the IP address to listen servers on
+	ListenIP string
 	// Hostmaster is the hostmaster email for the server.
 	Hostmaster string
 	// Storage is a storage for interaction data storage
