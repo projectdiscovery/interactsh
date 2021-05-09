@@ -7,7 +7,7 @@ import (
 	"github.com/projectdiscovery/interactsh/pkg/storage"
 )
 
-// Interaction is an interaction recieved to the server.
+// Interaction is an interaction received to the server.
 type Interaction struct {
 	// Protocol for interaction, can contains HTTP/DNS/SMTP,etc.
 	Protocol string `json:"protocol"`
@@ -15,7 +15,7 @@ type Interaction struct {
 	UniqueID string `json:"unique-id"`
 	// QType is the question type for the interaction
 	QType string `json:"q-type,omitempty"`
-	// RawRequest is the raw request recieved by the interactsh server.
+	// RawRequest is the raw request received by the interactsh server.
 	RawRequest string `json:"raw-request,omitempty"`
 	// RawResponse is the raw response sent by the interactsh server.
 	RawResponse string `json:"raw-response,omitempty"`
