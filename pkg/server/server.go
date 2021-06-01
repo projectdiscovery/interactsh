@@ -11,7 +11,7 @@ import (
 type Interaction struct {
 	// Protocol for interaction, can contains HTTP/DNS/SMTP,etc.
 	Protocol string `json:"protocol"`
-	// UniqueID is the uniqueID for the subdomain recieving the interaction.
+	// UniqueID is the uniqueID for the subdomain receiving the interaction.
 	UniqueID string `json:"unique-id"`
 	// QType is the question type for the interaction
 	QType string `json:"q-type,omitempty"`
