@@ -46,6 +46,17 @@ Interactsh Client requires **go1.15+** to install successfully. Run the followin
 ▶ GO111MODULE=on go get -v github.com/projectdiscovery/interactsh/cmd/interactsh-client
 ```
 
+From source 
+
+```sh
+git clone https://github.com/projectdiscovery/interactsh.git
+cd interactsh/cmd/interactsh-client
+go build
+sudo mv interactsh-client /usr/local/bin/
+
+```
+
+
 # Usage
 
 ```sh
