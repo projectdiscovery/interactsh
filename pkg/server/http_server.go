@@ -48,6 +48,9 @@ func NewHTTPServer(options *Options) (*HTTPServer, error) {
 // ListenAndServe listens on http and/or https ports for the server.
 func (h *HTTPServer) ListenAndServe(autoTLS *acme.AutoTLS) {
 	go func() {
+		if autoTLS == nil {
+			return
+		}
 		h.tlsserver.TLSConfig = &tls.Config{}
 		h.tlsserver.TLSConfig.GetCertificate = autoTLS.GetCertificateFunc()
 

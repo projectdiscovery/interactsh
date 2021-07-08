@@ -49,7 +49,8 @@ func main() {
 		dnsServer.TxtRecord = txt
 	})
 	if err != nil {
-		gologger.Fatal().Msgf("Could not generate certs for auto TLS")
+		gologger.Warning().Msgf("An error occurred while applying for an certificate, error: %v", err)
+		gologger.Warning().Msgf("Could not generate certs for auto TLS, https will be disabled")
 	}
 	httpServer, err := server.NewHTTPServer(options)
 	if err != nil {

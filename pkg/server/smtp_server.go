@@ -53,6 +53,9 @@ func NewSMTPServer(options *Options) (*SMTPServer, error) {
 // ListenAndServe listens on smtp and/or smtps ports for the server.
 func (h *SMTPServer) ListenAndServe(autoTLS *acme.AutoTLS) {
 	go func() {
+		if autoTLS == nil {
+			return
+		}
 		srv := &smtpd.Server{Addr: h.options.ListenIP + ":465", Handler: h.defaultHandler, Appname: "interactsh", Hostname: h.options.Domain}
 		srv.TLSConfig = &tls.Config{}
 		srv.TLSConfig.GetCertificate = autoTLS.GetCertificateFunc()
