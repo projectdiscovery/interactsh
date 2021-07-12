@@ -22,6 +22,8 @@ var (
 	verbose      = flag.Bool("v", false, "Show verbose output")
 	pollInterval = flag.Int("poll-interval", 5, "Number of seconds between each poll request")
 	persistent   = flag.Bool("persist", false, "Enables persistent interactsh sessions")
+	dnsOnly		 = flag.Bool("dns-only", false, "Display only dns requests in verbose output")
+	httpOnly	 = flag.Bool("http-only", false, "Display only http requests in verbose output")
 )
 
 const banner = `
@@ -74,12 +76,12 @@ func main() {
 			switch interaction.Protocol {
 			case "dns":
 				builder.WriteString(fmt.Sprintf("[%s] Received DNS interaction (%s) from %s at %s", interaction.UniqueID, interaction.QType, interaction.RemoteAddress, interaction.Timestamp.Format("2006-01-02 15:04:05")))
-				if *verbose {
+				if *verbose && !*httpOnly {
 					builder.WriteString(fmt.Sprintf("\n-----------\nDNS Request\n-----------\n\n%s\n\n------------\nDNS Response\n------------\n\n%s\n\n", interaction.RawRequest, interaction.RawResponse))
 				}
 			case "http":
 				builder.WriteString(fmt.Sprintf("[%s] Received HTTP interaction from %s at %s", interaction.UniqueID, interaction.RemoteAddress, interaction.Timestamp.Format("2006-01-02 15:04:05")))
-				if *verbose {
+				if *verbose && !*dnsOnly {
 					builder.WriteString(fmt.Sprintf("\n------------\nHTTP Request\n------------\n\n%s\n\n-------------\nHTTP Response\n-------------\n\n%s\n\n", interaction.RawRequest, interaction.RawResponse))
 				}
 			case "smtp":
