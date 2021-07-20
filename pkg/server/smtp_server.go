@@ -78,16 +78,20 @@ func (h *SMTPServer) ListenAndServe(autoTLS *acme.AutoTLS) {
 
 // defaultHandler is a handler for default collaborator requests
 func (h *SMTPServer) defaultHandler(remoteAddr net.Addr, from string, to []string, data []byte) error {
-	var uniqueID string
+	var uniqueID, fullID string
 
 	gologger.Debug().Msgf("New SMTP request: %s %s %s %s\n", remoteAddr, from, to, string(data))
 
 	for _, addr := range to {
 		if len(addr) > 33 && strings.Contains(addr, "@") {
 			parts := strings.Split(addr[strings.Index(addr, "@")+1:], ".")
-			for _, part := range parts {
+			for i, part := range parts {
 				if len(part) == 33 {
 					uniqueID = part
+					fullID = part
+					if i+1 <= len(parts) {
+						fullID = strings.Join(parts[:i+1], ".")
+					}
 				}
 			}
 		}
@@ -99,6 +103,7 @@ func (h *SMTPServer) defaultHandler(remoteAddr net.Addr, from string, to []strin
 		interaction := &Interaction{
 			Protocol:      "smtp",
 			UniqueID:      uniqueID,
+			FullId:        fullID,
 			RawRequest:    string(data),
 			SMTPFrom:      from,
 			RemoteAddress: host,

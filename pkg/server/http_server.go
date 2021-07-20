@@ -81,11 +81,15 @@ func (h *HTTPServer) logger(handler http.Handler) http.HandlerFunc {
 		w.WriteHeader(rec.Result().StatusCode)
 		_, _ = w.Write(data)
 
-		var uniqueID string
+		var uniqueID, fullID string
 		parts := strings.Split(r.Host, ".")
-		for _, part := range parts {
+		for i, part := range parts {
 			if len(part) == 33 {
 				uniqueID = part
+				fullID = part
+				if i+1 <= len(parts) {
+					fullID = strings.Join(parts[:i+1], ".")
+				}
 			}
 		}
 		if uniqueID != "" {
@@ -95,6 +99,7 @@ func (h *HTTPServer) logger(handler http.Handler) http.HandlerFunc {
 			interaction := &Interaction{
 				Protocol:      "http",
 				UniqueID:      uniqueID,
+				FullId:        fullID,
 				RawRequest:    string(req),
 				RawResponse:   string(resp),
 				RemoteAddress: host,
