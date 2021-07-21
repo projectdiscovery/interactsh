@@ -22,8 +22,9 @@ var (
 	verbose      = flag.Bool("v", false, "Show verbose output")
 	pollInterval = flag.Int("poll-interval", 5, "Number of seconds between each poll request")
 	persistent   = flag.Bool("persist", false, "Enables persistent interactsh sessions")
-	dnsOnly      = flag.Bool("dns-only", false, "Display only dns requests in verbose output")
-	httpOnly     = flag.Bool("http-only", false, "Display only http requests in verbose output")
+	dnsOnly      = flag.Bool("dns-only", false, "Display dns interactions")
+	httpOnly     = flag.Bool("http-only", false, "Display http interactions")
+	smtpOnly     = flag.Bool("smtp-only", false, "Display smtp interactions")
 )
 
 const banner = `
@@ -69,25 +70,34 @@ func main() {
 		gologger.Info().Msgf("%s\n", client.URL())
 	}
 
+	// show all interactions
+	noFilter := !*dnsOnly && !*httpOnly && !*smtpOnly
+
 	client.StartPolling(time.Duration(*pollInterval)*time.Second, func(interaction *server.Interaction) {
 		if !*json {
 			builder := &bytes.Buffer{}
 
 			switch interaction.Protocol {
 			case "dns":
-				builder.WriteString(fmt.Sprintf("[%s] Received DNS interaction (%s) from %s at %s", interaction.FullId, interaction.QType, interaction.RemoteAddress, interaction.Timestamp.Format("2006-01-02 15:04:05")))
-				if *verbose && !*httpOnly {
-					builder.WriteString(fmt.Sprintf("\n-----------\nDNS Request\n-----------\n\n%s\n\n------------\nDNS Response\n------------\n\n%s\n\n", interaction.RawRequest, interaction.RawResponse))
+				if noFilter || *dnsOnly {
+					builder.WriteString(fmt.Sprintf("[%s] Received DNS interaction (%s) from %s at %s", interaction.FullId, interaction.QType, interaction.RemoteAddress, interaction.Timestamp.Format("2006-01-02 15:04:05")))
+					if *verbose {
+						builder.WriteString(fmt.Sprintf("\n-----------\nDNS Request\n-----------\n\n%s\n\n------------\nDNS Response\n------------\n\n%s\n\n", interaction.RawRequest, interaction.RawResponse))
+					}
 				}
 			case "http":
-				builder.WriteString(fmt.Sprintf("[%s] Received HTTP interaction from %s at %s", interaction.FullId, interaction.RemoteAddress, interaction.Timestamp.Format("2006-01-02 15:04:05")))
-				if *verbose && !*dnsOnly {
-					builder.WriteString(fmt.Sprintf("\n------------\nHTTP Request\n------------\n\n%s\n\n-------------\nHTTP Response\n-------------\n\n%s\n\n", interaction.RawRequest, interaction.RawResponse))
+				if noFilter || *httpOnly {
+					builder.WriteString(fmt.Sprintf("[%s] Received HTTP interaction from %s at %s", interaction.FullId, interaction.RemoteAddress, interaction.Timestamp.Format("2006-01-02 15:04:05")))
+					if *verbose {
+						builder.WriteString(fmt.Sprintf("\n------------\nHTTP Request\n------------\n\n%s\n\n-------------\nHTTP Response\n-------------\n\n%s\n\n", interaction.RawRequest, interaction.RawResponse))
+					}
 				}
 			case "smtp":
-				builder.WriteString(fmt.Sprintf("[%s] Received SMTP interaction from %s at %s", interaction.FullId, interaction.RemoteAddress, interaction.Timestamp.Format("2006-01-02 15:04:05")))
-				if *verbose {
-					builder.WriteString(fmt.Sprintf("\n------------\nSMTP Interaction\n------------\n\n%s\n\n", interaction.RawRequest))
+				if noFilter || *smtpOnly {
+					builder.WriteString(fmt.Sprintf("[%s] Received SMTP interaction from %s at %s", interaction.FullId, interaction.RemoteAddress, interaction.Timestamp.Format("2006-01-02 15:04:05")))
+					if *verbose {
+						builder.WriteString(fmt.Sprintf("\n------------\nSMTP Interaction\n------------\n\n%s\n\n", interaction.RawRequest))
+					}
 				}
 			}
 			if outputFile != nil {
