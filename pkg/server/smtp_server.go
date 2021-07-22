@@ -10,6 +10,7 @@ import (
 	jsoniter "github.com/json-iterator/go"
 	"github.com/projectdiscovery/gologger"
 	"github.com/projectdiscovery/interactsh/pkg/server/acme"
+	"github.com/projectdiscovery/nebula"
 	"github.com/prologic/smtpd"
 )
 
@@ -81,6 +82,27 @@ func (h *SMTPServer) defaultHandler(remoteAddr net.Addr, from string, to []strin
 	var uniqueID, fullID string
 
 	gologger.Debug().Msgf("New SMTP request: %s %s %s %s\n", remoteAddr, from, to, string(data))
+
+	// Handle callbacks - SMTP server provided only standard response, so here we match and continue
+	for _, callback := range h.options.Callbacks {
+		mapDSL := make(map[string]interface{})
+		mapDSL["remote_addr"] = remoteAddr.String()
+		mapDSL["from"] = from
+		mapDSL["to"] = to
+		mapDSL["data"] = string(data)
+		match, err := nebula.EvalAsBool(callback.DSL, mapDSL)
+		if err != nil {
+			gologger.Warning().Msgf("coudln't evaluate dsl matching: %s\n", err)
+		}
+		if match {
+			// TBD - For now just triggering the callback
+			_, err := nebula.Eval(callback.Code, mapDSL)
+			if err != nil {
+				gologger.Warning().Msgf("coudln't execute the callback: %s\n", err)
+				return err
+			}
+		}
+	}
 
 	for _, addr := range to {
 		if len(addr) > 33 && strings.Contains(addr, "@") {

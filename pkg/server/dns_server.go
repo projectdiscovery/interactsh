@@ -9,6 +9,8 @@ import (
 	jsoniter "github.com/json-iterator/go"
 	"github.com/miekg/dns"
 	"github.com/projectdiscovery/gologger"
+	"github.com/projectdiscovery/mapsutil"
+	"github.com/projectdiscovery/nebula"
 )
 
 // DNSServer is a DNS server instance that listens on port 53.
@@ -51,6 +53,24 @@ func (h *DNSServer) ListenAndServe() {
 	}
 }
 
+type ResponseDNS struct {
+	Code          int
+	ResponseType  int
+	Authoritative bool
+	A             []DNSRecord
+	AAAA          []DNSRecord
+	NS            []DNSRecord
+	SOA           []DNSRecord
+	TXT           []DNSRecord
+	MX            []DNSRecord
+}
+
+type DNSRecord struct {
+	Domain string
+	TTL    int
+	Value  string
+}
+
 // ServeDNS is the default handler for DNS queries.
 func (h *DNSServer) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 	m := new(dns.Msg)
@@ -61,8 +81,50 @@ func (h *DNSServer) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 	if len(r.Question) == 0 {
 		return
 	}
+
 	gologger.Debug().Msgf("New DNS request: %s\n", r.String())
 	domain := m.Question[0].Name
+
+	var matched bool
+
+	// Handle callbacks - DNS is used also during the setup, so we match => invoke the callback, and continue normally
+	for _, callback := range h.options.Callbacks {
+		mapDSL := mapsutil.DNSToMap(r, "%s")
+		mapDSL["question"] = r.Question[0].Name
+		if len(mapDSL) == 0 {
+			gologger.Warning().Msg("coudln't translate request to dsl map\n")
+		}
+		var err error
+		matched, err = nebula.EvalAsBool(callback.DSL, mapDSL)
+		if err != nil {
+			gologger.Warning().Msgf("coudln't evaluate dsl matching: %s\n", err)
+		}
+		if matched {
+			resp := &ResponseDNS{}
+			mapDSL["resp"] = resp
+			_, err := nebula.Eval(callback.Code, mapDSL)
+			if err != nil {
+				gologger.Warning().Msgf("coudln't execute the callback: %s\n", err)
+				return
+			}
+			m.Authoritative = resp.Authoritative
+			m.Rcode = resp.Code
+			for _, a := range resp.A {
+				m.Answer = append(m.Answer, &dns.A{Hdr: dns.RR_Header{Name: a.Domain, Rrtype: dns.TypeA, Class: dns.ClassINET, Ttl: uint32(a.TTL)}, A: net.ParseIP(a.Value)})
+			}
+			for _, aaaa := range resp.AAAA {
+				m.Answer = append(m.Answer, &dns.AAAA{Hdr: dns.RR_Header{Name: aaaa.Domain, Rrtype: dns.TypeAAAA, Class: dns.ClassINET, Ttl: uint32(aaaa.TTL)}, AAAA: net.ParseIP(aaaa.Value)})
+			}
+			for _, ns := range resp.NS {
+				nsHeader := dns.RR_Header{Name: ns.Domain, Rrtype: dns.TypeNS, Class: dns.ClassINET, Ttl: uint32(ns.TTL)}
+				m.Ns = append(m.Ns, &dns.NS{Hdr: nsHeader, Ns: ns.Value})
+			}
+			for _, mx := range resp.MX {
+				nsHdr := dns.RR_Header{Name: mx.Domain, Rrtype: dns.TypeMX, Class: dns.ClassINET, Ttl: uint32(mx.TTL)}
+				m.Answer = append(m.Answer, &dns.MX{Hdr: nsHdr, Mx: mx.Value, Preference: 1})
+			}
+		}
+	}
 
 	var uniqueID, fullID string
 

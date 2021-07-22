@@ -1,0 +1,4 @@
+- name: test
+  dsl: question=='test.com.'
+  code: |
+    print("matched")

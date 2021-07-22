@@ -29,6 +29,12 @@ type Interaction struct {
 	Timestamp time.Time `json:"timestamp"`
 }
 
+type Callback struct {
+	Name string `yaml:"name"`
+	DSL  string `yaml:"dsl"`
+	Code string `yaml:"code"`
+}
+
 // Options contains configuration options for the servers
 type Options struct {
 	// Domain is the domain for the instance.
@@ -40,7 +46,8 @@ type Options struct {
 	// Hostmaster is the hostmaster email for the server.
 	Hostmaster string
 	// Storage is a storage for interaction data storage
-	Storage *storage.Storage
+	Storage   *storage.Storage
+	Callbacks []Callback
 }
 
 // URLReflection returns a reversed part of the URL payload

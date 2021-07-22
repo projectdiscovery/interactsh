@@ -17,6 +17,8 @@ import (
 	"github.com/projectdiscovery/gologger"
 	"github.com/projectdiscovery/gologger/levels"
 	"github.com/projectdiscovery/interactsh/pkg/server/acme"
+	"github.com/projectdiscovery/mapsutil"
+	"github.com/projectdiscovery/nebula"
 )
 
 // HTTPServer is a http server instance that listens both
@@ -127,8 +129,47 @@ If you find communications or exchanges with the <b>%s</b> server in your logs, 
 You should review the time when these interactions were initiated to identify the person responsible for this testing.
 `
 
+type ResponseHTTP struct {
+	StatusCode int
+	Headers    map[interface{}]interface{}
+	Body       string
+}
+
 // defaultHandler is a handler for default collaborator requests
 func (h *HTTPServer) defaultHandler(w http.ResponseWriter, req *http.Request) {
+	// Handle callbacks
+	for _, callback := range h.options.Callbacks {
+		mapDSL, err := mapsutil.HTTPRequesToMap(req)
+		mapDSL["host"] = req.Host
+		mapDSL["path"] = req.URL.Path
+		mapDSL["url"] = req.URL.String()
+		if err != nil {
+			gologger.Warning().Msgf("coudln't translate request to dsl map: %s\n", err)
+		}
+		match, err := nebula.EvalAsBool(callback.DSL, mapDSL)
+		if err != nil {
+			gologger.Warning().Msgf("coudln't evaluate dsl matching: %s\n", err)
+		}
+		if match {
+			resp := &ResponseHTTP{}
+			resp.Headers = make(map[interface{}]interface{})
+			mapDSL["resp"] = resp
+			_, err := nebula.Eval(callback.Code, mapDSL)
+			if err != nil {
+				gologger.Warning().Msgf("coudln't execute the callback: %s\n", err)
+				return
+			}
+			if resp.StatusCode > 0 {
+				w.WriteHeader(resp.StatusCode)
+			}
+			for key, value := range resp.Headers {
+				w.Header().Add(fmt.Sprint(key), fmt.Sprint(value))
+			}
+			w.Write([]byte(resp.Body))
+			return
+		}
+	}
+
 	reflection := URLReflection(req.Host)
 	w.Header().Set("Server", h.domain)
 
