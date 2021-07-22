@@ -159,6 +159,11 @@ type RegisterRequest struct {
 
 // registerHandler is a handler for client register requests
 func (h *HTTPServer) registerHandler(w http.ResponseWriter, req *http.Request) {
+	if !h.checkToken(req) {
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+
 	CORSEnabledFunction(w, req)
 
 	r := &RegisterRequest{}
@@ -185,6 +190,11 @@ type DeregisterRequest struct {
 
 // deregisterHandler is a handler for client deregister requests
 func (h *HTTPServer) deregisterHandler(w http.ResponseWriter, req *http.Request) {
+	if !h.checkToken(req) {
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+
 	CORSEnabledFunction(w, req)
 
 	r := &DeregisterRequest{}
@@ -211,6 +221,11 @@ type PollResponse struct {
 
 // pollHandler is a handler for client poll requests
 func (h *HTTPServer) pollHandler(w http.ResponseWriter, req *http.Request) {
+	if !h.checkToken(req) {
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+
 	CORSEnabledFunction(w, req)
 
 	ID := req.URL.Query().Get("id")
@@ -263,4 +278,8 @@ func jsonError(w http.ResponseWriter, err interface{}, code int) {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.Header().Set("X-Content-Type-Options", "nosniff")
 	_ = json.NewEncoder(w).Encode(err)
+}
+
+func (h *HTTPServer) checkToken(req *http.Request) bool {
+	return !h.options.Auth || h.options.Auth && h.options.Token == req.Header.Get("Authorization")
 }

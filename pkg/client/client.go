@@ -13,6 +13,7 @@ import (
 	"encoding/pem"
 	"io"
 	"io/ioutil"
+	"net/http"
 	"net/url"
 	"strings"
 	"sync/atomic"
@@ -28,6 +29,8 @@ import (
 	"gopkg.in/corvus-ch/zbase32.v1"
 )
 
+var authError = errors.New("couldn't authenticate to the server")
+
 var objectIDCounter = uint32(0)
 
 // Client is a client for communicating with interactsh server instance.
@@ -39,6 +42,7 @@ type Client struct {
 	privKey           *rsa.PrivateKey
 	quitChan          chan struct{}
 	persistentSession bool
+	token             string
 }
 
 // Options contains configuration options for interactsh client
@@ -47,6 +51,8 @@ type Options struct {
 	ServerURL string
 	// PersistentSession keeps the session open for future requests.
 	PersistentSession bool
+	// Token if the server requires authentication
+	Token string
 }
 
 // New creates a new client instance based on provided options
@@ -62,6 +68,7 @@ func New(options *Options) (*Client, error) {
 		correlationID:     xid.New().String(),
 		persistentSession: options.PersistentSession,
 		httpClient:        retryablehttp.NewClient(retryablehttp.DefaultOptionsSingle),
+		token:             options.Token,
 	}
 	// Generate an RSA Public / Private key for interactsh client
 	if err := client.generateRSAKeyPair(); err != nil {
@@ -82,7 +89,10 @@ func (c *Client) StartPolling(duration time.Duration, callback InteractionCallba
 		for {
 			select {
 			case <-ticker.C:
-				c.getInteractions(callback)
+				err := c.getInteractions(callback)
+				if err != nil && err.Error() == authError.Error() {
+					gologger.Error().Msgf("Could not authenticate to the server")
+				}
 			case <-c.quitChan:
 				ticker.Stop()
 				return
@@ -92,7 +102,7 @@ func (c *Client) StartPolling(duration time.Duration, callback InteractionCallba
 }
 
 // getInteractions returns the interactions from the server.
-func (c *Client) getInteractions(callback InteractionCallback) {
+func (c *Client) getInteractions(callback InteractionCallback) error {
 	builder := &strings.Builder{}
 	builder.WriteString(c.serverURL.String())
 	builder.WriteString("/poll?id=")
@@ -101,7 +111,11 @@ func (c *Client) getInteractions(callback InteractionCallback) {
 	builder.WriteString(c.secretKey)
 	req, err := retryablehttp.NewRequest("GET", builder.String(), nil)
 	if err != nil {
-		return
+		return err
+	}
+
+	if c.token != "" {
+		req.Header.Add("Authorization", c.token)
 	}
 
 	resp, err := c.httpClient.Do(req)
@@ -112,15 +126,18 @@ func (c *Client) getInteractions(callback InteractionCallback) {
 		}
 	}()
 	if err != nil {
-		return
+		return err
 	}
 	if resp.StatusCode != 200 {
-		return
+		if resp.StatusCode == http.StatusUnauthorized {
+			return authError
+		}
+		return errors.New("couldn't poll interactions")
 	}
 	response := &server.PollResponse{}
 	if err := jsoniter.NewDecoder(resp.Body).Decode(response); err != nil {
 		gologger.Error().Msgf("Could not decode interactions: %v\n", err)
-		return
+		return err
 	}
 
 	for _, data := range response.Data {
@@ -136,6 +153,7 @@ func (c *Client) getInteractions(callback InteractionCallback) {
 		}
 		callback(interaction)
 	}
+	return nil
 }
 
 // StopPolling stops the polling to the interactsh server.
@@ -160,6 +178,10 @@ func (c *Client) Close() error {
 			return errors.Wrap(err, "could not create new request")
 		}
 		req.ContentLength = int64(len(data))
+
+		if c.token != "" {
+			req.Header.Add("Authorization", c.token)
+		}
 
 		resp, err := c.httpClient.Do(req)
 		defer func() {
@@ -215,6 +237,10 @@ func (c *Client) generateRSAKeyPair() error {
 		return errors.Wrap(err, "could not create new request")
 	}
 	req.ContentLength = int64(len(data))
+
+	if c.token != "" {
+		req.Header.Add("Authorization", c.token)
+	}
 
 	resp, err := c.httpClient.Do(req)
 	defer func() {

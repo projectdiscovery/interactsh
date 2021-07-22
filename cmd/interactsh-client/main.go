@@ -24,6 +24,7 @@ var (
 	persistent   = flag.Bool("persist", false, "Enables persistent interactsh sessions")
 	dnsOnly      = flag.Bool("dns-only", false, "Display only dns requests in verbose output")
 	httpOnly     = flag.Bool("http-only", false, "Display only http requests in verbose output")
+	token        = flag.String("token", "", "Authentication token for the server")
 )
 
 const banner = `
@@ -59,6 +60,7 @@ func main() {
 	client, err := client.New(&client.Options{
 		ServerURL:         *serverURL,
 		PersistentSession: *persistent,
+		Token:             *token,
 	})
 	if err != nil {
 		gologger.Fatal().Msgf("Could not create client: %s\n", err)
