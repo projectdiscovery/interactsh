@@ -84,6 +84,7 @@ func main() {
 					if *verbose {
 						builder.WriteString(fmt.Sprintf("\n-----------\nDNS Request\n-----------\n\n%s\n\n------------\nDNS Response\n------------\n\n%s\n\n", interaction.RawRequest, interaction.RawResponse))
 					}
+					writeOutput(outputFile, builder)
 				}
 			case "http":
 				if noFilter || *httpOnly {
@@ -91,6 +92,7 @@ func main() {
 					if *verbose {
 						builder.WriteString(fmt.Sprintf("\n------------\nHTTP Request\n------------\n\n%s\n\n-------------\nHTTP Response\n-------------\n\n%s\n\n", interaction.RawRequest, interaction.RawResponse))
 					}
+					writeOutput(outputFile, builder)
 				}
 			case "smtp":
 				if noFilter || *smtpOnly {
@@ -98,13 +100,9 @@ func main() {
 					if *verbose {
 						builder.WriteString(fmt.Sprintf("\n------------\nSMTP Interaction\n------------\n\n%s\n\n", interaction.RawRequest))
 					}
+					writeOutput(outputFile, builder)
 				}
 			}
-			if outputFile != nil {
-				_, _ = outputFile.Write(builder.Bytes())
-				_, _ = outputFile.Write([]byte("\n"))
-			}
-			gologger.Silent().Msgf("%s", builder.String())
 		} else {
 			b, err := jsonpkg.MarshalIndent(interaction, "", "\t")
 			if err != nil {
@@ -127,4 +125,12 @@ func main() {
 		client.Close()
 		os.Exit(1)
 	}
+}
+
+func writeOutput(outputFile *os.File, builder *bytes.Buffer) {
+	if outputFile != nil {
+		_, _ = outputFile.Write(builder.Bytes())
+		_, _ = outputFile.Write([]byte("\n"))
+	}
+	gologger.Silent().Msgf("%s", builder.String())
 }
