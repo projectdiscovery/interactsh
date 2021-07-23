@@ -64,7 +64,13 @@ func main() {
 	}
 	go smtpServer.ListenAndServe(autoTLS)
 
-	log.Printf("Listening on DNS, SMTP and HTTP ports\n")
+	ldapServer, err := server.NewLDAPServer(options)
+	if err != nil {
+		gologger.Fatal().Msgf("Could not create LDAP server")
+	}
+	go ldapServer.ListenAndServe()
+
+	log.Printf("Listening on DNS, SMTP, HTTP and LDAP ports\n")
 
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt)

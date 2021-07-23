@@ -3,11 +3,13 @@ module github.com/projectdiscovery/interactsh
 go 1.15
 
 require (
+	github.com/Mzack9999/ldapserver v1.0.2-0.20210723000540-2c566cc5d1a8
 	github.com/eggsampler/acme/v3 v3.2.1
 	github.com/google/uuid v1.2.0
 	github.com/jasonlvhit/gocron v0.0.1
 	github.com/json-iterator/go v1.1.11
 	github.com/karlseguin/ccache/v2 v2.0.8
+	github.com/lor00x/goldap v0.0.0-20180618054307-a546dffdd1a3
 	github.com/miekg/dns v1.1.43
 	github.com/pkg/errors v0.9.1
 	github.com/projectdiscovery/gologger v1.1.4
