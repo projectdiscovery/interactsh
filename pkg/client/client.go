@@ -91,7 +91,7 @@ func (c *Client) StartPolling(duration time.Duration, callback InteractionCallba
 			case <-ticker.C:
 				err := c.getInteractions(callback)
 				if err != nil && err.Error() == authError.Error() {
-					gologger.Error().Msgf("Could not authenticate to the server")
+					gologger.Fatal().Msgf("Could not authenticate to the server")
 				}
 			case <-c.quitChan:
 				ticker.Stop()
