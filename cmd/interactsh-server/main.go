@@ -18,7 +18,7 @@ import (
 
 func main() {
 	var eviction int
-	var debug bool
+	var debug, ldap bool
 
 	options := &server.Options{}
 	flag.BoolVar(&debug, "debug", false, "Use interactsh in debug mode")
@@ -27,6 +27,7 @@ func main() {
 	flag.StringVar(&options.ListenIP, "listen-ip", "0.0.0.0", "IP Address to listen on")
 	flag.StringVar(&options.Hostmaster, "hostmaster", "", "Hostmaster email to use for interactsh server")
 	flag.IntVar(&eviction, "eviction", 7, "Number of days to persist interactions for")
+	flag.BoolVar(&ldap, "ldap", false, "Enable LDAP server")
 	flag.Parse()
 
 	if debug {
@@ -64,13 +65,17 @@ func main() {
 	}
 	go smtpServer.ListenAndServe(autoTLS)
 
-	ldapServer, err := server.NewLDAPServer(options)
-	if err != nil {
-		gologger.Fatal().Msgf("Could not create LDAP server")
-	}
-	go ldapServer.ListenAndServe()
+	if ldap {
+		ldapServer, err := server.NewLDAPServer(options)
+		if err != nil {
+			gologger.Fatal().Msgf("Could not create LDAP server")
+		}
+		go ldapServer.ListenAndServe()
 
-	log.Printf("Listening on DNS, SMTP, HTTP and LDAP ports\n")
+		log.Printf("Listening on DNS, SMTP, HTTP and LDAP ports\n")
+	} else {
+		log.Printf("Listening on DNS, SMTP and HTTP ports\n")
+	}
 
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt)
