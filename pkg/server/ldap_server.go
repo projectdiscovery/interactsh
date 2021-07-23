@@ -24,7 +24,10 @@ func NewLDAPServer(options *Options) (*LDAPServer, error) {
 	routes := ldap.NewRouteMux()
 	routes.Bind(ldapserver.defaultHandler)
 	server := ldap.NewServer()
-	server.Handle(routes)
+	err := server.Handle(routes)
+	if err != nil {
+		return nil, err
+	}
 	ldapserver.server = server
 
 	return ldapserver, nil
