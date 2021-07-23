@@ -48,7 +48,7 @@ func main() {
 			gologger.Fatal().Msgf("Could not generate token\n")
 		}
 		options.Token = hex.EncodeToString(b)
-		gologger.Print().Msgf("Client Token: %s\n", options.Token)
+		log.Printf("Client Token: %s\n", options.Token)
 	}
 
 	store := storage.New(time.Duration(eviction) * time.Hour * 24)

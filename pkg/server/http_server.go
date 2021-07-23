@@ -36,9 +36,9 @@ func NewHTTPServer(options *Options) (*HTTPServer, error) {
 
 	router := &http.ServeMux{}
 	router.Handle("/", server.logger(http.HandlerFunc(server.defaultHandler)))
-	router.Handle("/register", http.HandlerFunc(server.registerHandler))
-	router.Handle("/deregister", http.HandlerFunc(server.deregisterHandler))
-	router.Handle("/poll", http.HandlerFunc(server.pollHandler))
+	router.Handle("/register", server.authMiddleware(http.HandlerFunc(server.registerHandler)))
+	router.Handle("/deregister", server.authMiddleware(http.HandlerFunc(server.deregisterHandler)))
+	router.Handle("/poll", server.authMiddleware(http.HandlerFunc(server.pollHandler)))
 
 	server.tlsserver = http.Server{Addr: options.ListenIP + ":443", Handler: router}
 	server.nontlsserver = http.Server{Addr: options.ListenIP + ":80", Handler: router}
@@ -278,6 +278,16 @@ func jsonError(w http.ResponseWriter, err interface{}, code int) {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.Header().Set("X-Content-Type-Options", "nosniff")
 	_ = json.NewEncoder(w).Encode(err)
+}
+
+func (h *HTTPServer) authMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		if !h.checkToken(req) {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
+		next.ServeHTTP(w, req)
+	})
 }
 
 func (h *HTTPServer) checkToken(req *http.Request) bool {
