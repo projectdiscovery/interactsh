@@ -3,6 +3,7 @@ module github.com/projectdiscovery/interactsh
 go 1.15
 
 require (
+	git.mills.io/prologic/smtpd v0.0.0-20210710122116-a525b76c287a
 	github.com/Mzack9999/ldapserver v1.0.2-0.20210723000540-2c566cc5d1a8
 	github.com/eggsampler/acme/v3 v3.2.1
 	github.com/google/uuid v1.2.0
@@ -14,7 +15,6 @@ require (
 	github.com/pkg/errors v0.9.1
 	github.com/projectdiscovery/gologger v1.1.4
 	github.com/projectdiscovery/retryablehttp-go v1.0.1
-	github.com/prologic/smtpd v0.0.0-20210126001904-0893ad18168e
 	github.com/rs/xid v1.3.0
 	github.com/stretchr/testify v1.7.0
 	gopkg.in/corvus-ch/zbase32.v1 v1.0.0

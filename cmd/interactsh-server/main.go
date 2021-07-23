@@ -1,6 +1,8 @@
 package main
 
 import (
+	"crypto/rand"
+	"encoding/hex"
 	"flag"
 	"fmt"
 	"log"
@@ -28,12 +30,26 @@ func main() {
 	flag.StringVar(&options.Hostmaster, "hostmaster", "", "Hostmaster email to use for interactsh server")
 	flag.IntVar(&eviction, "eviction", 7, "Number of days to persist interactions for")
 	flag.BoolVar(&ldap, "ldap", false, "Enable LDAP server")
+	flag.BoolVar(&options.Auth, "auth", false, "Require a token from the client to retrieve interactions")
+	flag.StringVar(&options.Token, "token", "", "Generate a token that the client must provide to retrieve interactions")
 	flag.Parse()
 
 	if debug {
 		gologger.DefaultLogger.SetMaxLevel(levels.LevelDebug)
 	} else {
 		gologger.DefaultLogger.SetWriter(&noopWriter{})
+	}
+
+	if options.Token != "" {
+		options.Auth = true
+	}
+	if options.Auth && options.Token == "" {
+		b := make([]byte, 32)
+		if _, err := rand.Read(b); err != nil {
+			gologger.Fatal().Msgf("Could not generate token\n")
+		}
+		options.Token = hex.EncodeToString(b)
+		log.Printf("Client Token: %s\n", options.Token)
 	}
 
 	store := storage.New(time.Duration(eviction) * time.Hour * 24)
