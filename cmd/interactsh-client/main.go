@@ -22,9 +22,11 @@ var (
 	verbose      = flag.Bool("v", false, "Show verbose output")
 	pollInterval = flag.Int("poll-interval", 5, "Number of seconds between each poll request")
 	persistent   = flag.Bool("persist", false, "Enables persistent interactsh sessions")
-	dnsOnly      = flag.Bool("dns-only", false, "Display dns interactions")
-	httpOnly     = flag.Bool("http-only", false, "Display http interactions")
+	dnsOnly      = flag.Bool("dns-only", false, "Display only dns requests in verbose output")
+	httpOnly     = flag.Bool("http-only", false, "Display only http requests in verbose output")
 	smtpOnly     = flag.Bool("smtp-only", false, "Display smtp interactions")
+	token        = flag.String("token", "", "Authentication token for the server")
+
 )
 
 const banner = `
@@ -60,6 +62,7 @@ func main() {
 	client, err := client.New(&client.Options{
 		ServerURL:         *serverURL,
 		PersistentSession: *persistent,
+		Token:             *token,
 	})
 	if err != nil {
 		gologger.Fatal().Msgf("Could not create client: %s\n", err)
