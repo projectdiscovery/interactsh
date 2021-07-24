@@ -18,7 +18,7 @@ import (
 
 func main() {
 	var eviction int
-	var debug bool
+	var debug, smb, responder bool
 
 	options := &server.Options{}
 	flag.BoolVar(&debug, "debug", false, "Use interactsh in debug mode")
@@ -27,6 +27,8 @@ func main() {
 	flag.StringVar(&options.ListenIP, "listen-ip", "0.0.0.0", "IP Address to listen on")
 	flag.StringVar(&options.Hostmaster, "hostmaster", "", "Hostmaster email to use for interactsh server")
 	flag.IntVar(&eviction, "eviction", 7, "Number of days to persist interactions for")
+	flag.BoolVar(&responder, "responder", false, "Start a responder agent - docker must be installed")
+	flag.BoolVar(&smb, "smb", false, "Start a smb agent - impacket and python 3 must be installed")
 	flag.Parse()
 
 	if debug {
@@ -51,6 +53,7 @@ func main() {
 	if err != nil {
 		gologger.Fatal().Msgf("Could not generate certs for auto TLS")
 	}
+
 	httpServer, err := server.NewHTTPServer(options)
 	if err != nil {
 		gologger.Fatal().Msgf("Could not create HTTP server")
@@ -62,6 +65,22 @@ func main() {
 		gologger.Fatal().Msgf("Could not create SMTP server")
 	}
 	go smtpServer.ListenAndServe(autoTLS)
+
+	if responder {
+		responderServer, err := server.NewResponderServer(options)
+		if err != nil {
+			gologger.Fatal().Msgf("Could not create SMB server")
+		}
+		go responderServer.ListenAndServe()
+	}
+
+	if smb {
+		smbServer, err := server.NewSMBServer(options)
+		if err != nil {
+			gologger.Fatal().Msgf("Could not create SMB server")
+		}
+		go smbServer.ListenAndServe()
+	}
 
 	log.Printf("Listening on DNS, SMTP and HTTP ports\n")
 
