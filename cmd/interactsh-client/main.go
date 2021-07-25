@@ -26,7 +26,6 @@ var (
 	httpOnly     = flag.Bool("http-only", false, "Display only http requests in verbose output")
 	smtpOnly     = flag.Bool("smtp-only", false, "Display smtp interactions")
 	token        = flag.String("token", "", "Authentication token for the server")
-
 )
 
 const banner = `
@@ -102,6 +101,14 @@ func main() {
 					builder.WriteString(fmt.Sprintf("[%s] Received SMTP interaction from %s at %s", interaction.FullId, interaction.RemoteAddress, interaction.Timestamp.Format("2006-01-02 15:04:05")))
 					if *verbose {
 						builder.WriteString(fmt.Sprintf("\n------------\nSMTP Interaction\n------------\n\n%s\n\n", interaction.RawRequest))
+					}
+					writeOutput(outputFile, builder)
+				}
+			case "responder", "smb":
+				if noFilter {
+					builder.WriteString(fmt.Sprintf("Received Responder/Smb interaction at %s", interaction.Timestamp.Format("2006-01-02 15:04:05")))
+					if *verbose {
+						builder.WriteString(fmt.Sprintf("\n------------\nResponder/SMB Interaction\n------------\n\n%s\n\n", interaction.RawRequest))
 					}
 					writeOutput(outputFile, builder)
 				}

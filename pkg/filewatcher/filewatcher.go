@@ -37,6 +37,7 @@ func (f *FileWatcher) Watch() (chan string, error) {
 			r, err := os.Open(f.Options.File)
 			if err != nil {
 				log.Fatal(err)
+				return
 			}
 			sc := bufio.NewScanner(r)
 			for sc.Scan() {

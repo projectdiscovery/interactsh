@@ -216,6 +216,7 @@ func (h *HTTPServer) deregisterHandler(w http.ResponseWriter, req *http.Request)
 // PollResponse is the response for a polling request
 type PollResponse struct {
 	Data   []string `json:"data"`
+	Extra  []string `json:"extra"`
 	AESKey string   `json:"aes_key"`
 }
 
@@ -246,7 +247,17 @@ func (h *HTTPServer) pollHandler(w http.ResponseWriter, req *http.Request) {
 		jsonError(w, errors.Wrap(err, "could not get interactions"), http.StatusBadRequest)
 		return
 	}
-	response := &PollResponse{Data: data, AESKey: aesKey}
+
+	// At this point the client is authenticated, so we return also the data related to the auth token
+	extradata, err := h.options.Storage.GetInteractionsWithToken(h.options.Token)
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		gologger.Warning().Msgf("Could not get extra interactions for %s: %s\n", ID, err)
+		jsonError(w, errors.Wrap(err, "could not get extra interactions"), http.StatusBadRequest)
+		return
+	}
+
+	response := &PollResponse{Data: data, Extra: extradata, AESKey: aesKey}
 	if err := jsoniter.NewEncoder(w).Encode(response); err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		gologger.Warning().Msgf("Could not encode interactions for %s: %s\n", ID, err)

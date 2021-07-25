@@ -70,6 +70,16 @@ func (s *Storage) SetIDPublicKey(correlationID, secretKey string, publicKey stri
 	return nil
 }
 
+// SetTokenCorrelationData creates the internal structure for a corresponding token
+func (s *Storage) SetTokenCorrelationData(token string) error {
+	data := &CorrelationData{
+		Data:      make([]string, 0),
+		dataMutex: &sync.Mutex{},
+	}
+	s.cache.Set(token, data, s.evictionTTL)
+	return nil
+}
+
 // AddInteraction adds an interaction data to the correlation ID after encrypting
 // it with Public Key for the provided correlation ID.
 func (s *Storage) AddInteraction(correlationID string, data []byte) error {
@@ -88,6 +98,23 @@ func (s *Storage) AddInteraction(correlationID string, data []byte) error {
 	}
 	value.dataMutex.Lock()
 	value.Data = append(value.Data, ct)
+	value.dataMutex.Unlock()
+	return nil
+}
+
+// AddInteractionWithToken adds an interaction data to the auth token bucket
+func (s *Storage) AddInteractionWithToken(token, data string) error {
+	item := s.cache.Get(token)
+	if item == nil {
+		return errors.New("could not get correlation-id from cache")
+	}
+	value, ok := item.Value().(*CorrelationData)
+	if !ok {
+		return errors.New("invalid correlation-id cache value found")
+	}
+
+	value.dataMutex.Lock()
+	value.Data = append(value.Data, data)
 	value.dataMutex.Unlock()
 	return nil
 }
@@ -111,6 +138,24 @@ func (s *Storage) GetInteractions(correlationID, secret string) ([]string, strin
 	value.Data = make([]string, 0)
 	value.dataMutex.Unlock()
 	return data, value.AESKey, nil
+}
+
+// GetInteractions returns the interactions for a token and removes
+// it from the storage
+func (s *Storage) GetInteractionsWithToken(token string) ([]string, error) {
+	item := s.cache.Get(token)
+	if item == nil {
+		return nil, errors.New("could not get token from cache")
+	}
+	value, ok := item.Value().(*CorrelationData)
+	if !ok {
+		return nil, errors.New("invalid token cache value found")
+	}
+	value.dataMutex.Lock()
+	data := value.Data
+	value.Data = make([]string, 0)
+	value.dataMutex.Unlock()
+	return data, nil
 }
 
 // RemoveID removes data for a correlation ID and data related to it.
@@ -175,4 +220,17 @@ func aesEncrypt(key []byte, message []byte) (string, error) {
 
 	encMessage := base64.StdEncoding.EncodeToString(cipherText)
 	return encMessage, nil
+}
+
+// GetCacheItem returns an item as is
+func (s *Storage) GetCacheItem(token string) (*CorrelationData, error) {
+	item := s.cache.Get(token)
+	if item == nil {
+		return nil, errors.New("could not get token from cache")
+	}
+	value, ok := item.Value().(*CorrelationData)
+	if !ok {
+		return nil, errors.New("invalid token cache value found")
+	}
+	return value, nil
 }

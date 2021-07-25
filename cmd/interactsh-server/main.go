@@ -41,7 +41,8 @@ func main() {
 		gologger.DefaultLogger.SetWriter(&noopWriter{})
 	}
 
-	if options.Token != "" {
+	// Requires auth if token is specified or enables it automatically for responder and smb options
+	if options.Token != "" || responder || smb {
 		options.Auth = true
 	}
 	if options.Auth && options.Token == "" {
@@ -55,6 +56,10 @@ func main() {
 
 	store := storage.New(time.Duration(eviction) * time.Hour * 24)
 	options.Storage = store
+
+	if options.Auth {
+		_ = options.Storage.SetTokenCorrelationData(options.Token)
+	}
 
 	dnsServer, err := server.NewDNSServer(options)
 	if err != nil {
@@ -88,7 +93,8 @@ func main() {
 		if err != nil {
 			gologger.Fatal().Msgf("Could not create SMB server")
 		}
-		go responderServer.ListenAndServe()
+		go responderServer.ListenAndServe() //nolint
+		defer responderServer.Close()
 	}
 
 	if smb {
@@ -96,7 +102,8 @@ func main() {
 		if err != nil {
 			gologger.Fatal().Msgf("Could not create SMB server")
 		}
-		go smbServer.ListenAndServe()
+		go smbServer.ListenAndServe() //nolint
+		defer smbServer.Close()
 	}
 
 	log.Printf("Listening on DNS, SMTP and HTTP ports\n")

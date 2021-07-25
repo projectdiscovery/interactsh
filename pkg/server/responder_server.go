@@ -1,7 +1,7 @@
 package server
 
 import (
-	"log"
+	"bytes"
 	"net"
 	"os"
 	"os/exec"
@@ -9,7 +9,9 @@ import (
 	"strings"
 	"time"
 
+	jsoniter "github.com/json-iterator/go"
 	"github.com/projectdiscovery/fileutil"
+	"github.com/projectdiscovery/gologger"
 	"github.com/projectdiscovery/interactsh/pkg/filewatcher"
 	"github.com/projectdiscovery/stringsutil"
 )
@@ -77,8 +79,23 @@ func (h *ResponderServer) ListenAndServe() error {
 		for data := range ch {
 			for searchTerm, extractAfter := range responderMonitorList {
 				if strings.Contains(data, searchTerm) {
-					haystack := stringsutil.After(data, extractAfter)
-					log.Println(haystack)
+					responderData := stringsutil.After(data, extractAfter)
+
+					// Correlation id doesn't apply here, we skip encryption
+					interaction := &Interaction{
+						Protocol:   "responder",
+						RawRequest: responderData,
+						Timestamp:  time.Now(),
+					}
+					buffer := &bytes.Buffer{}
+					if err := jsoniter.NewEncoder(buffer).Encode(interaction); err != nil {
+						gologger.Warning().Msgf("Could not encode responder interaction: %s\n", err)
+					} else {
+						gologger.Debug().Msgf("Responder Interaction: \n%s\n", buffer.String())
+						if err := h.options.Storage.AddInteractionWithToken(h.options.Token, buffer.String()); err != nil {
+							gologger.Warning().Msgf("Could not store dns interaction: %s\n", err)
+						}
+					}
 				}
 			}
 		}
@@ -88,7 +105,7 @@ func (h *ResponderServer) ListenAndServe() error {
 }
 
 func (h *ResponderServer) Close() {
-	h.cmd.Process.Kill()
+	_ = h.cmd.Process.Kill()
 	if fileutil.FolderExists(h.tmpFolder) {
 		os.RemoveAll(h.tmpFolder)
 	}
