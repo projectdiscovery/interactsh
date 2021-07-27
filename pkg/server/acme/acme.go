@@ -41,8 +41,8 @@ func Generate(email, domains string, txtCallback TXTUpdateCallback) error {
 		return err
 	}
 	defer dialer.Close()
-	acme.NewClient(acme.LetsEncryptProduction, acme.WithHTTPClient(httpclient))
-	client, err := acme.NewClient(acme.LetsEncryptProduction)
+
+	client, err := acme.NewClient(acme.LetsEncryptProduction, acme.WithHTTPClient(httpclient))
 	if err != nil {
 		return errors.Wrap(err, "could not create acme client")
 	}

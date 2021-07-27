@@ -14,7 +14,6 @@ import (
 
 	jsoniter "github.com/json-iterator/go"
 	"github.com/pkg/errors"
-	"github.com/projectdiscovery/fastdialer/fastdialer"
 	"github.com/projectdiscovery/gologger"
 	"github.com/projectdiscovery/gologger/levels"
 	"github.com/projectdiscovery/interactsh/pkg/server/acme"
@@ -278,10 +277,4 @@ func (h *HTTPServer) authMiddleware(next http.Handler) http.Handler {
 
 func (h *HTTPServer) checkToken(req *http.Request) bool {
 	return !h.options.Auth || h.options.Auth && h.options.Token == req.Header.Get("Authorization")
-}
-
-func makeDialer() (*fastdialer.Dialer, error) {
-	fastdialerOpts := fastdialer.DefaultOptions
-	fastdialerOpts.EnableFallback = true
-	return fastdialer.NewDialer(fastdialerOpts)
 }
