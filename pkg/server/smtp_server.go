@@ -79,30 +79,9 @@ func (h *SMTPServer) ListenAndServe(autoTLS *acme.AutoTLS) {
 
 // defaultHandler is a handler for default collaborator requests
 func (h *SMTPServer) defaultHandler(remoteAddr net.Addr, from string, to []string, data []byte) error {
-	var uniqueID, fullID string
+	var uniqueID, fullID, correlationID string
 
 	gologger.Debug().Msgf("New SMTP request: %s %s %s %s\n", remoteAddr, from, to, string(data))
-
-	// Handle callbacks - SMTP server provided only standard response, so here we match and continue
-	for _, callback := range h.options.Callbacks {
-		mapDSL := make(map[string]interface{})
-		mapDSL["remote_addr"] = remoteAddr.String()
-		mapDSL["from"] = from
-		mapDSL["to"] = to
-		mapDSL["data"] = string(data)
-		match, err := nebula.EvalAsBool(callback.DSL, mapDSL)
-		if err != nil {
-			gologger.Warning().Msgf("coudln't evaluate dsl matching: %s\n", err)
-		}
-		if match {
-			// TBD - For now just triggering the callback
-			_, err := nebula.Eval(callback.Code, mapDSL)
-			if err != nil {
-				gologger.Warning().Msgf("coudln't execute the callback: %s\n", err)
-				return err
-			}
-		}
-	}
 
 	for _, addr := range to {
 		if len(addr) > 33 && strings.Contains(addr, "@") {
@@ -110,6 +89,7 @@ func (h *SMTPServer) defaultHandler(remoteAddr net.Addr, from string, to []strin
 			for i, part := range parts {
 				if len(part) == 33 {
 					uniqueID = part
+					correlationID = uniqueID[:20]
 					fullID = part
 					if i+1 <= len(parts) {
 						fullID = strings.Join(parts[:i+1], ".")
@@ -118,10 +98,35 @@ func (h *SMTPServer) defaultHandler(remoteAddr net.Addr, from string, to []strin
 			}
 		}
 	}
+
+	item, err := h.options.Storage.GetCorrelationDataByID(correlationID)
+	if err == nil {
+		// Handle callbacks - SMTP server provided only standard response, so here we match and continue
+		for _, callback := range item.Callbacks {
+			mapDSL := make(map[string]interface{})
+			mapDSL["remote_addr"] = remoteAddr.String()
+			mapDSL["from"] = from
+			mapDSL["to"] = to
+			mapDSL["data"] = string(data)
+			match, err := nebula.EvalAsBool(callback.DSL, mapDSL)
+			if err != nil {
+				gologger.Warning().Msgf("coudln't evaluate dsl matching: %s\n", err)
+			}
+			if match {
+				// TBD - For now just triggering the callback
+				_, err := nebula.Eval(callback.Code, mapDSL)
+				if err != nil {
+					gologger.Warning().Msgf("coudln't execute the callback: %s\n", err)
+					return err
+				}
+			}
+		}
+	} else {
+		gologger.Warning().Msgf("No item found for %s: %s\n", correlationID, err)
+	}
+
 	if uniqueID != "" {
 		host, _, _ := net.SplitHostPort(remoteAddr.String())
-
-		correlationID := uniqueID[:20]
 		interaction := &Interaction{
 			Protocol:      "smtp",
 			UniqueID:      uniqueID,

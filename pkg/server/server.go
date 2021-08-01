@@ -7,6 +7,8 @@ import (
 	"github.com/projectdiscovery/interactsh/pkg/storage"
 )
 
+var Storage *storage.Storage
+
 // Interaction is an interaction received to the server.
 type Interaction struct {
 	// Protocol for interaction, can contains HTTP/DNS/SMTP,etc.
@@ -29,12 +31,6 @@ type Interaction struct {
 	Timestamp time.Time `json:"timestamp"`
 }
 
-type Callback struct {
-	Name string `yaml:"name"`
-	DSL  string `yaml:"dsl"`
-	Code string `yaml:"code"`
-}
-
 // Options contains configuration options for the servers
 type Options struct {
 	// Domain is the domain for the instance.
@@ -46,8 +42,8 @@ type Options struct {
 	// Hostmaster is the hostmaster email for the server.
 	Hostmaster string
 	// Storage is a storage for interaction data storage
-	Storage   *storage.Storage
-	Callbacks []Callback
+	Storage  *storage.Storage
+	Template bool
 }
 
 // URLReflection returns a reversed part of the URL payload

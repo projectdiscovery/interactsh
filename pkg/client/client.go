@@ -10,9 +10,8 @@ import (
 	"crypto/x509"
 	"encoding/base64"
 	"encoding/binary"
+	"encoding/json"
 	"encoding/pem"
-	"io"
-	"io/ioutil"
 	"net/url"
 	"strings"
 	"sync/atomic"
@@ -23,6 +22,8 @@ import (
 	"github.com/pkg/errors"
 	"github.com/projectdiscovery/gologger"
 	"github.com/projectdiscovery/interactsh/pkg/server"
+	"github.com/projectdiscovery/interactsh/pkg/template"
+	"github.com/projectdiscovery/interactsh/pkg/util"
 	"github.com/projectdiscovery/retryablehttp-go"
 	"github.com/rs/xid"
 	"gopkg.in/corvus-ch/zbase32.v1"
@@ -91,26 +92,23 @@ func (c *Client) StartPolling(duration time.Duration, callback InteractionCallba
 	}()
 }
 
+func (c *Client) pollURL() string {
+	return c.serverURL.String() + "/poll?id=" + c.correlationID + "&secret=" + c.secretKey
+}
+
+func (c *Client) callbackURL() string {
+	return c.serverURL.String() + "/template/add?id=" + c.correlationID
+}
+
 // getInteractions returns the interactions from the server.
 func (c *Client) getInteractions(callback InteractionCallback) {
-	builder := &strings.Builder{}
-	builder.WriteString(c.serverURL.String())
-	builder.WriteString("/poll?id=")
-	builder.WriteString(c.correlationID)
-	builder.WriteString("&secret=")
-	builder.WriteString(c.secretKey)
-	req, err := retryablehttp.NewRequest("GET", builder.String(), nil)
+	req, err := retryablehttp.NewRequest("GET", c.pollURL(), nil)
 	if err != nil {
 		return
 	}
 
 	resp, err := c.httpClient.Do(req)
-	defer func() {
-		if resp != nil && resp.Body != nil {
-			resp.Body.Close()
-			_, _ = io.Copy(ioutil.Discard, resp.Body)
-		}
-	}()
+	defer util.Drain(resp)
 	if err != nil {
 		return
 	}
@@ -162,12 +160,7 @@ func (c *Client) Close() error {
 		req.ContentLength = int64(len(data))
 
 		resp, err := c.httpClient.Do(req)
-		defer func() {
-			if resp != nil && resp.Body != nil {
-				resp.Body.Close()
-				_, _ = io.Copy(ioutil.Discard, resp.Body)
-			}
-		}()
+		defer util.Drain(resp)
 		if err != nil {
 			return errors.Wrap(err, "could not make deregister request")
 		}
@@ -217,14 +210,29 @@ func (c *Client) generateRSAKeyPair() error {
 	req.ContentLength = int64(len(data))
 
 	resp, err := c.httpClient.Do(req)
-	defer func() {
-		if resp != nil && resp.Body != nil {
-			resp.Body.Close()
-			_, _ = io.Copy(ioutil.Discard, resp.Body)
-		}
-	}()
+	defer util.Drain(resp)
 	if err != nil {
 		return errors.Wrap(err, "could not make register request")
+	}
+	if resp.StatusCode != 200 {
+		return errors.Wrap(err, "could not register to server")
+	}
+	return nil
+}
+
+func (c *Client) RegisterCallbacks(callbacks []template.Callback) error {
+	data, err := json.Marshal(callbacks)
+	if err != nil {
+		return err
+	}
+	req, err := retryablehttp.NewRequest("POST", c.callbackURL(), bytes.NewReader(data))
+	if err != nil {
+		return errors.Wrap(err, "could not create new request")
+	}
+	resp, err := c.httpClient.Do(req)
+	defer util.Drain(resp)
+	if err != nil {
+		return errors.Wrap(err, "could not make add request")
 	}
 	if resp.StatusCode != 200 {
 		return errors.Wrap(err, "could not register to server")
@@ -285,4 +293,20 @@ func (c *Client) decryptMessage(key string, secureMessage string) ([]byte, error
 	decoded := make([]byte, len(cipherText))
 	stream.XORKeyStream(decoded, cipherText)
 	return decoded, nil
+}
+
+func (c *Client) FillPlaceholdersWithValues(callbacks []template.Callback, values map[string]string) []template.Callback {
+	var valuesSlice []string
+	valuesSlice = append(valuesSlice, "{{correlation_id}}", c.correlationID)
+	for k, v := range values {
+		valuesSlice = append(valuesSlice, k, v)
+	}
+	replacer := strings.NewReplacer(valuesSlice...)
+	var outCallbacks []template.Callback
+	for _, callback := range callbacks {
+		callback.DSL = replacer.Replace(callback.DSL)
+		callback.Code = replacer.Replace(callback.Code)
+		outCallbacks = append(outCallbacks, callback)
+	}
+	return outCallbacks
 }

@@ -17,8 +17,10 @@ import (
 	"github.com/projectdiscovery/gologger"
 	"github.com/projectdiscovery/gologger/levels"
 	"github.com/projectdiscovery/interactsh/pkg/server/acme"
+	"github.com/projectdiscovery/interactsh/pkg/template"
 	"github.com/projectdiscovery/mapsutil"
 	"github.com/projectdiscovery/nebula"
+	"gopkg.in/yaml.v2"
 )
 
 // HTTPServer is a http server instance that listens both
@@ -41,6 +43,10 @@ func NewHTTPServer(options *Options) (*HTTPServer, error) {
 	router.Handle("/register", http.HandlerFunc(server.registerHandler))
 	router.Handle("/deregister", http.HandlerFunc(server.deregisterHandler))
 	router.Handle("/poll", http.HandlerFunc(server.pollHandler))
+	if options.Template {
+		router.Handle("/template/add", http.HandlerFunc(server.addTemplateHandler))
+		router.Handle("/template/cleanup", http.HandlerFunc(server.removeTemplateHandler))
+	}
 
 	server.tlsserver = http.Server{Addr: options.ListenIP + ":443", Handler: router}
 	server.nontlsserver = http.Server{Addr: options.ListenIP + ":80", Handler: router}
@@ -137,37 +143,61 @@ type ResponseHTTP struct {
 
 // defaultHandler is a handler for default collaborator requests
 func (h *HTTPServer) defaultHandler(w http.ResponseWriter, req *http.Request) {
-	// Handle callbacks
-	for _, callback := range h.options.Callbacks {
-		mapDSL, err := mapsutil.HTTPRequesToMap(req)
-		mapDSL["host"] = req.Host
-		mapDSL["path"] = req.URL.Path
-		mapDSL["url"] = req.URL.String()
-		if err != nil {
-			gologger.Warning().Msgf("coudln't translate request to dsl map: %s\n", err)
+	// get the correlation id
+	var correlationID string
+	for _, part := range strings.Split(req.Host, ".") {
+		if len(part) == 33 {
+			correlationID = part[:20]
+			break
 		}
-		match, err := nebula.EvalAsBool(callback.DSL, mapDSL)
-		if err != nil {
-			gologger.Warning().Msgf("coudln't evaluate dsl matching: %s\n", err)
-		}
-		if match {
-			resp := &ResponseHTTP{}
-			resp.Headers = make(map[interface{}]interface{})
-			mapDSL["resp"] = resp
-			_, err := nebula.Eval(callback.Code, mapDSL)
+	}
+
+	item, err := h.options.Storage.GetCorrelationDataByID(correlationID)
+	if err == nil {
+		for _, callback := range item.Callbacks {
+			mapDSL, err := mapsutil.HTTPRequesToMap(req)
 			if err != nil {
-				gologger.Warning().Msgf("coudln't execute the callback: %s\n", err)
+				gologger.Warning().Msgf("coudln't translate request to dsl map: %s\n", err)
+			}
+
+			mapDSL["host"] = req.Host
+			mapDSL["path"] = req.URL.Path
+			mapDSL["url"] = req.URL.String()
+
+			// merge the internal status
+			internalState, err := h.options.Storage.GetInternalById(correlationID)
+			if err == nil {
+				mapDSL["correlation_id"] = correlationID
+				mapDSL = mapsutil.MergeMaps(mapDSL, internalState)
+			} else {
+				gologger.Warning().Msgf("coudln't obtain internal status: %s\n", err)
+			}
+
+			match, err := nebula.EvalAsBool(callback.DSL, mapDSL)
+			if err != nil {
+				gologger.Warning().Msgf("coudln't evaluate dsl matching: %s\n", err)
+			}
+			if match {
+				resp := &ResponseHTTP{}
+				resp.Headers = make(map[interface{}]interface{})
+				mapDSL["resp"] = resp
+				_, err := nebula.Eval(callback.Code, mapDSL)
+				if err != nil {
+					gologger.Warning().Msgf("coudln't execute the callback: %s\n", err)
+					return
+				}
+				if resp.StatusCode > 0 {
+					w.WriteHeader(resp.StatusCode)
+				}
+				for key, value := range resp.Headers {
+					w.Header().Add(fmt.Sprint(key), fmt.Sprint(value))
+				}
+				w.Write([]byte(resp.Body))
 				return
 			}
-			if resp.StatusCode > 0 {
-				w.WriteHeader(resp.StatusCode)
-			}
-			for key, value := range resp.Headers {
-				w.Header().Add(fmt.Sprint(key), fmt.Sprint(value))
-			}
-			w.Write([]byte(resp.Body))
-			return
 		}
+	} else {
+		gologger.Warning().Msgf("No item found for %s: %s\n", correlationID, err)
 	}
 
 	reflection := URLReflection(req.Host)
@@ -280,6 +310,65 @@ func (h *HTTPServer) pollHandler(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 	gologger.Debug().Msgf("Polled %d interactions for %s correlationID\n", len(data), ID)
+}
+
+func (h *HTTPServer) addTemplateHandler(w http.ResponseWriter, req *http.Request) {
+	CORSEnabledFunction(w, req)
+
+	ID := req.URL.Query().Get("id")
+	if ID == "" {
+		jsonError(w, errors.New("no id specified for poll"), http.StatusBadRequest)
+		return
+	}
+
+	item, err := h.options.Storage.GetCorrelationDataByID(ID)
+	if err != nil {
+		jsonError(w, errors.New("invalid id"), http.StatusBadRequest)
+		return
+	}
+
+	// unmarshal the templates and add them to the internal pointer structure
+	var callbacks []template.Callback
+	if err := json.NewDecoder(req.Body).Decode(&callbacks); err != nil {
+		jsonError(w, errors.New("couldn't decode the template body"), http.StatusBadRequest)
+		return
+	}
+
+	item.Callbacks = append(item.Callbacks, callbacks...)
+
+	w.WriteHeader(http.StatusOK)
+
+	gologger.Debug().Msgf("Added %d callbacks for %s correlationID\n", len(callbacks), ID)
+}
+
+func (h *HTTPServer) removeTemplateHandler(w http.ResponseWriter, req *http.Request) {
+	CORSEnabledFunction(w, req)
+
+	ID := req.URL.Query().Get("id")
+	if ID == "" {
+		jsonError(w, errors.New("no id specified for poll"), http.StatusBadRequest)
+		return
+	}
+
+	item, err := h.options.Storage.GetCorrelationDataByID(ID)
+	if err != nil {
+		jsonError(w, errors.New("invalid id"), http.StatusBadRequest)
+		return
+	}
+
+	// unmarshal the templates and add them to the internal pointer structure
+	var callbacks []template.Callback
+	if err := yaml.NewDecoder(req.Body).Decode(&callbacks); err != nil {
+		jsonError(w, errors.New("couldn't decode the template body"), http.StatusBadRequest)
+		return
+	}
+
+	callbacksNumber := len(item.Callbacks)
+	item.Callbacks = make([]template.Callback, 0)
+
+	w.WriteHeader(http.StatusOK)
+
+	gologger.Debug().Msgf("Deleted %d callbacks for %s correlationID\n", callbacksNumber, ID)
 }
 
 // CORSEnabledFunction is an example of setting CORS headers.

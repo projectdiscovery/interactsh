@@ -19,6 +19,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/karlseguin/ccache/v2"
 	"github.com/pkg/errors"
+	"github.com/projectdiscovery/interactsh/pkg/template"
 )
 
 // Storage is an storage for interactsh interaction data as well
@@ -30,6 +31,8 @@ type Storage struct {
 
 // CorrelationData is the data for a correlation-id.
 type CorrelationData struct {
+	// State contains internal stateful information that can be set via the scripting engine
+	State map[string]interface{}
 	// data contains data for a correlation-id in AES encrypted json format.
 	Data []string `json:"data"`
 	// dataMutex is a mutex for the data slice.
@@ -37,8 +40,9 @@ type CorrelationData struct {
 	// secretkey is a secret key for original user verification
 	secretKey string
 	// AESKey is the AES encryption key in encrypted format.
-	AESKey string `json:"aes-key"`
-	aesKey []byte // decrypted AES key for signing
+	AESKey    string `json:"aes-key"`
+	aesKey    []byte // decrypted AES key for signing
+	Callbacks []template.Callback
 }
 
 // New creates a new storage instance for interactsh data.
@@ -65,6 +69,15 @@ func (s *Storage) SetIDPublicKey(correlationID, secretKey string, publicKey stri
 		dataMutex: &sync.Mutex{},
 		aesKey:    []byte(aesKey),
 		AESKey:    base64.StdEncoding.EncodeToString(ciphertext),
+	}
+	s.cache.Set(correlationID, data, s.evictionTTL)
+	return nil
+}
+
+func (s *Storage) SetID(correlationID string) error {
+	data := &CorrelationData{
+		Data:      make([]string, 0),
+		dataMutex: &sync.Mutex{},
 	}
 	s.cache.Set(correlationID, data, s.evictionTTL)
 	return nil
@@ -175,4 +188,66 @@ func aesEncrypt(key []byte, message []byte) (string, error) {
 
 	encMessage := base64.StdEncoding.EncodeToString(cipherText)
 	return encMessage, nil
+}
+
+func (s *Storage) SetInternalById(correlationID, key string, value interface{}) error {
+	item := s.cache.Get(correlationID)
+	if item == nil {
+		return errors.New("could not get correlation-id from cache")
+	}
+	v, ok := item.Value().(*CorrelationData)
+	if !ok {
+		return errors.New("invalid correlation-id cache value found")
+	}
+
+	v.dataMutex.Lock()
+	if v.State == nil {
+		v.State = make(map[string]interface{})
+	}
+	v.State[key] = value
+	v.dataMutex.Unlock()
+	return nil
+}
+
+func (s *Storage) GetInternalById(correlationID string) (map[string]interface{}, error) {
+	item := s.cache.Get(correlationID)
+	if item == nil {
+		return nil, errors.New("could not get correlation-id from cache")
+	}
+	v, ok := item.Value().(*CorrelationData)
+	if !ok {
+		return nil, errors.New("invalid correlation-id cache value found")
+	}
+
+	return v.State, nil
+}
+
+func (s *Storage) CleanupInternalById(correlationID string, seconds int) error {
+	item := s.cache.Get(correlationID)
+	if item == nil {
+		return errors.New("could not get correlation-id from cache")
+	}
+	v, ok := item.Value().(*CorrelationData)
+	if !ok {
+		return errors.New("invalid correlation-id cache value found")
+	}
+
+	time.AfterFunc(time.Duration(seconds)*time.Second, func() {
+		v.State = make(map[string]interface{})
+	})
+
+	return nil
+}
+
+func (s *Storage) GetCorrelationDataByID(correlationID string) (*CorrelationData, error) {
+	item := s.cache.Get(correlationID)
+	if item == nil {
+		return nil, errors.New("could not get correlation-id from cache")
+	}
+	v, ok := item.Value().(*CorrelationData)
+	if !ok {
+		return nil, errors.New("invalid correlation-id cache value found")
+	}
+
+	return v, nil
 }

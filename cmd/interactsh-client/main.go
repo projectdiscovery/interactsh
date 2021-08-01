@@ -9,21 +9,27 @@ import (
 	"os/signal"
 	"time"
 
+	"github.com/projectdiscovery/fileutil"
+	"github.com/projectdiscovery/folderutil"
 	"github.com/projectdiscovery/gologger"
 	"github.com/projectdiscovery/interactsh/pkg/client"
 	"github.com/projectdiscovery/interactsh/pkg/server"
+	template "github.com/projectdiscovery/interactsh/pkg/template"
+	"gopkg.in/yaml.v2"
 )
 
 var (
-	serverURL    = flag.String("url", "https://interact.sh", "URL of the interactsh server")
-	n            = flag.Int("n", 1, "Number of interactable URLs to generate")
-	output       = flag.String("o", "", "File to write output to")
-	json         = flag.Bool("json", false, "Show JSON output")
-	verbose      = flag.Bool("v", false, "Show verbose output")
-	pollInterval = flag.Int("poll-interval", 5, "Number of seconds between each poll request")
-	persistent   = flag.Bool("persist", false, "Enables persistent interactsh sessions")
-	dnsOnly      = flag.Bool("dns-only", false, "Display only dns requests in verbose output")
-	httpOnly     = flag.Bool("http-only", false, "Display only http requests in verbose output")
+	serverURL     = flag.String("url", "https://interact.sh", "URL of the interactsh server")
+	n             = flag.Int("n", 1, "Number of interactable URLs to generate")
+	output        = flag.String("o", "", "File to write output to")
+	json          = flag.Bool("json", false, "Show JSON output")
+	verbose       = flag.Bool("v", false, "Show verbose output")
+	pollInterval  = flag.Int("poll-interval", 5, "Number of seconds between each poll request")
+	persistent    = flag.Bool("persist", false, "Enables persistent interactsh sessions")
+	dnsOnly       = flag.Bool("dns-only", false, "Display only dns requests in verbose output")
+	httpOnly      = flag.Bool("http-only", false, "Display only http requests in verbose output")
+	templatesPath = flag.String("template-path", "", "Path of templates to upload")
+	generatedURLs []string
 )
 
 const banner = `
@@ -56,6 +62,31 @@ func main() {
 		defer outputFile.Close()
 	}
 
+	// Load the templates
+	var callbacks []template.Callback
+	if fileutil.FolderExists(*templatesPath) {
+		tplFiles, err := folderutil.GetFiles(*templatesPath)
+		if err != nil {
+			gologger.Fatal().Msgf("%s\n", err)
+		}
+		for _, tplfile := range tplFiles {
+			gologger.Info().Msgf("Loading template: %s\n", tplfile)
+			tplCallbacks, err := readCallbacksFromFile(tplfile)
+			if err != nil {
+				gologger.Fatal().Msgf("%s\n", err)
+			}
+
+			callbacks = append(callbacks, tplCallbacks...)
+		}
+	} else if fileutil.FileExists(*templatesPath) {
+		tplCallbacks, err := readCallbacksFromFile(*templatesPath)
+		if err != nil {
+			gologger.Fatal().Msgf("%s\n", err)
+		}
+
+		callbacks = append(callbacks, tplCallbacks...)
+	}
+
 	client, err := client.New(&client.Options{
 		ServerURL:         *serverURL,
 		PersistentSession: *persistent,
@@ -66,7 +97,24 @@ func main() {
 
 	gologger.Info().Msgf("Listing %d URL for OOB Testing\n", *n)
 	for i := 0; i < *n; i++ {
-		gologger.Info().Msgf("%s\n", client.URL())
+		URL := client.URL()
+		generatedURLs = append(generatedURLs, URL)
+		gologger.Info().Msgf("%s\n", URL)
+	}
+
+	if len(callbacks) > 0 {
+		callbacks = client.FillPlaceholdersWithValues(callbacks, map[string]string{
+			"{{URL}}": generatedURLs[0],
+		})
+		urlValues := make(map[string]string)
+		for i := range generatedURLs[1:] {
+			urlLabel := fmt.Sprintf("{{URL_%d}}", i)
+			urlValues[urlLabel] = generatedURLs[i]
+		}
+		err := client.RegisterCallbacks(callbacks)
+		if err != nil {
+			gologger.Fatal().Msgf("Could not register callbacks: %s\n", err)
+		}
 	}
 
 	client.StartPolling(time.Duration(*pollInterval)*time.Second, func(interaction *server.Interaction) {
@@ -117,4 +165,18 @@ func main() {
 		client.Close()
 		os.Exit(1)
 	}
+}
+
+func readCallbacksFromFile(filename string) ([]template.Callback, error) {
+	tpldata, err := os.ReadFile(filename)
+	if err != nil {
+		return nil, err
+	}
+	var callbacks []template.Callback
+	err = yaml.Unmarshal(tpldata, &callbacks)
+	if err != nil {
+		return nil, err
+	}
+
+	return callbacks, nil
 }

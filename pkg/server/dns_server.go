@@ -2,7 +2,11 @@ package server
 
 import (
 	"bytes"
+	"errors"
+	"fmt"
+	"log"
 	"net"
+	"strconv"
 	"strings"
 	"time"
 
@@ -55,14 +59,13 @@ func (h *DNSServer) ListenAndServe() {
 
 type ResponseDNS struct {
 	Code          int
-	ResponseType  int
 	Authoritative bool
-	A             []DNSRecord
-	AAAA          []DNSRecord
-	NS            []DNSRecord
-	SOA           []DNSRecord
-	TXT           []DNSRecord
-	MX            []DNSRecord
+	A             []interface{}
+	AAAA          []interface{}
+	NS            []interface{}
+	SOA           []interface{}
+	TXT           []interface{}
+	MX            []interface{}
 }
 
 type DNSRecord struct {
@@ -86,47 +89,104 @@ func (h *DNSServer) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 	domain := m.Question[0].Name
 
 	var matched bool
+	var uniqueID, fullID, correlationID string
 
-	// Handle callbacks - DNS is used also during the setup, so we match => invoke the callback, and continue normally
-	for _, callback := range h.options.Callbacks {
-		mapDSL := mapsutil.DNSToMap(r, "%s")
-		mapDSL["question"] = r.Question[0].Name
-		if len(mapDSL) == 0 {
-			gologger.Warning().Msg("coudln't translate request to dsl map\n")
-		}
-		var err error
-		matched, err = nebula.EvalAsBool(callback.DSL, mapDSL)
-		if err != nil {
-			gologger.Warning().Msgf("coudln't evaluate dsl matching: %s\n", err)
-		}
-		if matched {
-			resp := &ResponseDNS{}
-			mapDSL["resp"] = resp
-			_, err := nebula.Eval(callback.Code, mapDSL)
-			if err != nil {
-				gologger.Warning().Msgf("coudln't execute the callback: %s\n", err)
-				return
-			}
-			m.Authoritative = resp.Authoritative
-			m.Rcode = resp.Code
-			for _, a := range resp.A {
-				m.Answer = append(m.Answer, &dns.A{Hdr: dns.RR_Header{Name: a.Domain, Rrtype: dns.TypeA, Class: dns.ClassINET, Ttl: uint32(a.TTL)}, A: net.ParseIP(a.Value)})
-			}
-			for _, aaaa := range resp.AAAA {
-				m.Answer = append(m.Answer, &dns.AAAA{Hdr: dns.RR_Header{Name: aaaa.Domain, Rrtype: dns.TypeAAAA, Class: dns.ClassINET, Ttl: uint32(aaaa.TTL)}, AAAA: net.ParseIP(aaaa.Value)})
-			}
-			for _, ns := range resp.NS {
-				nsHeader := dns.RR_Header{Name: ns.Domain, Rrtype: dns.TypeNS, Class: dns.ClassINET, Ttl: uint32(ns.TTL)}
-				m.Ns = append(m.Ns, &dns.NS{Hdr: nsHeader, Ns: ns.Value})
-			}
-			for _, mx := range resp.MX {
-				nsHdr := dns.RR_Header{Name: mx.Domain, Rrtype: dns.TypeMX, Class: dns.ClassINET, Ttl: uint32(mx.TTL)}
-				m.Answer = append(m.Answer, &dns.MX{Hdr: nsHdr, Mx: mx.Value, Preference: 1})
+	if strings.HasSuffix(domain, h.dotDomain) {
+		parts := strings.Split(domain, ".")
+		for i, part := range parts {
+			if len(part) == 33 {
+				uniqueID = part
+				correlationID = uniqueID[:20]
+				fullID = part
+				if i+1 <= len(parts) {
+					fullID = strings.Join(parts[:i+1], ".")
+				}
 			}
 		}
 	}
 
-	var uniqueID, fullID string
+	item, err := h.options.Storage.GetCorrelationDataByID(correlationID)
+	if err == nil {
+		// Handle callbacks - DNS is used also during the setup, so we match => invoke the callback then stop
+		for _, callback := range item.Callbacks {
+			mapDSL := mapsutil.DNSToMap(r, "%s")
+			mapDSL["question"] = domain
+			if len(mapDSL) == 0 {
+				gologger.Warning().Msg("coudln't translate request to dsl map\n")
+			}
+			var correlationID string
+			for _, part := range strings.Split(domain, ".") {
+				if len(part) == 33 {
+					correlationID = part[:20]
+					break
+				}
+			}
+			// merge the internal status
+			internalState, err := h.options.Storage.GetInternalById(correlationID)
+			if err == nil {
+				mapDSL["correlation_id"] = correlationID
+				mapDSL = mapsutil.MergeMaps(mapDSL, internalState)
+			} else {
+				gologger.Warning().Msgf("coudln't obtain internal status: %s\n", err)
+			}
+
+			matched, err = nebula.EvalAsBool(callback.DSL, mapDSL)
+			log.Println(matched, err)
+			if err != nil {
+				gologger.Warning().Msgf("coudln't evaluate dsl matching: %s\n", err)
+			}
+			if matched {
+				resp := &ResponseDNS{}
+				mapDSL["resp"] = resp
+				_, err := nebula.Eval(callback.Code, mapDSL)
+				if err != nil {
+					gologger.Warning().Msgf("coudln't execute the callback: %s\n", err)
+					return
+				}
+				m.Authoritative = resp.Authoritative
+				m.Rcode = resp.Code
+				for _, a := range resp.A {
+					ar, err := toDNSRecord(a)
+					if err != nil {
+						gologger.Warning().Msgf("coudln't execute the callback: %s\n", err)
+						break
+					}
+
+					m.Answer = append(m.Answer, &dns.A{Hdr: dns.RR_Header{Name: ar.Domain, Rrtype: dns.TypeA, Class: dns.ClassINET, Ttl: uint32(ar.TTL)}, A: net.ParseIP(ar.Value)})
+				}
+				for _, aaaa := range resp.AAAA {
+					aaaar, err := toDNSRecord(aaaa)
+					if err != nil {
+						gologger.Warning().Msgf("coudln't execute the callback: %s\n", err)
+					}
+					m.Answer = append(m.Answer, &dns.AAAA{Hdr: dns.RR_Header{Name: aaaar.Domain, Rrtype: dns.TypeAAAA, Class: dns.ClassINET, Ttl: uint32(aaaar.TTL)}, AAAA: net.ParseIP(aaaar.Value)})
+				}
+				for _, ns := range resp.NS {
+					nsr, err := toDNSRecord(ns)
+					if err != nil {
+						gologger.Warning().Msgf("coudln't execute the callback: %s\n", err)
+					}
+					nsHeader := dns.RR_Header{Name: nsr.Domain, Rrtype: dns.TypeNS, Class: dns.ClassINET, Ttl: uint32(nsr.TTL)}
+					m.Ns = append(m.Ns, &dns.NS{Hdr: nsHeader, Ns: nsr.Value})
+				}
+				for _, mx := range resp.MX {
+					mxr, err := toDNSRecord(mx)
+					if err != nil {
+						gologger.Warning().Msgf("coudln't execute the callback: %s\n", err)
+					}
+					nsHdr := dns.RR_Header{Name: mxr.Domain, Rrtype: dns.TypeMX, Class: dns.ClassINET, Ttl: uint32(mxr.TTL)}
+					m.Answer = append(m.Answer, &dns.MX{Hdr: nsHdr, Mx: mxr.Value, Preference: 1})
+				}
+
+				if err := w.WriteMsg(m); err != nil {
+					gologger.Warning().Msgf("Could not write DNS response: %s\n", err)
+				}
+				return
+			}
+		}
+	} else {
+		gologger.Warning().Msgf("No item found for %s: %s\n", correlationID, err)
+	}
 
 	if r.Question[0].Qtype == dns.TypeTXT {
 		m.Answer = append(m.Answer, &dns.TXT{Hdr: dns.RR_Header{Name: domain, Rrtype: dns.TypeTXT, Class: dns.ClassINET, Ttl: 0}, Txt: []string{h.TxtRecord}})
@@ -150,20 +210,8 @@ func (h *DNSServer) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 		m.Ns = append(m.Ns, &dns.NS{Hdr: nsHeader, Ns: h.ns1Domain})
 		m.Ns = append(m.Ns, &dns.NS{Hdr: nsHeader, Ns: h.ns2Domain})
 	}
-	if strings.HasSuffix(domain, h.dotDomain) {
-		parts := strings.Split(domain, ".")
-		for i, part := range parts {
-			if len(part) == 33 {
-				uniqueID = part
-				fullID = part
-				if i+1 <= len(parts) {
-					fullID = strings.Join(parts[:i+1], ".")
-				}
-			}
-		}
-	}
+
 	if uniqueID != "" {
-		correlationID := uniqueID[:20]
 		host, _, _ := net.SplitHostPort(w.RemoteAddr().String())
 		interaction := &Interaction{
 			Protocol:      "dns",
@@ -210,4 +258,29 @@ func toQType(ttype uint16) (rtype string) {
 		rtype = "AAAA"
 	}
 	return
+}
+
+func toDNSRecord(m interface{}) (*DNSRecord, error) {
+	d, ok := m.(map[interface{}]interface{})
+	if !ok {
+		return nil, errors.New("couldn't parse dns record")
+	}
+
+	var dnsrecord DNSRecord
+	for k, v := range d {
+		switch k {
+		case "Domain":
+			dnsrecord.Domain = fmt.Sprint(v)
+		case "TTL":
+			ttl, err := strconv.Atoi(fmt.Sprint(v))
+			if err != nil {
+				return nil, err
+			}
+			dnsrecord.TTL = ttl
+		case "Value":
+			dnsrecord.Value = fmt.Sprint(v)
+		}
+	}
+
+	return &dnsrecord, nil
 }
