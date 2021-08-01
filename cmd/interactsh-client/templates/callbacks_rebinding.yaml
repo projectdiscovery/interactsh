@@ -1,0 +1,31 @@
+# Rebinding Step 3 - After injecting the payload, the dns server now serves a record pointing the domain to an internal ip
+- name: test
+  dsl: question=='{{URL}}.' and rebinding
+  code: |
+    print("rebinding-phase-three - poisoned ip to internal network")
+    resp.Code = 0
+    resp.Authoritative = True
+    A = [{'Domain':'{{URL}}.', 'TTL':255, 'Value': '192.168.1.1'}]
+    resp.A = A
+
+# Rebinding Step 1 - Valid ip with short TTL
+- name: test
+  dsl: question=='{{URL}}.'
+  code: |
+    print("rebinding-phase-one - valid ip with short TTL")
+    resp.Code = 0
+    resp.Authoritative = True
+    A = [{'Domain':'{{URL}}.', 'TTL':0, 'Value': '1.1.1.1'}]
+    resp.A = A
+
+# Rebinding Step 2 - The client requested the target domain after a short TTL DNS request, we set an internal variable
+# so that next dns requests issued by the client (that didn't cache the previous result due to short TTL) target the evil domain.
+# Meanwhile we serve a custom payload that requests again the target domain
+- dsl: host=='{{URL}}'
+  code: |
+    resp.StatusCode = 200
+    resp.Body = "<script>javascript payload</script>"
+    # Setting the internal variable to enable step 3 of rebinding
+    store_info(correlation_id, "rebinding", True)
+    cleanup_info(correlation_id, 10) # cleanup after 10 seconds
+    print("javascript payload injected")
