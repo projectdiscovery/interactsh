@@ -43,7 +43,11 @@ type Options struct {
 	Hostmaster string
 	// Storage is a storage for interaction data storage
 	Storage  *storage.Storage
-	Template bool
+	// Auth requires client to authenticate
+	Auth bool
+	// Token required to retrieve interactions
+	Token string
+  Template bool
 }
 
 // URLReflection returns a reversed part of the URL payload

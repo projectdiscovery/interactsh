@@ -3,6 +3,7 @@ module github.com/projectdiscovery/interactsh
 go 1.15
 
 require (
+	git.mills.io/prologic/smtpd v0.0.0-20210710122116-a525b76c287a
 	github.com/eggsampler/acme/v3 v3.2.1
 	github.com/google/uuid v1.3.0
 	github.com/jasonlvhit/gocron v0.0.1
@@ -17,7 +18,6 @@ require (
 	github.com/projectdiscovery/mapsutil v0.0.1
 	github.com/projectdiscovery/nebula v0.0.0-20210721231252-c5c83b73ed4e
 	github.com/projectdiscovery/retryablehttp-go v1.0.1
-	github.com/prologic/smtpd v0.0.0-20210126001904-0893ad18168e
 	github.com/rs/xid v1.3.0
 	github.com/stretchr/testify v1.7.0
 	golang.org/x/crypto v0.0.0-20210711020723-a769d52b0f97 // indirect
