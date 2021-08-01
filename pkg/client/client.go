@@ -12,8 +12,6 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"encoding/pem"
-	"io"
-	"io/ioutil"
 	"net/http"
 	"net/url"
 	"strings"
@@ -113,7 +111,7 @@ func (c *Client) callbackURL() string {
 }
 
 // getInteractions returns the interactions from the server.
-func (c *Client) getInteractions(callback InteractionCallback) {
+func (c *Client) getInteractions(callback InteractionCallback) error {
 	req, err := retryablehttp.NewRequest("GET", c.pollURL(), nil)
 	if err != nil {
 		return err

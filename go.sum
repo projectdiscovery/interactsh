@@ -1,4 +1,6 @@
 cloud.google.com/go v0.26.0/go.mod h1:aQUYkXzVsufM+DwF1aE+0xfcU+56JwCaLick0ClmMTw=
+git.mills.io/prologic/smtpd v0.0.0-20210710122116-a525b76c287a h1:3i+FJ7IpSZHL+VAjtpQeZCRhrpP0odl5XfoLBY4fxJ8=
+git.mills.io/prologic/smtpd v0.0.0-20210710122116-a525b76c287a/go.mod h1:C7hXLmFmPYPjIDGfQl1clsmQ5TMEQfmzWTrJk475bUs=
 github.com/BurntSushi/toml v0.3.1/go.mod h1:xHWCNGjB5oqiDr8zfno3MHue2Ht5sIBksp03qcyfWMU=
 github.com/alecthomas/kingpin v2.2.6+incompatible/go.mod h1:59OFYbFVLKQKq+mqrL6Rw5bR0c3ACQaawgXx0QYndlE=
 github.com/alecthomas/template v0.0.0-20190718012654-fb15b899a751/go.mod h1:LOuyumcjzFXgccqObfd/Ljyb9UuFJ6TxHnclSeseNhc=
@@ -19,8 +21,6 @@ github.com/chzyer/test v0.0.0-20180213035817-a1ea475d72b1/go.mod h1:Q3SI9o4m/ZMn
 github.com/clbanning/anyxml v1.2.2 h1:EqBXr26KEC7tuGLDH7ZSeFmaE3yft0h386m5uydpNbU=
 github.com/clbanning/anyxml v1.2.2/go.mod h1:m8+zXuK8aS9lnXzfpSLUUjXoqcZ41osGX+JXr09eOjY=
 github.com/client9/misspell v0.3.4/go.mod h1:qj6jICC3Q7zFZvVWo7KLAzC3yx5G7kyvSDkc90ppPyw=
-git.mills.io/prologic/smtpd v0.0.0-20210710122116-a525b76c287a h1:3i+FJ7IpSZHL+VAjtpQeZCRhrpP0odl5XfoLBY4fxJ8=
-git.mills.io/prologic/smtpd v0.0.0-20210710122116-a525b76c287a/go.mod h1:C7hXLmFmPYPjIDGfQl1clsmQ5TMEQfmzWTrJk475bUs=
 github.com/creack/pty v1.1.9/go.mod h1:oKZEueFk5CKHvIhNR5MUki03XCEU+Q6VDXinZuGJ33E=
 github.com/cxmcc/tiger v0.0.0-20170524142333-bde35e2713d7 h1:jBEtq1t2gpn2kEzvRlCUxvvrxl5aSWkXNPwe/hwvSNQ=
 github.com/cxmcc/tiger v0.0.0-20170524142333-bde35e2713d7/go.mod h1:ruCYvt9rtYymAr4rNmfYJrl1dz8HSXUFP7cufqKOsDI=
@@ -155,8 +155,6 @@ github.com/projectdiscovery/nebula v0.0.0-20210721231252-c5c83b73ed4e h1:WTQ3Sd1
 github.com/projectdiscovery/nebula v0.0.0-20210721231252-c5c83b73ed4e/go.mod h1:yRk2l4QV4G+biDC4jW6Vuiv9OVMq15V/U072fxH4Gnc=
 github.com/projectdiscovery/retryablehttp-go v1.0.1 h1:V7wUvsZNq1Rcz7+IlcyoyQlNwshuwptuBVYWw9lx8RE=
 github.com/projectdiscovery/retryablehttp-go v1.0.1/go.mod h1:SrN6iLZilNG1X4neq1D+SBxoqfAF4nyzvmevkTkWsek=
-github.com/prologic/smtpd v0.0.0-20210126001904-0893ad18168e h1:ZT3wZ92sp/EHEE/HcFCWCsYS3ROLjHb6EqSX8qYrgXw=
-github.com/prologic/smtpd v0.0.0-20210126001904-0893ad18168e/go.mod h1:GkLsdH1RZj6RDKeI9A05NGZYmEZQ/PbQcZPnZoSZuYI=
 github.com/prometheus/client_model v0.0.0-20190812154241-14fe0d1b01d4/go.mod h1:xMI15A0UPsDsEKsMN9yxemIoYk6Tm2C1GtYGdfGttqA=
 github.com/rs/xid v1.3.0 h1:6NjYksEUlhurdVehpc7S7dk6DAmcKv8V9gG0FsVN2U4=
 github.com/rs/xid v1.3.0/go.mod h1:trrq9SKmegXys3aeAKXMUTdJsYXVwGY3RLcfgqegfbg=

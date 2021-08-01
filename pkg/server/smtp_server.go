@@ -12,7 +12,6 @@ import (
 	"github.com/projectdiscovery/gologger"
 	"github.com/projectdiscovery/interactsh/pkg/server/acme"
 	"github.com/projectdiscovery/nebula"
-	"github.com/prologic/smtpd"
 )
 
 // SMTPServer is a smtp server instance that listens both

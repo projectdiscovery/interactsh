@@ -32,7 +32,7 @@ func main() {
 	flag.IntVar(&eviction, "eviction", 7, "Number of days to persist interactions for")
 	flag.BoolVar(&options.Auth, "auth", false, "Require a token from the client to retrieve interactions")
 	flag.StringVar(&options.Token, "token", "", "Generate a token that the client must provide to retrieve interactions")
-  flag.BoolVar(&options.Template, "template", false, "Enable client's template upload")
+	flag.BoolVar(&options.Template, "template", false, "Enable client's template upload")
 	flag.BoolVar(&skipacme, "skip-acme", false, "Skip acme registration")
 	flag.Parse()
 
@@ -60,8 +60,8 @@ func main() {
 	// we set a global instance for nebula interactions
 	server.Storage = store
 	// ensure we have the global set
-	nebula.AddFunc("store_info", store.SetInternalById)
-	nebula.AddFunc("cleanup_info", store.CleanupInternalById)
+	_ = nebula.AddFunc("store_info", store.SetInternalById)
+	_ = nebula.AddFunc("cleanup_info", store.CleanupInternalById)
 
 	dnsServer, err := server.NewDNSServer(options)
 	if err != nil {

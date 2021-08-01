@@ -40,12 +40,12 @@ func NewHTTPServer(options *Options) (*HTTPServer, error) {
 
 	router := &http.ServeMux{}
 	router.Handle("/", server.logger(http.HandlerFunc(server.defaultHandler)))
-  router.Handle("/register", server.authMiddleware(http.HandlerFunc(server.registerHandler)))
+	router.Handle("/register", server.authMiddleware(http.HandlerFunc(server.registerHandler)))
 	router.Handle("/deregister", server.authMiddleware(http.HandlerFunc(server.deregisterHandler)))
 	router.Handle("/poll", server.authMiddleware(http.HandlerFunc(server.pollHandler)))
 	if options.Template {
-		router.Handle("/template/add", http.HandlerFunc(server.addTemplateHandler))
-		router.Handle("/template/cleanup", http.HandlerFunc(server.removeTemplateHandler))
+		router.Handle("/template/add", server.authMiddleware(http.HandlerFunc(server.addTemplateHandler)))
+		router.Handle("/template/cleanup", server.authMiddleware(http.HandlerFunc(server.removeTemplateHandler)))
 	}
 
 	server.tlsserver = http.Server{Addr: options.ListenIP + ":443", Handler: router}
@@ -192,7 +192,7 @@ func (h *HTTPServer) defaultHandler(w http.ResponseWriter, req *http.Request) {
 				for key, value := range resp.Headers {
 					w.Header().Add(fmt.Sprint(key), fmt.Sprint(value))
 				}
-				w.Write([]byte(resp.Body))
+				_, _ = w.Write([]byte(resp.Body))
 				return
 			}
 		}
