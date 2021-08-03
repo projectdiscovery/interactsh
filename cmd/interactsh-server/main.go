@@ -63,7 +63,7 @@ func main() {
 
 	// If short-tld is enabled create a singleton unencrypted record in the store
 	if options.ShortTLD {
-		store.SetID(options.Domain)
+		_ = store.SetID(options.Domain)
 	}
 
 	dnsServer, err := server.NewDNSServer(options)
