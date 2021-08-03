@@ -153,6 +153,16 @@ func (c *Client) getInteractions(callback InteractionCallback) error {
 		}
 		callback(interaction)
 	}
+
+	// handle short-tld data if any
+	for _, data := range response.TLDData {
+		interaction := &server.Interaction{}
+		if err := jsoniter.UnmarshalFromString(data, interaction); err != nil {
+			gologger.Error().Msgf("Could not unmarshal interaction data interaction: %v\n", err)
+			continue
+		}
+		callback(interaction)
+	}
 	return nil
 }
 

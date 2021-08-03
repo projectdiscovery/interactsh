@@ -26,7 +26,6 @@ var (
 	httpOnly     = flag.Bool("http-only", false, "Display only http requests in verbose output")
 	smtpOnly     = flag.Bool("smtp-only", false, "Display smtp interactions")
 	token        = flag.String("token", "", "Authentication token for the server")
-
 )
 
 const banner = `

@@ -70,6 +70,15 @@ func (s *Storage) SetIDPublicKey(correlationID, secretKey string, publicKey stri
 	return nil
 }
 
+func (s *Storage) SetID(ID string) error {
+	data := &CorrelationData{
+		Data:      make([]string, 0),
+		dataMutex: &sync.Mutex{},
+	}
+	s.cache.Set(ID, data, s.evictionTTL)
+	return nil
+}
+
 // AddInteraction adds an interaction data to the correlation ID after encrypting
 // it with Public Key for the provided correlation ID.
 func (s *Storage) AddInteraction(correlationID string, data []byte) error {
@@ -88,6 +97,22 @@ func (s *Storage) AddInteraction(correlationID string, data []byte) error {
 	}
 	value.dataMutex.Lock()
 	value.Data = append(value.Data, ct)
+	value.dataMutex.Unlock()
+	return nil
+}
+
+func (s *Storage) AddShortTLD(shortTLD string, data []byte) error {
+	item := s.cache.Get(shortTLD)
+	if item == nil {
+		return errors.New("could not get correlation-id from cache")
+	}
+	value, ok := item.Value().(*CorrelationData)
+	if !ok {
+		return errors.New("invalid correlation-id cache value found")
+	}
+
+	value.dataMutex.Lock()
+	value.Data = append(value.Data, string(data))
 	value.dataMutex.Unlock()
 	return nil
 }
@@ -111,6 +136,23 @@ func (s *Storage) GetInteractions(correlationID, secret string) ([]string, strin
 	value.Data = make([]string, 0)
 	value.dataMutex.Unlock()
 	return data, value.AESKey, nil
+}
+
+func (s *Storage) GetShortTLDInteractions(ID string) ([]string, error) {
+	item := s.cache.Get(ID)
+	if item == nil {
+		return nil, errors.New("could not get id from cache")
+	}
+	value, ok := item.Value().(*CorrelationData)
+	if !ok {
+		return nil, errors.New("invalid id cache value found")
+	}
+
+	value.dataMutex.Lock()
+	data := value.Data
+	value.Data = make([]string, 0)
+	value.dataMutex.Unlock()
+	return data, nil
 }
 
 // RemoveID removes data for a correlation ID and data related to it.

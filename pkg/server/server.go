@@ -44,7 +44,8 @@ type Options struct {
 	// Auth requires client to authenticate
 	Auth bool
 	// Token required to retrieve interactions
-	Token string
+	Token    string
+	ShortTLD bool
 }
 
 // URLReflection returns a reversed part of the URL payload
