@@ -26,7 +26,6 @@ var (
 	httpOnly     = flag.Bool("http-only", false, "Display only http requests in verbose output")
 	smtpOnly     = flag.Bool("smtp-only", false, "Display smtp interactions")
 	token        = flag.String("token", "", "Authentication token for the server")
-
 )
 
 const banner = `
@@ -34,7 +33,7 @@ const banner = `
    (_)___  / /____  _________ ______/ /______/ /_ 
   / / __ \/ __/ _ \/ ___/ __ '/ ___/ __/ ___/ __ \
  / / / / / /_/  __/ /  / /_/ / /__/ /_(__  ) / / /
-/_/_/ /_/\__/\___/_/   \__,_/\___/\__/____/_/ /_/ v0.0.3
+/_/_/ /_/\__/\___/_/   \__,_/\___/\__/____/_/ /_/ v0.0.4
 `
 
 func showBanner() {
