@@ -13,6 +13,8 @@ type Interaction struct {
 	Protocol string `json:"protocol"`
 	// UniqueID is the uniqueID for the subdomain receiving the interaction.
 	UniqueID string `json:"unique-id"`
+	// FullId is the full path for the subdomain receiving the interaction.
+	FullId string `json:"full-id"`
 	// QType is the question type for the interaction
 	QType string `json:"q-type,omitempty"`
 	// RawRequest is the raw request received by the interactsh server.
@@ -39,6 +41,10 @@ type Options struct {
 	Hostmaster string
 	// Storage is a storage for interaction data storage
 	Storage *storage.Storage
+	// Auth requires client to authenticate
+	Auth bool
+	// Token required to retrieve interactions
+	Token string
 }
 
 // URLReflection returns a reversed part of the URL payload

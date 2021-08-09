@@ -36,9 +36,9 @@ func NewHTTPServer(options *Options) (*HTTPServer, error) {
 
 	router := &http.ServeMux{}
 	router.Handle("/", server.logger(http.HandlerFunc(server.defaultHandler)))
-	router.Handle("/register", http.HandlerFunc(server.registerHandler))
-	router.Handle("/deregister", http.HandlerFunc(server.deregisterHandler))
-	router.Handle("/poll", http.HandlerFunc(server.pollHandler))
+	router.Handle("/register", server.authMiddleware(http.HandlerFunc(server.registerHandler)))
+	router.Handle("/deregister", server.authMiddleware(http.HandlerFunc(server.deregisterHandler)))
+	router.Handle("/poll", server.authMiddleware(http.HandlerFunc(server.pollHandler)))
 
 	server.tlsserver = http.Server{Addr: options.ListenIP + ":443", Handler: router}
 	server.nontlsserver = http.Server{Addr: options.ListenIP + ":80", Handler: router}
@@ -48,6 +48,9 @@ func NewHTTPServer(options *Options) (*HTTPServer, error) {
 // ListenAndServe listens on http and/or https ports for the server.
 func (h *HTTPServer) ListenAndServe(autoTLS *acme.AutoTLS) {
 	go func() {
+		if autoTLS == nil {
+			return
+		}
 		h.tlsserver.TLSConfig = &tls.Config{}
 		h.tlsserver.TLSConfig.GetCertificate = autoTLS.GetCertificateFunc()
 
@@ -78,11 +81,15 @@ func (h *HTTPServer) logger(handler http.Handler) http.HandlerFunc {
 		w.WriteHeader(rec.Result().StatusCode)
 		_, _ = w.Write(data)
 
-		var uniqueID string
+		var uniqueID, fullID string
 		parts := strings.Split(r.Host, ".")
-		for _, part := range parts {
+		for i, part := range parts {
 			if len(part) == 33 {
 				uniqueID = part
+				fullID = part
+				if i+1 <= len(parts) {
+					fullID = strings.Join(parts[:i+1], ".")
+				}
 			}
 		}
 		if uniqueID != "" {
@@ -92,6 +99,7 @@ func (h *HTTPServer) logger(handler http.Handler) http.HandlerFunc {
 			interaction := &Interaction{
 				Protocol:      "http",
 				UniqueID:      uniqueID,
+				FullId:        fullID,
 				RawRequest:    string(req),
 				RawResponse:   string(resp),
 				RemoteAddress: host,
@@ -255,4 +263,18 @@ func jsonError(w http.ResponseWriter, err interface{}, code int) {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.Header().Set("X-Content-Type-Options", "nosniff")
 	_ = json.NewEncoder(w).Encode(err)
+}
+
+func (h *HTTPServer) authMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		if !h.checkToken(req) {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
+		next.ServeHTTP(w, req)
+	})
+}
+
+func (h *HTTPServer) checkToken(req *http.Request) bool {
+	return !h.options.Auth || h.options.Auth && h.options.Token == req.Header.Get("Authorization")
 }

@@ -64,7 +64,7 @@ func (h *DNSServer) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 	gologger.Debug().Msgf("New DNS request: %s\n", r.String())
 	domain := m.Question[0].Name
 
-	var uniqueID string
+	var uniqueID, fullID string
 
 	if r.Question[0].Qtype == dns.TypeTXT {
 		m.Answer = append(m.Answer, &dns.TXT{Hdr: dns.RR_Header{Name: domain, Rrtype: dns.TypeTXT, Class: dns.ClassINET, Ttl: 0}, Txt: []string{h.TxtRecord}})
@@ -90,9 +90,13 @@ func (h *DNSServer) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 	}
 	if strings.HasSuffix(domain, h.dotDomain) {
 		parts := strings.Split(domain, ".")
-		for _, part := range parts {
+		for i, part := range parts {
 			if len(part) == 33 {
 				uniqueID = part
+				fullID = part
+				if i+1 <= len(parts) {
+					fullID = strings.Join(parts[:i+1], ".")
+				}
 			}
 		}
 	}
@@ -102,6 +106,7 @@ func (h *DNSServer) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 		interaction := &Interaction{
 			Protocol:      "dns",
 			UniqueID:      uniqueID,
+			FullId:        fullID,
 			QType:         toQType(r.Question[0].Qtype),
 			RawRequest:    r.String(),
 			RawResponse:   m.String(),
