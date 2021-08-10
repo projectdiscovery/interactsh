@@ -19,18 +19,18 @@ import (
 )
 
 var (
-	serverURL    = flag.String("url", "https://interact.sh", "URL of the interactsh server")
-	n            = flag.Int("n", 1, "Number of interactable URLs to generate")
-	output       = flag.String("o", "", "File to write output to")
-	json         = flag.Bool("json", false, "Show JSON output")
-	verbose      = flag.Bool("v", false, "Show verbose output")
-	pollInterval = flag.Int("poll-interval", 5, "Number of seconds between each poll request")
-	persistent   = flag.Bool("persist", false, "Enables persistent interactsh sessions")
-	dnsOnly      = flag.Bool("dns-only", false, "Display only dns requests in verbose output")
-	httpOnly     = flag.Bool("http-only", false, "Display only http requests in verbose output")
-	smtpOnly     = flag.Bool("smtp-only", false, "Display smtp interactions")
-	token        = flag.String("token", "", "Authentication token for the server")
-  templatesPath = flag.String("template-path", "", "Path of templates to upload")
+	serverURL     = flag.String("url", "https://interact.sh", "URL of the interactsh server")
+	n             = flag.Int("n", 1, "Number of interactable URLs to generate")
+	output        = flag.String("o", "", "File to write output to")
+	json          = flag.Bool("json", false, "Show JSON output")
+	verbose       = flag.Bool("v", false, "Show verbose output")
+	pollInterval  = flag.Int("poll-interval", 5, "Number of seconds between each poll request")
+	persistent    = flag.Bool("persist", false, "Enables persistent interactsh sessions")
+	dnsOnly       = flag.Bool("dns-only", false, "Display only dns requests in verbose output")
+	httpOnly      = flag.Bool("http-only", false, "Display only http requests in verbose output")
+	smtpOnly      = flag.Bool("smtp-only", false, "Display smtp interactions")
+	token         = flag.String("token", "", "Authentication token for the server")
+	templatesPath = flag.String("template-path", "", "Path of templates to upload")
 	generatedURLs []string
 )
 
@@ -39,7 +39,7 @@ const banner = `
    (_)___  / /____  _________ ______/ /______/ /_ 
   / / __ \/ __/ _ \/ ___/ __ '/ ___/ __/ ___/ __ \
  / / / / / /_/  __/ /  / /_/ / /__/ /_(__  ) / / /
-/_/_/ /_/\__/\___/_/   \__,_/\___/\__/____/_/ /_/ v0.0.3
+/_/_/ /_/\__/\___/_/   \__,_/\___/\__/____/_/ /_/ v0.0.4
 `
 
 func showBanner() {
