@@ -2,6 +2,7 @@ package server
 
 import (
 	"bytes"
+	"io/ioutil"
 	"net"
 	"os"
 	"os/exec"
@@ -41,7 +42,7 @@ func NewResponderServer(options *Options) (*ResponderServer, error) {
 
 // ListenAndServe listens on various responder ports
 func (h *ResponderServer) ListenAndServe() error {
-	tmpFolder, err := os.MkdirTemp("", "")
+	tmpFolder, err := ioutil.TempDir("", "")
 	if err != nil {
 		return err
 	}
