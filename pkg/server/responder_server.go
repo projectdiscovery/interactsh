@@ -92,7 +92,7 @@ func (h *ResponderServer) ListenAndServe() error {
 						gologger.Warning().Msgf("Could not encode responder interaction: %s\n", err)
 					} else {
 						gologger.Debug().Msgf("Responder Interaction: \n%s\n", buffer.String())
-						if err := h.options.Storage.AddInteractionWithToken(h.options.Token, buffer.String()); err != nil {
+						if err := h.options.Storage.AddInteractionWithId(h.options.Token, buffer.Bytes()); err != nil {
 							gologger.Warning().Msgf("Could not store dns interaction: %s\n", err)
 						}
 					}
