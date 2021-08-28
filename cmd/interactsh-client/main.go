@@ -14,20 +14,6 @@ import (
 	"github.com/projectdiscovery/interactsh/pkg/server"
 )
 
-var (
-	serverURL    = flag.String("url", "https://interact.sh", "URL of the interactsh server")
-	n            = flag.Int("n", 1, "Number of interactable URLs to generate")
-	output       = flag.String("o", "", "File to write output to")
-	json         = flag.Bool("json", false, "Show JSON output")
-	verbose      = flag.Bool("v", false, "Show verbose output")
-	pollInterval = flag.Int("poll-interval", 5, "Number of seconds between each poll request")
-	persistent   = flag.Bool("persist", false, "Enables persistent interactsh sessions")
-	dnsOnly      = flag.Bool("dns-only", false, "Display only dns requests in verbose output")
-	httpOnly     = flag.Bool("http-only", false, "Display only http requests in verbose output")
-	smtpOnly     = flag.Bool("smtp-only", false, "Display smtp interactions")
-	token        = flag.String("token", "", "Authentication token for the server")
-)
-
 const banner = `
     _       __                       __       __  
    (_)___  / /____  _________ ______/ /______/ /_ 
@@ -45,6 +31,20 @@ func showBanner() {
 }
 
 func main() {
+
+	flag.CommandLine = flag.NewFlagSet(os.Args[0], flag.ExitOnError)
+	serverURL := flag.String("url", "https://interact.sh", "URL of the interactsh server")
+	n := flag.Int("n", 1, "Number of interactable URLs to generate")
+	output := flag.String("o", "", "File to write output to")
+	json := flag.Bool("json", false, "Show JSON output")
+	verbose := flag.Bool("v", false, "Show verbose output")
+	pollInterval := flag.Int("poll-interval", 5, "Number of seconds between each poll request")
+	persistent := flag.Bool("persist", false, "Enables persistent interactsh sessions")
+	dnsOnly := flag.Bool("dns-only", false, "Display only dns requests in verbose output")
+	httpOnly := flag.Bool("http-only", false, "Display only http requests in verbose output")
+	smtpOnly := flag.Bool("smtp-only", false, "Display smtp interactions")
+	token := flag.String("token", "", "Authentication token for the server")
+
 	flag.Parse()
 
 	showBanner()
