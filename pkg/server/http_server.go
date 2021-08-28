@@ -81,6 +81,30 @@ func (h *HTTPServer) logger(handler http.Handler) http.HandlerFunc {
 		w.WriteHeader(rec.Result().StatusCode)
 		_, _ = w.Write(data)
 
+		// if root-tld is enabled stores any interaction towards the main domain
+		if h.options.RootTLD && strings.HasSuffix(r.Host, h.domain) {
+			ID := h.domain
+			host, _, _ := net.SplitHostPort(r.RemoteAddr)
+			interaction := &Interaction{
+				Protocol:      "http",
+				UniqueID:      r.Host,
+				FullId:        r.Host,
+				RawRequest:    string(req),
+				RawResponse:   string(resp),
+				RemoteAddress: host,
+				Timestamp:     time.Now(),
+			}
+			buffer := &bytes.Buffer{}
+			if err := jsoniter.NewEncoder(buffer).Encode(interaction); err != nil {
+				gologger.Warning().Msgf("Could not encode root tld http interaction: %s\n", err)
+			} else {
+				gologger.Debug().Msgf("Root TLD HTTP Interaction: \n%s\n", buffer.String())
+				if err := h.options.Storage.AddRootTLD(ID, buffer.Bytes()); err != nil {
+					gologger.Warning().Msgf("Could not store root tld http interaction: %s\n", err)
+				}
+			}
+		}
+
 		var uniqueID, fullID string
 		parts := strings.Split(r.Host, ".")
 		for i, part := range parts {
@@ -174,6 +198,7 @@ func (h *HTTPServer) registerHandler(w http.ResponseWriter, req *http.Request) {
 		jsonError(w, errors.Wrap(err, "could not set id and public key"), http.StatusBadRequest)
 		return
 	}
+
 	gologger.Debug().Msgf("Registered correlationID %s for key\n", r.CorrelationID)
 }
 
@@ -205,8 +230,9 @@ func (h *HTTPServer) deregisterHandler(w http.ResponseWriter, req *http.Request)
 
 // PollResponse is the response for a polling request
 type PollResponse struct {
-	Data   []string `json:"data"`
-	AESKey string   `json:"aes_key"`
+	Data    []string `json:"data"`
+	AESKey  string   `json:"aes_key"`
+	TLDData []string `json:"tlddata,omitempty"`
 }
 
 // pollHandler is a handler for client poll requests
@@ -231,7 +257,19 @@ func (h *HTTPServer) pollHandler(w http.ResponseWriter, req *http.Request) {
 		jsonError(w, errors.Wrap(err, "could not get interactions"), http.StatusBadRequest)
 		return
 	}
-	response := &PollResponse{Data: data, AESKey: aesKey}
+
+	var tlddata []string
+	if h.options.RootTLD {
+		tlddata, err = h.options.Storage.GetRootTLDInteractions(h.options.Domain)
+		if err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			gologger.Warning().Msgf("Could not get root-tld interactions for %s: %s\n", h.options.Domain, err)
+			jsonError(w, errors.Wrap(err, "could not get interactions"), http.StatusBadRequest)
+			return
+		}
+	}
+
+	response := &PollResponse{Data: data, AESKey: aesKey, TLDData: tlddata}
 	if err := jsoniter.NewEncoder(w).Encode(response); err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		gologger.Warning().Msgf("Could not encode interactions for %s: %s\n", ID, err)

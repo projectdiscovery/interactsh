@@ -31,6 +31,7 @@ func main() {
 	flag.IntVar(&eviction, "eviction", 7, "Number of days to persist interactions for")
 	flag.BoolVar(&options.Auth, "auth", false, "Require a token from the client to retrieve interactions")
 	flag.StringVar(&options.Token, "token", "", "Generate a token that the client must provide to retrieve interactions")
+	flag.BoolVar(&options.RootTLD, "root-tld", false, "Enable support for *.domain.tld interaction")
 	flag.Parse()
 
 	if debug {
@@ -39,9 +40,15 @@ func main() {
 		gologger.DefaultLogger.SetWriter(&noopWriter{})
 	}
 
+	// if root-tld is enabled we enable auth - This ensure that any client has the token
+	if options.RootTLD {
+		options.Auth = true
+	}
+	// of in case a custom token is specified
 	if options.Token != "" {
 		options.Auth = true
 	}
+
 	if options.Auth && options.Token == "" {
 		b := make([]byte, 32)
 		if _, err := rand.Read(b); err != nil {
@@ -53,6 +60,11 @@ func main() {
 
 	store := storage.New(time.Duration(eviction) * time.Hour * 24)
 	options.Storage = store
+
+	// If riit-tld is enabled create a singleton unencrypted record in the store
+	if options.RootTLD {
+		_ = store.SetID(options.Domain)
+	}
 
 	dnsServer, err := server.NewDNSServer(options)
 	if err != nil {
