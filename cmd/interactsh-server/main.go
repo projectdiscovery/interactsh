@@ -23,6 +23,7 @@ func main() {
 	var debug, smb, responder bool
 
 	options := &server.Options{}
+	flag.CommandLine = flag.NewFlagSet(os.Args[0], flag.ExitOnError)
 	flag.BoolVar(&debug, "debug", false, "Use interactsh in debug mode")
 	flag.StringVar(&options.Domain, "domain", "", "Domain to use for interactsh server")
 	flag.StringVar(&options.IPAddress, "ip", "", "IP Address to use for interactsh server")
