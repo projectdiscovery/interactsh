@@ -159,11 +159,6 @@ type RegisterRequest struct {
 
 // registerHandler is a handler for client register requests
 func (h *HTTPServer) registerHandler(w http.ResponseWriter, req *http.Request) {
-	if !h.checkToken(req) {
-		w.WriteHeader(http.StatusUnauthorized)
-		return
-	}
-
 	CORSEnabledFunction(w, req)
 
 	r := &RegisterRequest{}
@@ -190,11 +185,6 @@ type DeregisterRequest struct {
 
 // deregisterHandler is a handler for client deregister requests
 func (h *HTTPServer) deregisterHandler(w http.ResponseWriter, req *http.Request) {
-	if !h.checkToken(req) {
-		w.WriteHeader(http.StatusUnauthorized)
-		return
-	}
-
 	CORSEnabledFunction(w, req)
 
 	r := &DeregisterRequest{}
@@ -222,11 +212,6 @@ type PollResponse struct {
 
 // pollHandler is a handler for client poll requests
 func (h *HTTPServer) pollHandler(w http.ResponseWriter, req *http.Request) {
-	if !h.checkToken(req) {
-		w.WriteHeader(http.StatusUnauthorized)
-		return
-	}
-
 	CORSEnabledFunction(w, req)
 
 	ID := req.URL.Query().Get("id")
