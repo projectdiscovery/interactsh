@@ -101,8 +101,8 @@ func (s *Storage) AddInteraction(correlationID string, data []byte) error {
 	return nil
 }
 
-func (s *Storage) AddShortTLD(shortTLD string, data []byte) error {
-	item := s.cache.Get(shortTLD)
+func (s *Storage) AddRootTLD(rootTLD string, data []byte) error {
+	item := s.cache.Get(rootTLD)
 	if item == nil {
 		return errors.New("could not get correlation-id from cache")
 	}
@@ -138,7 +138,7 @@ func (s *Storage) GetInteractions(correlationID, secret string) ([]string, strin
 	return data, value.AESKey, nil
 }
 
-func (s *Storage) GetShortTLDInteractions(ID string) ([]string, error) {
+func (s *Storage) GetRootTLDInteractions(ID string) ([]string, error) {
 	item := s.cache.Get(ID)
 	if item == nil {
 		return nil, errors.New("could not get id from cache")

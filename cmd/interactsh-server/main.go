@@ -31,7 +31,7 @@ func main() {
 	flag.IntVar(&eviction, "eviction", 7, "Number of days to persist interactions for")
 	flag.BoolVar(&options.Auth, "auth", false, "Require a token from the client to retrieve interactions")
 	flag.StringVar(&options.Token, "token", "", "Generate a token that the client must provide to retrieve interactions")
-	flag.BoolVar(&options.ShortTLD, "short-tld", false, "Enable shortld")
+	flag.BoolVar(&options.RootTLD, "root-tld", false, "Enable root tld")
 	flag.Parse()
 
 	if debug {
@@ -40,8 +40,8 @@ func main() {
 		gologger.DefaultLogger.SetWriter(&noopWriter{})
 	}
 
-	// if short-tld is enabled we enable auth - This ensure that any client has the token
-	if options.ShortTLD {
+	// if root-tld is enabled we enable auth - This ensure that any client has the token
+	if options.RootTLD {
 		options.Auth = true
 	}
 	// of in case a custom token is specified
@@ -61,8 +61,8 @@ func main() {
 	store := storage.New(time.Duration(eviction) * time.Hour * 24)
 	options.Storage = store
 
-	// If short-tld is enabled create a singleton unencrypted record in the store
-	if options.ShortTLD {
+	// If riit-tld is enabled create a singleton unencrypted record in the store
+	if options.RootTLD {
 		_ = store.SetID(options.Domain)
 	}
 

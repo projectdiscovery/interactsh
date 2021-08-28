@@ -81,8 +81,8 @@ func (h *HTTPServer) logger(handler http.Handler) http.HandlerFunc {
 		w.WriteHeader(rec.Result().StatusCode)
 		_, _ = w.Write(data)
 
-		// if shorttld is enabled stores any interaction towards the main domain
-		if h.options.ShortTLD && strings.HasSuffix(r.Host, h.domain) {
+		// if root-tld is enabled stores any interaction towards the main domain
+		if h.options.RootTLD && strings.HasSuffix(r.Host, h.domain) {
 			ID := h.domain
 			host, _, _ := net.SplitHostPort(r.RemoteAddr)
 			interaction := &Interaction{
@@ -96,11 +96,11 @@ func (h *HTTPServer) logger(handler http.Handler) http.HandlerFunc {
 			}
 			buffer := &bytes.Buffer{}
 			if err := jsoniter.NewEncoder(buffer).Encode(interaction); err != nil {
-				gologger.Warning().Msgf("Could not encode shortld http interaction: %s\n", err)
+				gologger.Warning().Msgf("Could not encode root tld http interaction: %s\n", err)
 			} else {
-				gologger.Debug().Msgf("Short TLD DNS Interaction: \n%s\n", buffer.String())
-				if err := h.options.Storage.AddShortTLD(ID, buffer.Bytes()); err != nil {
-					gologger.Warning().Msgf("Could not store shortld http interaction: %s\n", err)
+				gologger.Debug().Msgf("Root TLD HTTP Interaction: \n%s\n", buffer.String())
+				if err := h.options.Storage.AddRootTLD(ID, buffer.Bytes()); err != nil {
+					gologger.Warning().Msgf("Could not store root tld http interaction: %s\n", err)
 				}
 			}
 		}
@@ -259,11 +259,11 @@ func (h *HTTPServer) pollHandler(w http.ResponseWriter, req *http.Request) {
 	}
 
 	var tlddata []string
-	if h.options.ShortTLD {
-		tlddata, err = h.options.Storage.GetShortTLDInteractions(h.options.Domain)
+	if h.options.RootTLD {
+		tlddata, err = h.options.Storage.GetRootTLDInteractions(h.options.Domain)
 		if err != nil {
 			w.WriteHeader(http.StatusBadRequest)
-			gologger.Warning().Msgf("Could not get short-tld interactions for %s: %s\n", h.options.Domain, err)
+			gologger.Warning().Msgf("Could not get root-tld interactions for %s: %s\n", h.options.Domain, err)
 			jsonError(w, errors.Wrap(err, "could not get interactions"), http.StatusBadRequest)
 			return
 		}

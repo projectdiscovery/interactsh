@@ -88,8 +88,8 @@ func (h *DNSServer) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 		m.Ns = append(m.Ns, &dns.NS{Hdr: nsHeader, Ns: h.ns2Domain})
 	}
 
-	// if shorttld is enabled stores any interaction towards the main domain
-	if h.options.ShortTLD && strings.HasSuffix(domain, h.dotDomain) {
+	// if root-tld is enabled stores any interaction towards the main domain
+	if h.options.RootTLD && strings.HasSuffix(domain, h.dotDomain) {
 		correlationID := h.options.Domain
 		host, _, _ := net.SplitHostPort(w.RemoteAddr().String())
 		interaction := &Interaction{
@@ -104,10 +104,10 @@ func (h *DNSServer) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 		}
 		buffer := &bytes.Buffer{}
 		if err := jsoniter.NewEncoder(buffer).Encode(interaction); err != nil {
-			gologger.Warning().Msgf("Could not encode shortld dns interaction: %s\n", err)
+			gologger.Warning().Msgf("Could not encode root tld dns interaction: %s\n", err)
 		} else {
-			gologger.Debug().Msgf("Short TLD DNS Interaction: \n%s\n", buffer.String())
-			if err := h.options.Storage.AddShortTLD(correlationID, buffer.Bytes()); err != nil {
+			gologger.Debug().Msgf("Root TLD DNS Interaction: \n%s\n", buffer.String())
+			if err := h.options.Storage.AddRootTLD(correlationID, buffer.Bytes()); err != nil {
 				gologger.Warning().Msgf("Could not store dns interaction: %s\n", err)
 			}
 		}

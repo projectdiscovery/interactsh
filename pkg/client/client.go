@@ -154,7 +154,7 @@ func (c *Client) getInteractions(callback InteractionCallback) error {
 		callback(interaction)
 	}
 
-	// handle short-tld data if any
+	// handle root-tld data if any
 	for _, data := range response.TLDData {
 		interaction := &server.Interaction{}
 		if err := jsoniter.UnmarshalFromString(data, interaction); err != nil {

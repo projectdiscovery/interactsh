@@ -82,9 +82,9 @@ func (h *SMTPServer) defaultHandler(remoteAddr net.Addr, from string, to []strin
 
 	gologger.Debug().Msgf("New SMTP request: %s %s %s %s\n", remoteAddr, from, to, string(data))
 
-	// if shorttld is enabled stores any interaction towards the main domain
+	// if root-tld is enabled stores any interaction towards the main domain
 	for _, addr := range to {
-		if h.options.ShortTLD && strings.HasSuffix(addr, h.options.Domain) {
+		if h.options.RootTLD && strings.HasSuffix(addr, h.options.Domain) {
 			ID := h.options.Domain
 			host, _, _ := net.SplitHostPort(remoteAddr.String())
 			address := addr[strings.Index(addr, "@"):]
@@ -99,11 +99,11 @@ func (h *SMTPServer) defaultHandler(remoteAddr net.Addr, from string, to []strin
 			}
 			buffer := &bytes.Buffer{}
 			if err := jsoniter.NewEncoder(buffer).Encode(interaction); err != nil {
-				gologger.Warning().Msgf("Could not encode shortld http interaction: %s\n", err)
+				gologger.Warning().Msgf("Could not encode root tld SMTP interaction: %s\n", err)
 			} else {
-				gologger.Debug().Msgf("Short TLD DNS Interaction: \n%s\n", buffer.String())
-				if err := h.options.Storage.AddShortTLD(ID, buffer.Bytes()); err != nil {
-					gologger.Warning().Msgf("Could not store shortld http interaction: %s\n", err)
+				gologger.Debug().Msgf("Root TLD SMTP Interaction: \n%s\n", buffer.String())
+				if err := h.options.Storage.AddRootTLD(ID, buffer.Bytes()); err != nil {
+					gologger.Warning().Msgf("Could not store root tld smtp interaction: %s\n", err)
 				}
 			}
 		}
