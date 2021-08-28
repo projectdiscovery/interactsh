@@ -33,6 +33,7 @@ func main() {
 	flag.BoolVar(&smb, "smb", false, "Start a smb agent - impacket and python 3 must be installed")
 	flag.BoolVar(&options.Auth, "auth", false, "Require a token from the client to retrieve interactions")
 	flag.StringVar(&options.Token, "token", "", "Generate a token that the client must provide to retrieve interactions")
+	flag.BoolVar(&options.RootTLD, "root-tld", false, "Enable support for *.domain.tld interaction")
 	flag.Parse()
 
 	if debug {
@@ -45,6 +46,17 @@ func main() {
 	if options.Token != "" || responder || smb {
 		options.Auth = true
 	}
+
+	// if root-tld is enabled we enable auth - This ensure that any client has the token
+	if options.RootTLD {
+		options.Auth = true
+	}
+
+	// of in case a custom token is specified
+	if options.Token != "" {
+		options.Auth = true
+	}
+
 	if options.Auth && options.Token == "" {
 		b := make([]byte, 32)
 		if _, err := rand.Read(b); err != nil {
@@ -58,7 +70,12 @@ func main() {
 	options.Storage = store
 
 	if options.Auth {
-		_ = options.Storage.SetTokenCorrelationData(options.Token)
+		_ = options.Storage.SetID(options.Token)
+	}
+
+	// If riit-tld is enabled create a singleton unencrypted record in the store
+	if options.RootTLD {
+		_ = store.SetID(options.Domain)
 	}
 
 	dnsServer, err := server.NewDNSServer(options)

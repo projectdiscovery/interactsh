@@ -70,13 +70,12 @@ func (s *Storage) SetIDPublicKey(correlationID, secretKey string, publicKey stri
 	return nil
 }
 
-// SetTokenCorrelationData creates the internal structure for a corresponding token
-func (s *Storage) SetTokenCorrelationData(token string) error {
+func (s *Storage) SetID(ID string) error {
 	data := &CorrelationData{
 		Data:      make([]string, 0),
 		dataMutex: &sync.Mutex{},
 	}
-	s.cache.Set(token, data, s.evictionTTL)
+	s.cache.Set(ID, data, s.evictionTTL)
 	return nil
 }
 
@@ -102,9 +101,9 @@ func (s *Storage) AddInteraction(correlationID string, data []byte) error {
 	return nil
 }
 
-// AddInteractionWithToken adds an interaction data to the auth token bucket
-func (s *Storage) AddInteractionWithToken(token, data string) error {
-	item := s.cache.Get(token)
+// AddInteractionWithId adds an interaction data to the id bucket
+func (s *Storage) AddInteractionWithId(id string, data []byte) error {
+	item := s.cache.Get(id)
 	if item == nil {
 		return errors.New("could not get correlation-id from cache")
 	}
@@ -114,7 +113,7 @@ func (s *Storage) AddInteractionWithToken(token, data string) error {
 	}
 
 	value.dataMutex.Lock()
-	value.Data = append(value.Data, data)
+	value.Data = append(value.Data, string(data))
 	value.dataMutex.Unlock()
 	return nil
 }
@@ -140,16 +139,15 @@ func (s *Storage) GetInteractions(correlationID, secret string) ([]string, strin
 	return data, value.AESKey, nil
 }
 
-// GetInteractions returns the interactions for a token and removes
-// it from the storage
-func (s *Storage) GetInteractionsWithToken(token string) ([]string, error) {
-	item := s.cache.Get(token)
+// GetInteractions returns the interactions for a id and empty the cache
+func (s *Storage) GetInteractionsWithId(id string) ([]string, error) {
+	item := s.cache.Get(id)
 	if item == nil {
-		return nil, errors.New("could not get token from cache")
+		return nil, errors.New("could not get id from cache")
 	}
 	value, ok := item.Value().(*CorrelationData)
 	if !ok {
-		return nil, errors.New("invalid token cache value found")
+		return nil, errors.New("invalid id cache value found")
 	}
 	value.dataMutex.Lock()
 	data := value.Data
