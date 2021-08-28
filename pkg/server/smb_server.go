@@ -2,6 +2,7 @@ package server
 
 import (
 	"bytes"
+	"io/ioutil"
 	"net"
 	"os"
 	"os/exec"
@@ -40,7 +41,7 @@ func NewSMBServer(options *Options) (*SMBServer, error) {
 
 // ListenAndServe listens on smb port
 func (h *SMBServer) ListenAndServe() error {
-	tmpFile, err := os.CreateTemp("", "")
+	tmpFile, err := ioutil.TempFile("", "")
 	if err != nil {
 		return err
 	}
