@@ -12,6 +12,7 @@ require (
 	github.com/mattn/go-isatty v0.0.13 // indirect
 	github.com/miekg/dns v1.1.43
 	github.com/pkg/errors v0.9.1
+	github.com/projectdiscovery/fastdialer v0.0.13-0.20210727180624-4b8261cc6d2a
 	github.com/projectdiscovery/fileutil v0.0.0-20210601061022-8ef4fc6fbfb6
 	github.com/projectdiscovery/folderutil v0.0.0-20210712122730-bee4f0b7667b
 	github.com/projectdiscovery/gologger v1.1.4
