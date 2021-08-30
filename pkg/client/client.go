@@ -153,6 +153,16 @@ func (c *Client) getInteractions(callback InteractionCallback) error {
 		}
 		callback(interaction)
 	}
+
+	// handle root-tld data if any
+	for _, data := range response.TLDData {
+		interaction := &server.Interaction{}
+		if err := jsoniter.UnmarshalFromString(data, interaction); err != nil {
+			gologger.Error().Msgf("Could not unmarshal interaction data interaction: %v\n", err)
+			continue
+		}
+		callback(interaction)
+	}
 	return nil
 }
 
@@ -258,7 +268,7 @@ func (c *Client) generateRSAKeyPair() error {
 	return nil
 }
 
-// URL returns a new URL that can be be used for external interaction requests.
+// URL returns a new URL that can be used for external interaction requests.
 func (c *Client) URL() string {
 	random := make([]byte, 8)
 	i := atomic.AddUint32(&objectIDCounter, 1)
