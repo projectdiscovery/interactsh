@@ -12,7 +12,7 @@ require (
 	github.com/miekg/dns v1.1.43
 	github.com/pkg/errors v0.9.1
 	github.com/projectdiscovery/gologger v1.1.4
-	github.com/projectdiscovery/retryablehttp-go v1.0.1
+	github.com/projectdiscovery/retryablehttp-go v1.0.2
 	github.com/rs/xid v1.3.0
 	github.com/stretchr/testify v1.7.0
 	gopkg.in/corvus-ch/zbase32.v1 v1.0.0
