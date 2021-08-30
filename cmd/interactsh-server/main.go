@@ -43,6 +43,11 @@ func main() {
 		gologger.DefaultLogger.SetWriter(&noopWriter{})
 	}
 
+	// responder and smb can't be active at the same time
+	if responder && smb {
+		gologger.Fatal().Msgf("responder and smb can't be active at the same time\n")
+	}
+
 	// Requires auth if token is specified or enables it automatically for responder and smb options
 	if options.Token != "" || responder || smb {
 		options.Auth = true
