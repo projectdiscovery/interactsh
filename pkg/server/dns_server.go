@@ -32,14 +32,14 @@ type DNSServer struct {
 
 // NewDNSServer returns a new DNS server.
 func NewDNSServer(options *Options) (*DNSServer, error) {
-	options.Domain = dns.Fqdn(options.Domain)
+	dotdomain := dns.Fqdn(options.Domain)
 	server := &DNSServer{
 		options:    options,
 		ipAddress:  net.ParseIP(options.IPAddress),
-		mxDomain:   "mail." + options.Domain,
-		ns1Domain:  "ns1." + options.Domain,
-		ns2Domain:  "ns2." + options.Domain,
-		dotDomain:  "." + options.Domain,
+		mxDomain:   "mail." + dotdomain,
+		ns1Domain:  "ns1." + dotdomain,
+		ns2Domain:  "ns2." + dotdomain,
+		dotDomain:  "." + dotdomain,
 		timeToLive: 3600,
 	}
 	server.server = &dns.Server{
@@ -206,9 +206,46 @@ func (h *DNSServer) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 		m.Answer = append(m.Answer, &dns.MX{Hdr: nsHdr, Mx: h.mxDomain, Preference: 1})
 	} else if r.Question[0].Qtype == dns.TypeNS {
 		nsHeader := dns.RR_Header{Name: domain, Rrtype: dns.TypeNS, Class: dns.ClassINET, Ttl: h.timeToLive}
-
 		m.Ns = append(m.Ns, &dns.NS{Hdr: nsHeader, Ns: h.ns1Domain})
 		m.Ns = append(m.Ns, &dns.NS{Hdr: nsHeader, Ns: h.ns2Domain})
+	}
+
+	// if root-tld is enabled stores any interaction towards the main domain
+	if h.options.RootTLD && strings.HasSuffix(domain, h.dotDomain) {
+		correlationID := h.options.Domain
+		host, _, _ := net.SplitHostPort(w.RemoteAddr().String())
+		interaction := &Interaction{
+			Protocol:      "dns",
+			UniqueID:      domain,
+			FullId:        domain,
+			QType:         toQType(r.Question[0].Qtype),
+			RawRequest:    r.String(),
+			RawResponse:   m.String(),
+			RemoteAddress: host,
+			Timestamp:     time.Now(),
+		}
+		buffer := &bytes.Buffer{}
+		if err := jsoniter.NewEncoder(buffer).Encode(interaction); err != nil {
+			gologger.Warning().Msgf("Could not encode root tld dns interaction: %s\n", err)
+		} else {
+			gologger.Debug().Msgf("Root TLD DNS Interaction: \n%s\n", buffer.String())
+			if err := h.options.Storage.AddRootTLD(correlationID, buffer.Bytes()); err != nil {
+				gologger.Warning().Msgf("Could not store dns interaction: %s\n", err)
+			}
+		}
+	}
+
+	if strings.HasSuffix(domain, h.dotDomain) {
+		parts := strings.Split(domain, ".")
+		for i, part := range parts {
+			if len(part) == 33 {
+				uniqueID = part
+				fullID = part
+				if i+1 <= len(parts) {
+					fullID = strings.Join(parts[:i+1], ".")
+				}
+			}
+		}
 	}
 
 	if uniqueID != "" {

@@ -74,12 +74,12 @@ func (s *Storage) SetIDPublicKey(correlationID, secretKey string, publicKey stri
 	return nil
 }
 
-func (s *Storage) SetID(correlationID string) error {
+func (s *Storage) SetID(ID string) error {
 	data := &CorrelationData{
 		Data:      make([]string, 0),
 		dataMutex: &sync.Mutex{},
 	}
-	s.cache.Set(correlationID, data, s.evictionTTL)
+	s.cache.Set(ID, data, s.evictionTTL)
 	return nil
 }
 
@@ -105,6 +105,22 @@ func (s *Storage) AddInteraction(correlationID string, data []byte) error {
 	return nil
 }
 
+func (s *Storage) AddRootTLD(rootTLD string, data []byte) error {
+	item := s.cache.Get(rootTLD)
+	if item == nil {
+		return errors.New("could not get correlation-id from cache")
+	}
+	value, ok := item.Value().(*CorrelationData)
+	if !ok {
+		return errors.New("invalid correlation-id cache value found")
+	}
+
+	value.dataMutex.Lock()
+	value.Data = append(value.Data, string(data))
+	value.dataMutex.Unlock()
+	return nil
+}
+
 // GetInteractions returns the interactions for a correlationID and removes
 // it from the storage. It also returns AES Encrypted Key for the IDs.
 func (s *Storage) GetInteractions(correlationID, secret string) ([]string, string, error) {
@@ -124,6 +140,23 @@ func (s *Storage) GetInteractions(correlationID, secret string) ([]string, strin
 	value.Data = make([]string, 0)
 	value.dataMutex.Unlock()
 	return data, value.AESKey, nil
+}
+
+func (s *Storage) GetRootTLDInteractions(ID string) ([]string, error) {
+	item := s.cache.Get(ID)
+	if item == nil {
+		return nil, errors.New("could not get id from cache")
+	}
+	value, ok := item.Value().(*CorrelationData)
+	if !ok {
+		return nil, errors.New("invalid id cache value found")
+	}
+
+	value.dataMutex.Lock()
+	data := value.Data
+	value.Data = make([]string, 0)
+	value.dataMutex.Unlock()
+	return data, nil
 }
 
 // RemoveID removes data for a correlation ID and data related to it.

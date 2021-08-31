@@ -42,12 +42,15 @@ type Options struct {
 	// Hostmaster is the hostmaster email for the server.
 	Hostmaster string
 	// Storage is a storage for interaction data storage
-	Storage  *storage.Storage
+	Storage *storage.Storage
 	// Auth requires client to authenticate
 	Auth bool
 	// Token required to retrieve interactions
 	Token string
-  Template bool
+	// Template enables template support
+	Template bool
+	// Enable root tld interactions
+	RootTLD bool
 }
 
 // URLReflection returns a reversed part of the URL payload

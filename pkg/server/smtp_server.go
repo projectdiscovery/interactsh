@@ -83,6 +83,33 @@ func (h *SMTPServer) defaultHandler(remoteAddr net.Addr, from string, to []strin
 
 	gologger.Debug().Msgf("New SMTP request: %s %s %s %s\n", remoteAddr, from, to, string(data))
 
+	// if root-tld is enabled stores any interaction towards the main domain
+	for _, addr := range to {
+		if h.options.RootTLD && strings.HasSuffix(addr, h.options.Domain) {
+			ID := h.options.Domain
+			host, _, _ := net.SplitHostPort(remoteAddr.String())
+			address := addr[strings.Index(addr, "@"):]
+			interaction := &Interaction{
+				Protocol:      "smtp",
+				UniqueID:      address,
+				FullId:        address,
+				RawRequest:    string(data),
+				SMTPFrom:      from,
+				RemoteAddress: host,
+				Timestamp:     time.Now(),
+			}
+			buffer := &bytes.Buffer{}
+			if err := jsoniter.NewEncoder(buffer).Encode(interaction); err != nil {
+				gologger.Warning().Msgf("Could not encode root tld SMTP interaction: %s\n", err)
+			} else {
+				gologger.Debug().Msgf("Root TLD SMTP Interaction: \n%s\n", buffer.String())
+				if err := h.options.Storage.AddRootTLD(ID, buffer.Bytes()); err != nil {
+					gologger.Warning().Msgf("Could not store root tld smtp interaction: %s\n", err)
+				}
+			}
+		}
+	}
+
 	for _, addr := range to {
 		if len(addr) > 33 && strings.Contains(addr, "@") {
 			parts := strings.Split(addr[strings.Index(addr, "@")+1:], ".")

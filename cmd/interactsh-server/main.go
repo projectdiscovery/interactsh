@@ -35,6 +35,8 @@ func main() {
 	flag.BoolVar(&options.Template, "template", false, "Enable client's template upload")
 	flag.BoolVar(&skipacme, "skip-acme", false, "Skip acme registration")
 	flag.BoolVar(&nebula.Unsafe, "unsafe", false, "Enable nebula's unsafe scripts")
+	flag.BoolVar(&options.RootTLD, "root-tld", false, "Enable support for *.domain.tld interaction")
+
 	flag.Parse()
 
 	if debug {
@@ -43,9 +45,15 @@ func main() {
 		gologger.DefaultLogger.SetWriter(&noopWriter{})
 	}
 
+	// if root-tld is enabled we enable auth - This ensure that any client has the token
+	if options.RootTLD {
+		options.Auth = true
+	}
+	// of in case a custom token is specified
 	if options.Token != "" {
 		options.Auth = true
 	}
+
 	if options.Auth && options.Token == "" {
 		b := make([]byte, 32)
 		if _, err := rand.Read(b); err != nil {
@@ -64,6 +72,11 @@ func main() {
 	nebula.Refresh()
 	_ = nebula.AddFunc("store_info", store.SetInternalById)
 	_ = nebula.AddFunc("cleanup_info", store.CleanupInternalById)
+
+	// If riit-tld is enabled create a singleton unencrypted record in the store
+	if options.RootTLD {
+		_ = store.SetID(options.Domain)
+	}
 
 	dnsServer, err := server.NewDNSServer(options)
 	if err != nil {
