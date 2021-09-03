@@ -35,9 +35,9 @@ func NewHTTPServer(options *Options) (*HTTPServer, error) {
 
 	router := &http.ServeMux{}
 	router.Handle("/", server.logger(http.HandlerFunc(server.defaultHandler)))
-	router.Handle("/register", server.authMiddleware(http.HandlerFunc(server.registerHandler)))
-	router.Handle("/deregister", server.authMiddleware(http.HandlerFunc(server.deregisterHandler)))
-	router.Handle("/poll", server.authMiddleware(http.HandlerFunc(server.pollHandler)))
+	router.Handle("/register", server.corsMiddleware(server.authMiddleware(http.HandlerFunc(server.registerHandler))))
+	router.Handle("/deregister", server.corsMiddleware(server.authMiddleware(http.HandlerFunc(server.deregisterHandler))))
+	router.Handle("/poll", server.corsMiddleware(server.authMiddleware(http.HandlerFunc(server.pollHandler))))
 
 	server.tlsserver = http.Server{Addr: options.ListenIP + ":443", Handler: router}
 	server.nontlsserver = http.Server{Addr: options.ListenIP + ":80", Handler: router}
@@ -182,8 +182,6 @@ type RegisterRequest struct {
 
 // registerHandler is a handler for client register requests
 func (h *HTTPServer) registerHandler(w http.ResponseWriter, req *http.Request) {
-	CORSEnabledFunction(w, req)
-
 	r := &RegisterRequest{}
 	if err := jsoniter.NewDecoder(req.Body).Decode(r); err != nil {
 		gologger.Warning().Msgf("Could not decode json body: %s\n", err)
@@ -209,8 +207,6 @@ type DeregisterRequest struct {
 
 // deregisterHandler is a handler for client deregister requests
 func (h *HTTPServer) deregisterHandler(w http.ResponseWriter, req *http.Request) {
-	CORSEnabledFunction(w, req)
-
 	r := &DeregisterRequest{}
 	if err := jsoniter.NewDecoder(req.Body).Decode(r); err != nil {
 		gologger.Warning().Msgf("Could not decode json body: %s\n", err)
@@ -234,8 +230,6 @@ type PollResponse struct {
 
 // pollHandler is a handler for client poll requests
 func (h *HTTPServer) pollHandler(w http.ResponseWriter, req *http.Request) {
-	CORSEnabledFunction(w, req)
-
 	ID := req.URL.Query().Get("id")
 	if ID == "" {
 		jsonError(w, "no id specified for poll", http.StatusBadRequest)
@@ -273,22 +267,20 @@ func (h *HTTPServer) pollHandler(w http.ResponseWriter, req *http.Request) {
 	gologger.Debug().Msgf("Polled %d interactions for %s correlationID\n", len(data), ID)
 }
 
-// CORSEnabledFunction is an example of setting CORS headers.
-// For more information about CORS and CORS preflight requests, see
-// https://developer.mozilla.org/en-US/docs/Glossary/Preflight_request.
-// Taken from https://github.com/GoogleCloudPlatform/golang-samples/blob/master/functions/http/cors.go
-func CORSEnabledFunction(w http.ResponseWriter, r *http.Request) {
-	// Set CORS headers for the preflight request
-	if r.Method == http.MethodOptions {
-		w.Header().Set("Access-Control-Allow-Origin", "*")
+func (h *HTTPServer) corsMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		// Set CORS headers for the preflight request
+		if req.Method == http.MethodOptions {
+			w.Header().Set("Access-Control-Allow-Origin", h.options.OriginURL)
+			w.Header().Set("Access-Control-Allow-Credentials", "true")
+			w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
+		w.Header().Set("Access-Control-Allow-Origin", h.options.OriginURL)
 		w.Header().Set("Access-Control-Allow-Credentials", "true")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
-		w.WriteHeader(http.StatusNoContent)
-		return
-	}
-	w.Header().Set("Access-Control-Allow-Origin", "*")
-	w.Header().Set("Access-Control-Allow-Credentials", "true")
-	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+	})
 }
 
 func jsonError(w http.ResponseWriter, err string, code int) {

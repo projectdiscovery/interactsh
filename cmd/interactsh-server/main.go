@@ -31,6 +31,7 @@ func main() {
 	flag.IntVar(&eviction, "eviction", 7, "Number of days to persist interactions for")
 	flag.BoolVar(&options.Auth, "auth", false, "Require a token from the client to retrieve interactions")
 	flag.StringVar(&options.Token, "token", "", "Generate a token that the client must provide to retrieve interactions")
+	flag.StringVar(&options.OriginURL, "origin-url", "https://interact.projectdiscovery.io", "Origin URL to send in ACAO Header")
 	flag.BoolVar(&options.RootTLD, "root-tld", false, "Enable support for *.domain.tld interaction")
 	flag.Parse()
 
