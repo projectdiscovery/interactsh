@@ -36,9 +36,9 @@ func NewHTTPServer(options *Options) (*HTTPServer, error) {
 
 	router := &http.ServeMux{}
 	router.Handle("/", server.logger(http.HandlerFunc(server.defaultHandler)))
-	router.Handle("/register", server.authMiddleware(http.HandlerFunc(server.registerHandler)))
-	router.Handle("/deregister", server.authMiddleware(http.HandlerFunc(server.deregisterHandler)))
-	router.Handle("/poll", server.authMiddleware(http.HandlerFunc(server.pollHandler)))
+	router.Handle("/register", server.corsMiddleware(server.authMiddleware(http.HandlerFunc(server.registerHandler))))
+	router.Handle("/deregister", server.corsMiddleware(server.authMiddleware(http.HandlerFunc(server.deregisterHandler))))
+	router.Handle("/poll", server.corsMiddleware(server.authMiddleware(http.HandlerFunc(server.pollHandler))))
 
 	server.tlsserver = http.Server{Addr: options.ListenIP + ":443", Handler: router}
 	server.nontlsserver = http.Server{Addr: options.ListenIP + ":80", Handler: router}
@@ -183,22 +183,17 @@ type RegisterRequest struct {
 
 // registerHandler is a handler for client register requests
 func (h *HTTPServer) registerHandler(w http.ResponseWriter, req *http.Request) {
-	CORSEnabledFunction(w, req)
-
 	r := &RegisterRequest{}
 	if err := jsoniter.NewDecoder(req.Body).Decode(r); err != nil {
-		w.WriteHeader(http.StatusBadRequest)
 		gologger.Warning().Msgf("Could not decode json body: %s\n", err)
 		jsonError(w, fmt.Sprintf("could not decode json body: %s", err), http.StatusBadRequest)
 		return
 	}
 	if err := h.options.Storage.SetIDPublicKey(r.CorrelationID, r.SecretKey, r.PublicKey); err != nil {
-		w.WriteHeader(http.StatusBadRequest)
 		gologger.Warning().Msgf("Could not set id and public key for %s: %s\n", r.CorrelationID, err)
 		jsonError(w, fmt.Sprintf("could not set id and public key: %s", err), http.StatusBadRequest)
 		return
 	}
-
 	gologger.Debug().Msgf("Registered correlationID %s for key\n", r.CorrelationID)
 }
 
@@ -206,21 +201,19 @@ func (h *HTTPServer) registerHandler(w http.ResponseWriter, req *http.Request) {
 type DeregisterRequest struct {
 	// CorrelationID is an ID for correlation with requests.
 	CorrelationID string `json:"correlation-id"`
+	// SecretKey is the secretKey for the interactsh client.
+	SecretKey string `json:"secret-key"`
 }
 
 // deregisterHandler is a handler for client deregister requests
 func (h *HTTPServer) deregisterHandler(w http.ResponseWriter, req *http.Request) {
-	CORSEnabledFunction(w, req)
-
 	r := &DeregisterRequest{}
 	if err := jsoniter.NewDecoder(req.Body).Decode(r); err != nil {
-		w.WriteHeader(http.StatusBadRequest)
 		gologger.Warning().Msgf("Could not decode json body: %s\n", err)
 		jsonError(w, fmt.Sprintf("could not decode json body: %s", err), http.StatusBadRequest)
 		return
 	}
-	if err := h.options.Storage.RemoveID(r.CorrelationID); err != nil {
-		w.WriteHeader(http.StatusBadRequest)
+	if err := h.options.Storage.RemoveID(r.CorrelationID, r.SecretKey); err != nil {
 		gologger.Warning().Msgf("Could not remove id for %s: %s\n", r.CorrelationID, err)
 		jsonError(w, fmt.Sprintf("could not remove id: %s", err), http.StatusBadRequest)
 		return
@@ -238,8 +231,6 @@ type PollResponse struct {
 
 // pollHandler is a handler for client poll requests
 func (h *HTTPServer) pollHandler(w http.ResponseWriter, req *http.Request) {
-	CORSEnabledFunction(w, req)
-
 	ID := req.URL.Query().Get("id")
 	if ID == "" {
 		jsonError(w, "no id specified for poll", http.StatusBadRequest)
@@ -253,7 +244,6 @@ func (h *HTTPServer) pollHandler(w http.ResponseWriter, req *http.Request) {
 
 	data, aesKey, err := h.options.Storage.GetInteractions(ID, secret)
 	if err != nil {
-		w.WriteHeader(http.StatusBadRequest)
 		gologger.Warning().Msgf("Could not get interactions for %s: %s\n", ID, err)
 		jsonError(w, fmt.Sprintf("could not get interactions: %s", err), http.StatusBadRequest)
 		return
@@ -271,7 +261,6 @@ func (h *HTTPServer) pollHandler(w http.ResponseWriter, req *http.Request) {
 	if h.options.RootTLD {
 		tlddata, err = h.options.Storage.GetInteractionsWithId(h.options.Domain)
 		if err != nil {
-			w.WriteHeader(http.StatusBadRequest)
 			gologger.Warning().Msgf("Could not get root-tld interactions for %s: %s\n", h.options.Domain, err)
 			jsonError(w, fmt.Sprintf("could not get interactions: %s", err), http.StatusBadRequest)
 			return
@@ -282,7 +271,6 @@ func (h *HTTPServer) pollHandler(w http.ResponseWriter, req *http.Request) {
 	response := &PollResponse{Data: data, AESKey: aesKey, TLDData: tlddata, Extra: extradata}
 
 	if err := jsoniter.NewEncoder(w).Encode(response); err != nil {
-		w.WriteHeader(http.StatusBadRequest)
 		gologger.Warning().Msgf("Could not encode interactions for %s: %s\n", ID, err)
 		jsonError(w, fmt.Sprintf("could not encode interactions: %s", err), http.StatusBadRequest)
 		return
@@ -290,27 +278,27 @@ func (h *HTTPServer) pollHandler(w http.ResponseWriter, req *http.Request) {
 	gologger.Debug().Msgf("Polled %d interactions for %s correlationID\n", len(data), ID)
 }
 
-// CORSEnabledFunction is an example of setting CORS headers.
-// For more information about CORS and CORS preflight requests, see
-// https://developer.mozilla.org/en-US/docs/Glossary/Preflight_request.
-// Taken from https://github.com/GoogleCloudPlatform/golang-samples/blob/master/functions/http/cors.go
-func CORSEnabledFunction(w http.ResponseWriter, r *http.Request) {
-	// Set CORS headers for the preflight request
-	if r.Method == http.MethodOptions {
-		w.Header().Set("Access-Control-Allow-Origin", "*")
+func (h *HTTPServer) corsMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		// Set CORS headers for the preflight request
+		if req.Method == http.MethodOptions {
+			w.Header().Set("Access-Control-Allow-Origin", h.options.OriginURL)
+			w.Header().Set("Access-Control-Allow-Credentials", "true")
+			w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
+		w.Header().Set("Access-Control-Allow-Origin", h.options.OriginURL)
 		w.Header().Set("Access-Control-Allow-Credentials", "true")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
-		w.WriteHeader(http.StatusNoContent)
-		return
-	}
-	w.Header().Set("Access-Control-Allow-Origin", "*")
-	w.Header().Set("Access-Control-Allow-Credentials", "true")
-	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+		next.ServeHTTP(w, req)
+	})
 }
 
 func jsonError(w http.ResponseWriter, err string, code int) {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.Header().Set("X-Content-Type-Options", "nosniff")
+	w.WriteHeader(code)
 	_ = json.NewEncoder(w).Encode(map[string]interface{}{"error": err})
 }
 

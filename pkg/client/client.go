@@ -187,6 +187,7 @@ func (c *Client) Close() error {
 	if !c.persistentSession {
 		register := server.DeregisterRequest{
 			CorrelationID: c.correlationID,
+			SecretKey:     c.secretKey,
 		}
 		data, err := jsoniter.Marshal(register)
 		if err != nil {

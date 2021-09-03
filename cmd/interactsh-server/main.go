@@ -34,9 +34,13 @@ func main() {
 	flag.BoolVar(&smb, "smb", false, "Start a smb agent - impacket and python 3 must be installed")
 	flag.BoolVar(&options.Auth, "auth", false, "Require a token from the client to retrieve interactions")
 	flag.StringVar(&options.Token, "token", "", "Generate a token that the client must provide to retrieve interactions")
+	flag.StringVar(&options.OriginURL, "origin-url", "https://interact.projectdiscovery.io", "Origin URL to send in ACAO Header")
 	flag.BoolVar(&options.RootTLD, "root-tld", false, "Enable support for *.domain.tld interaction")
 	flag.Parse()
 
+	if options.Hostmaster == "" {
+		options.Hostmaster = fmt.Sprintf("admin@%s", options.Domain)
+	}
 	if debug {
 		gologger.DefaultLogger.SetMaxLevel(levels.LevelDebug)
 	} else {
