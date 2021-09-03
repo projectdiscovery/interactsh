@@ -186,13 +186,11 @@ func (h *HTTPServer) registerHandler(w http.ResponseWriter, req *http.Request) {
 
 	r := &RegisterRequest{}
 	if err := jsoniter.NewDecoder(req.Body).Decode(r); err != nil {
-		w.WriteHeader(http.StatusBadRequest)
 		gologger.Warning().Msgf("Could not decode json body: %s\n", err)
 		jsonError(w, fmt.Sprintf("could not decode json body: %s", err), http.StatusBadRequest)
 		return
 	}
 	if err := h.options.Storage.SetIDPublicKey(r.CorrelationID, r.SecretKey, r.PublicKey); err != nil {
-		w.WriteHeader(http.StatusBadRequest)
 		gologger.Warning().Msgf("Could not set id and public key for %s: %s\n", r.CorrelationID, err)
 		jsonError(w, fmt.Sprintf("could not set id and public key: %s", err), http.StatusBadRequest)
 		return
@@ -215,13 +213,11 @@ func (h *HTTPServer) deregisterHandler(w http.ResponseWriter, req *http.Request)
 
 	r := &DeregisterRequest{}
 	if err := jsoniter.NewDecoder(req.Body).Decode(r); err != nil {
-		w.WriteHeader(http.StatusBadRequest)
 		gologger.Warning().Msgf("Could not decode json body: %s\n", err)
 		jsonError(w, fmt.Sprintf("could not decode json body: %s", err), http.StatusBadRequest)
 		return
 	}
 	if err := h.options.Storage.RemoveID(r.CorrelationID, r.SecretKey); err != nil {
-		w.WriteHeader(http.StatusBadRequest)
 		gologger.Warning().Msgf("Could not remove id for %s: %s\n", r.CorrelationID, err)
 		jsonError(w, fmt.Sprintf("could not remove id: %s", err), http.StatusBadRequest)
 		return
@@ -253,7 +249,6 @@ func (h *HTTPServer) pollHandler(w http.ResponseWriter, req *http.Request) {
 
 	data, aesKey, err := h.options.Storage.GetInteractions(ID, secret)
 	if err != nil {
-		w.WriteHeader(http.StatusBadRequest)
 		gologger.Warning().Msgf("Could not get interactions for %s: %s\n", ID, err)
 		jsonError(w, fmt.Sprintf("could not get interactions: %s", err), http.StatusBadRequest)
 		return
@@ -263,7 +258,6 @@ func (h *HTTPServer) pollHandler(w http.ResponseWriter, req *http.Request) {
 	if h.options.RootTLD {
 		tlddata, err = h.options.Storage.GetRootTLDInteractions(h.options.Domain)
 		if err != nil {
-			w.WriteHeader(http.StatusBadRequest)
 			gologger.Warning().Msgf("Could not get root-tld interactions for %s: %s\n", h.options.Domain, err)
 			jsonError(w, fmt.Sprintf("could not get interactions: %s", err), http.StatusBadRequest)
 			return
@@ -272,7 +266,6 @@ func (h *HTTPServer) pollHandler(w http.ResponseWriter, req *http.Request) {
 
 	response := &PollResponse{Data: data, AESKey: aesKey, TLDData: tlddata}
 	if err := jsoniter.NewEncoder(w).Encode(response); err != nil {
-		w.WriteHeader(http.StatusBadRequest)
 		gologger.Warning().Msgf("Could not encode interactions for %s: %s\n", ID, err)
 		jsonError(w, fmt.Sprintf("could not encode interactions: %s", err), http.StatusBadRequest)
 		return
@@ -301,6 +294,7 @@ func CORSEnabledFunction(w http.ResponseWriter, r *http.Request) {
 func jsonError(w http.ResponseWriter, err string, code int) {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.Header().Set("X-Content-Type-Options", "nosniff")
+	w.WriteHeader(code)
 	_ = json.NewEncoder(w).Encode(map[string]interface{}{"error": err})
 }
 
