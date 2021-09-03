@@ -35,6 +35,9 @@ func main() {
 	flag.BoolVar(&options.RootTLD, "root-tld", false, "Enable support for *.domain.tld interaction")
 	flag.Parse()
 
+	if options.Hostmaster == "" {
+		options.Hostmaster = fmt.Sprintf("admin@%s", options.Domain)
+	}
 	if debug {
 		gologger.DefaultLogger.SetMaxLevel(levels.LevelDebug)
 	} else {
