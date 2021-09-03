@@ -13,6 +13,7 @@ import (
 	"time"
 
 	jsoniter "github.com/json-iterator/go"
+	"github.com/pkg/errors"
 	"github.com/projectdiscovery/gologger"
 	"github.com/projectdiscovery/gologger/levels"
 	"github.com/projectdiscovery/interactsh/pkg/server/acme"
@@ -98,7 +99,7 @@ func (h *HTTPServer) logger(handler http.Handler) http.HandlerFunc {
 				gologger.Warning().Msgf("Could not encode root tld http interaction: %s\n", err)
 			} else {
 				gologger.Debug().Msgf("Root TLD HTTP Interaction: \n%s\n", buffer.String())
-				if err := h.options.Storage.AddRootTLD(ID, buffer.Bytes()); err != nil {
+				if err := h.options.Storage.AddInteractionWithId(ID, buffer.Bytes()); err != nil {
 					gologger.Warning().Msgf("Could not store root tld http interaction: %s\n", err)
 				}
 			}
@@ -230,6 +231,7 @@ func (h *HTTPServer) deregisterHandler(w http.ResponseWriter, req *http.Request)
 // PollResponse is the response for a polling request
 type PollResponse struct {
 	Data    []string `json:"data"`
+	Extra   []string `json:"extra"`
 	AESKey  string   `json:"aes_key"`
 	TLDData []string `json:"tlddata,omitempty"`
 }
@@ -257,18 +259,28 @@ func (h *HTTPServer) pollHandler(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
+	// At this point the client is authenticated, so we return also the data related to the auth token
+	extradata, err := h.options.Storage.GetInteractionsWithId(h.options.Token)
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		gologger.Warning().Msgf("Could not get extra interactions for %s: %s\n", ID, err)
+		jsonError(w, errors.Wrap(err, "could not get extra interactions").Error(), http.StatusBadRequest)
+	}
+
 	var tlddata []string
 	if h.options.RootTLD {
-		tlddata, err = h.options.Storage.GetRootTLDInteractions(h.options.Domain)
+		tlddata, err = h.options.Storage.GetInteractionsWithId(h.options.Domain)
 		if err != nil {
 			w.WriteHeader(http.StatusBadRequest)
 			gologger.Warning().Msgf("Could not get root-tld interactions for %s: %s\n", h.options.Domain, err)
 			jsonError(w, fmt.Sprintf("could not get interactions: %s", err), http.StatusBadRequest)
 			return
+
 		}
 	}
 
-	response := &PollResponse{Data: data, AESKey: aesKey, TLDData: tlddata}
+	response := &PollResponse{Data: data, AESKey: aesKey, TLDData: tlddata, Extra: extradata}
+
 	if err := jsoniter.NewEncoder(w).Encode(response); err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		gologger.Warning().Msgf("Could not encode interactions for %s: %s\n", ID, err)

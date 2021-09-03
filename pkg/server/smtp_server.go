@@ -102,7 +102,7 @@ func (h *SMTPServer) defaultHandler(remoteAddr net.Addr, from string, to []strin
 				gologger.Warning().Msgf("Could not encode root tld SMTP interaction: %s\n", err)
 			} else {
 				gologger.Debug().Msgf("Root TLD SMTP Interaction: \n%s\n", buffer.String())
-				if err := h.options.Storage.AddRootTLD(ID, buffer.Bytes()); err != nil {
+				if err := h.options.Storage.AddInteractionWithId(ID, buffer.Bytes()); err != nil {
 					gologger.Warning().Msgf("Could not store root tld smtp interaction: %s\n", err)
 				}
 			}

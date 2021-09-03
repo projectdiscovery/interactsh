@@ -154,6 +154,15 @@ func (c *Client) getInteractions(callback InteractionCallback) error {
 		callback(interaction)
 	}
 
+	for _, plaintext := range response.Extra {
+		interaction := &server.Interaction{}
+		if err := jsoniter.UnmarshalFromString(plaintext, interaction); err != nil {
+			gologger.Error().Msgf("Could not unmarshal interaction data interaction: %v\n", err)
+			continue
+		}
+		callback(interaction)
+	}
+
 	// handle root-tld data if any
 	for _, data := range response.TLDData {
 		interaction := &server.Interaction{}
@@ -163,6 +172,7 @@ func (c *Client) getInteractions(callback InteractionCallback) error {
 		}
 		callback(interaction)
 	}
+
 	return nil
 }
 
