@@ -13,6 +13,7 @@ import (
 	"time"
 
 	jsoniter "github.com/json-iterator/go"
+	"github.com/pkg/errors"
 	"github.com/projectdiscovery/gologger"
 	"github.com/projectdiscovery/gologger/levels"
 	"github.com/projectdiscovery/interactsh/pkg/server/acme"
@@ -263,7 +264,7 @@ func (h *HTTPServer) pollHandler(w http.ResponseWriter, req *http.Request) {
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		gologger.Warning().Msgf("Could not get extra interactions for %s: %s\n", ID, err)
-		jsonError(w, errors.Wrap(err, "could not get extra interactions"), http.StatusBadRequest)
+		jsonError(w, errors.Wrap(err, "could not get extra interactions").Error(), http.StatusBadRequest)
 	}
 
 	var tlddata []string
