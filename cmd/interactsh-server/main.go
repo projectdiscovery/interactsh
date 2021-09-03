@@ -45,7 +45,8 @@ func main() {
 
 	// responder and smb can't be active at the same time
 	if responder && smb {
-		gologger.Fatal().Msgf("responder and smb can't be active at the same time\n")
+		fmt.Printf("responder and smb can't be active at the same time\n")
+		os.Exit(1)
 	}
 
 	// Requires auth if token is specified or enables it automatically for responder and smb options
