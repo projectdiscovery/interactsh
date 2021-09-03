@@ -13,7 +13,6 @@ import (
 	"time"
 
 	jsoniter "github.com/json-iterator/go"
-	"github.com/pkg/errors"
 	"github.com/projectdiscovery/gologger"
 	"github.com/projectdiscovery/gologger/levels"
 	"github.com/projectdiscovery/interactsh/pkg/server/acme"
@@ -189,13 +188,13 @@ func (h *HTTPServer) registerHandler(w http.ResponseWriter, req *http.Request) {
 	if err := jsoniter.NewDecoder(req.Body).Decode(r); err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		gologger.Warning().Msgf("Could not decode json body: %s\n", err)
-		jsonError(w, errors.Wrap(err, "could not decode json body"), http.StatusBadRequest)
+		jsonError(w, fmt.Sprintf("could not decode json body: %s", err), http.StatusBadRequest)
 		return
 	}
 	if err := h.options.Storage.SetIDPublicKey(r.CorrelationID, r.SecretKey, r.PublicKey); err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		gologger.Warning().Msgf("Could not set id and public key for %s: %s\n", r.CorrelationID, err)
-		jsonError(w, errors.Wrap(err, "could not set id and public key"), http.StatusBadRequest)
+		jsonError(w, fmt.Sprintf("could not set id and public key: %s", err), http.StatusBadRequest)
 		return
 	}
 
@@ -216,13 +215,13 @@ func (h *HTTPServer) deregisterHandler(w http.ResponseWriter, req *http.Request)
 	if err := jsoniter.NewDecoder(req.Body).Decode(r); err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		gologger.Warning().Msgf("Could not decode json body: %s\n", err)
-		jsonError(w, errors.Wrap(err, "could not decode json body"), http.StatusBadRequest)
+		jsonError(w, fmt.Sprintf("could not decode json body: %s", err), http.StatusBadRequest)
 		return
 	}
 	if err := h.options.Storage.RemoveID(r.CorrelationID); err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		gologger.Warning().Msgf("Could not remove id for %s: %s\n", r.CorrelationID, err)
-		jsonError(w, errors.Wrap(err, "could not remove id"), http.StatusBadRequest)
+		jsonError(w, fmt.Sprintf("could not remove id: %s", err), http.StatusBadRequest)
 		return
 	}
 	gologger.Debug().Msgf("Deregistered correlationID %s for key\n", r.CorrelationID)
@@ -242,12 +241,12 @@ func (h *HTTPServer) pollHandler(w http.ResponseWriter, req *http.Request) {
 
 	ID := req.URL.Query().Get("id")
 	if ID == "" {
-		jsonError(w, errors.New("no id specified for poll"), http.StatusBadRequest)
+		jsonError(w, "no id specified for poll", http.StatusBadRequest)
 		return
 	}
 	secret := req.URL.Query().Get("secret")
 	if secret == "" {
-		jsonError(w, errors.New("no secret specified for poll"), http.StatusBadRequest)
+		jsonError(w, "no secret specified for poll", http.StatusBadRequest)
 		return
 	}
 
@@ -255,7 +254,7 @@ func (h *HTTPServer) pollHandler(w http.ResponseWriter, req *http.Request) {
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		gologger.Warning().Msgf("Could not get interactions for %s: %s\n", ID, err)
-		jsonError(w, errors.Wrap(err, "could not get interactions"), http.StatusBadRequest)
+		jsonError(w, fmt.Sprintf("could not get interactions: %s", err), http.StatusBadRequest)
 		return
 	}
 
@@ -273,7 +272,9 @@ func (h *HTTPServer) pollHandler(w http.ResponseWriter, req *http.Request) {
 		if err != nil {
 			w.WriteHeader(http.StatusBadRequest)
 			gologger.Warning().Msgf("Could not get root-tld interactions for %s: %s\n", h.options.Domain, err)
-			jsonError(w, errors.Wrap(err, "could not get interactions"), http.StatusBadRequest)
+			jsonError(w, fmt.Sprintf("could not get interactions: %s", err), http.StatusBadRequest)
+			return
+
 		}
 	}
 
@@ -282,7 +283,7 @@ func (h *HTTPServer) pollHandler(w http.ResponseWriter, req *http.Request) {
 	if err := jsoniter.NewEncoder(w).Encode(response); err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		gologger.Warning().Msgf("Could not encode interactions for %s: %s\n", ID, err)
-		jsonError(w, errors.Wrap(err, "could not encode interactions"), http.StatusBadRequest)
+		jsonError(w, fmt.Sprintf("could not encode interactions: %s", err), http.StatusBadRequest)
 		return
 	}
 	gologger.Debug().Msgf("Polled %d interactions for %s correlationID\n", len(data), ID)
@@ -306,10 +307,10 @@ func CORSEnabledFunction(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
 }
 
-func jsonError(w http.ResponseWriter, err interface{}, code int) {
+func jsonError(w http.ResponseWriter, err string, code int) {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.Header().Set("X-Content-Type-Options", "nosniff")
-	_ = json.NewEncoder(w).Encode(err)
+	_ = json.NewEncoder(w).Encode(map[string]interface{}{"error": err})
 }
 
 func (h *HTTPServer) authMiddleware(next http.Handler) http.Handler {

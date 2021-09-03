@@ -41,9 +41,11 @@ type CorrelationData struct {
 	aesKey []byte // decrypted AES key for signing
 }
 
+const defaultCacheMaxSize = 1000000
+
 // New creates a new storage instance for interactsh data.
 func New(evictionTTL time.Duration) *Storage {
-	return &Storage{cache: ccache.New(ccache.Configure()), evictionTTL: evictionTTL}
+	return &Storage{cache: ccache.New(ccache.Configure().MaxSize(defaultCacheMaxSize)), evictionTTL: evictionTTL}
 }
 
 // SetIDPublicKey sets the correlation ID and publicKey into the cache for further operations.
