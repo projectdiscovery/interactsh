@@ -48,6 +48,10 @@ func New(evictionTTL time.Duration) *Storage {
 
 // SetIDPublicKey sets the correlation ID and publicKey into the cache for further operations.
 func (s *Storage) SetIDPublicKey(correlationID, secretKey string, publicKey string) error {
+	// If we already have this correlation ID, return.
+	if s.cache.Get(correlationID) != nil {
+		return nil
+	}
 	publicKeyData, err := parseB64RSAPublicKeyFromPEM(publicKey)
 	if err != nil {
 		return errors.Wrap(err, "could not read public Key")
@@ -156,7 +160,7 @@ func (s *Storage) GetRootTLDInteractions(ID string) ([]string, error) {
 }
 
 // RemoveID removes data for a correlation ID and data related to it.
-func (s *Storage) RemoveID(correlationID string) error {
+func (s *Storage) RemoveID(correlationID, secret string) error {
 	item := s.cache.Get(correlationID)
 	if item == nil {
 		return errors.New("could not get correlation-id from cache")
@@ -164,6 +168,9 @@ func (s *Storage) RemoveID(correlationID string) error {
 	value, ok := item.Value().(*CorrelationData)
 	if !ok {
 		return errors.New("invalid correlation-id cache value found")
+	}
+	if !strings.EqualFold(value.secretKey, secret) {
+		return errors.New("invalid secret key passed for deregister")
 	}
 	value.dataMutex.Lock()
 	value.Data = nil

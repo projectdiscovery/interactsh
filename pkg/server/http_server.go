@@ -206,6 +206,8 @@ func (h *HTTPServer) registerHandler(w http.ResponseWriter, req *http.Request) {
 type DeregisterRequest struct {
 	// CorrelationID is an ID for correlation with requests.
 	CorrelationID string `json:"correlation-id"`
+	// SecretKey is the secretKey for the interactsh client.
+	SecretKey string `json:"secret-key"`
 }
 
 // deregisterHandler is a handler for client deregister requests
@@ -219,7 +221,7 @@ func (h *HTTPServer) deregisterHandler(w http.ResponseWriter, req *http.Request)
 		jsonError(w, errors.Wrap(err, "could not decode json body"), http.StatusBadRequest)
 		return
 	}
-	if err := h.options.Storage.RemoveID(r.CorrelationID); err != nil {
+	if err := h.options.Storage.RemoveID(r.CorrelationID, r.SecretKey); err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		gologger.Warning().Msgf("Could not remove id for %s: %s\n", r.CorrelationID, err)
 		jsonError(w, errors.Wrap(err, "could not remove id"), http.StatusBadRequest)
