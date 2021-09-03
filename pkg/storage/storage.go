@@ -50,7 +50,7 @@ func New(evictionTTL time.Duration) *Storage {
 func (s *Storage) SetIDPublicKey(correlationID, secretKey string, publicKey string) error {
 	// If we already have this correlation ID, return.
 	if s.cache.Get(correlationID) != nil {
-		return nil
+		return errors.New("correlation-id provided is invalid")
 	}
 	publicKeyData, err := parseB64RSAPublicKeyFromPEM(publicKey)
 	if err != nil {
