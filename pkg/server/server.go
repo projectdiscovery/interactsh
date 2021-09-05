@@ -51,6 +51,8 @@ type Options struct {
 	Template bool
 	// Enable root tld interactions
 	RootTLD bool
+	// OriginURL for the HTTP Server
+	OriginURL string
 }
 
 // URLReflection returns a reversed part of the URL payload

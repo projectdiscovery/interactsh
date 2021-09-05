@@ -45,13 +45,19 @@ type CorrelationData struct {
 	Callbacks []template.Callback
 }
 
+const defaultCacheMaxSize = 1000000
+
 // New creates a new storage instance for interactsh data.
 func New(evictionTTL time.Duration) *Storage {
-	return &Storage{cache: ccache.New(ccache.Configure()), evictionTTL: evictionTTL}
+	return &Storage{cache: ccache.New(ccache.Configure().MaxSize(defaultCacheMaxSize)), evictionTTL: evictionTTL}
 }
 
 // SetIDPublicKey sets the correlation ID and publicKey into the cache for further operations.
 func (s *Storage) SetIDPublicKey(correlationID, secretKey string, publicKey string) error {
+	// If we already have this correlation ID, return.
+	if s.cache.Get(correlationID) != nil {
+		return errors.New("correlation-id provided is invalid")
+	}
 	publicKeyData, err := parseB64RSAPublicKeyFromPEM(publicKey)
 	if err != nil {
 		return errors.Wrap(err, "could not read public Key")
@@ -105,8 +111,9 @@ func (s *Storage) AddInteraction(correlationID string, data []byte) error {
 	return nil
 }
 
-func (s *Storage) AddRootTLD(rootTLD string, data []byte) error {
-	item := s.cache.Get(rootTLD)
+// AddInteractionWithId adds an interaction data to the id bucket
+func (s *Storage) AddInteractionWithId(id string, data []byte) error {
+	item := s.cache.Get(id)
 	if item == nil {
 		return errors.New("could not get correlation-id from cache")
 	}
@@ -142,8 +149,9 @@ func (s *Storage) GetInteractions(correlationID, secret string) ([]string, strin
 	return data, value.AESKey, nil
 }
 
-func (s *Storage) GetRootTLDInteractions(ID string) ([]string, error) {
-	item := s.cache.Get(ID)
+// GetInteractions returns the interactions for a id and empty the cache
+func (s *Storage) GetInteractionsWithId(id string) ([]string, error) {
+	item := s.cache.Get(id)
 	if item == nil {
 		return nil, errors.New("could not get id from cache")
 	}
@@ -151,7 +159,6 @@ func (s *Storage) GetRootTLDInteractions(ID string) ([]string, error) {
 	if !ok {
 		return nil, errors.New("invalid id cache value found")
 	}
-
 	value.dataMutex.Lock()
 	data := value.Data
 	value.Data = make([]string, 0)
@@ -160,7 +167,7 @@ func (s *Storage) GetRootTLDInteractions(ID string) ([]string, error) {
 }
 
 // RemoveID removes data for a correlation ID and data related to it.
-func (s *Storage) RemoveID(correlationID string) error {
+func (s *Storage) RemoveID(correlationID, secret string) error {
 	item := s.cache.Get(correlationID)
 	if item == nil {
 		return errors.New("could not get correlation-id from cache")
@@ -168,6 +175,9 @@ func (s *Storage) RemoveID(correlationID string) error {
 	value, ok := item.Value().(*CorrelationData)
 	if !ok {
 		return errors.New("invalid correlation-id cache value found")
+	}
+	if !strings.EqualFold(value.secretKey, secret) {
+		return errors.New("invalid secret key passed for deregister")
 	}
 	value.dataMutex.Lock()
 	value.Data = nil
@@ -272,15 +282,15 @@ func (s *Storage) CleanupInternalById(correlationID string, seconds int) error {
 	return nil
 }
 
-func (s *Storage) GetCorrelationDataByID(correlationID string) (*CorrelationData, error) {
-	item := s.cache.Get(correlationID)
+// GetCacheItem returns an item as is
+func (s *Storage) GetCacheItem(token string) (*CorrelationData, error) {
+	item := s.cache.Get(token)
 	if item == nil {
-		return nil, errors.New("could not get correlation-id from cache")
+		return nil, errors.New("could not get token from cache")
 	}
-	v, ok := item.Value().(*CorrelationData)
+	value, ok := item.Value().(*CorrelationData)
 	if !ok {
-		return nil, errors.New("invalid correlation-id cache value found")
+		return nil, errors.New("invalid token cache value found")
 	}
-
-	return v, nil
+	return value, nil
 }

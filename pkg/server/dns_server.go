@@ -229,7 +229,7 @@ func (h *DNSServer) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 			gologger.Warning().Msgf("Could not encode root tld dns interaction: %s\n", err)
 		} else {
 			gologger.Debug().Msgf("Root TLD DNS Interaction: \n%s\n", buffer.String())
-			if err := h.options.Storage.AddRootTLD(correlationID, buffer.Bytes()); err != nil {
+			if err := h.options.Storage.AddInteractionWithId(correlationID, buffer.Bytes()); err != nil {
 				gologger.Warning().Msgf("Could not store dns interaction: %s\n", err)
 			}
 		}

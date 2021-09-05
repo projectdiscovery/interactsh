@@ -40,12 +40,12 @@ func NewHTTPServer(options *Options) (*HTTPServer, error) {
 
 	router := &http.ServeMux{}
 	router.Handle("/", server.logger(http.HandlerFunc(server.defaultHandler)))
-	router.Handle("/register", server.authMiddleware(http.HandlerFunc(server.registerHandler)))
-	router.Handle("/deregister", server.authMiddleware(http.HandlerFunc(server.deregisterHandler)))
-	router.Handle("/poll", server.authMiddleware(http.HandlerFunc(server.pollHandler)))
+	router.Handle("/register", server.corsMiddleware(server.authMiddleware(http.HandlerFunc(server.registerHandler))))
+	router.Handle("/deregister", server.corsMiddleware(server.authMiddleware(http.HandlerFunc(server.deregisterHandler))))
+	router.Handle("/poll", server.corsMiddleware(server.authMiddleware(http.HandlerFunc(server.pollHandler))))
 	if options.Template {
-		router.Handle("/template/add", server.authMiddleware(http.HandlerFunc(server.addTemplateHandler)))
-		router.Handle("/template/cleanup", server.authMiddleware(http.HandlerFunc(server.removeTemplateHandler)))
+		router.Handle("/template/add", server.corsMiddleware(server.authMiddleware(http.HandlerFunc(server.addTemplateHandler))))
+		router.Handle("/template/cleanup", server.corsMiddleware(server.authMiddleware(http.HandlerFunc(server.removeTemplateHandler))))
 	}
 
 	server.tlsserver = http.Server{Addr: options.ListenIP + ":443", Handler: router}
@@ -107,7 +107,7 @@ func (h *HTTPServer) logger(handler http.Handler) http.HandlerFunc {
 				gologger.Warning().Msgf("Could not encode root tld http interaction: %s\n", err)
 			} else {
 				gologger.Debug().Msgf("Root TLD HTTP Interaction: \n%s\n", buffer.String())
-				if err := h.options.Storage.AddRootTLD(ID, buffer.Bytes()); err != nil {
+				if err := h.options.Storage.AddInteractionWithId(ID, buffer.Bytes()); err != nil {
 					gologger.Warning().Msgf("Could not store root tld http interaction: %s\n", err)
 				}
 			}
@@ -176,7 +176,7 @@ func (h *HTTPServer) defaultHandler(w http.ResponseWriter, req *http.Request) {
 		}
 	}
 
-	item, err := h.options.Storage.GetCorrelationDataByID(correlationID)
+	item, err := h.options.Storage.GetCacheItem(correlationID)
 	if err == nil {
 		for _, callback := range item.Callbacks {
 			mapDSL, err := mapsutil.HTTPRequesToMap(req)
@@ -254,22 +254,17 @@ type RegisterRequest struct {
 
 // registerHandler is a handler for client register requests
 func (h *HTTPServer) registerHandler(w http.ResponseWriter, req *http.Request) {
-	CORSEnabledFunction(w, req)
-
 	r := &RegisterRequest{}
 	if err := jsoniter.NewDecoder(req.Body).Decode(r); err != nil {
-		w.WriteHeader(http.StatusBadRequest)
 		gologger.Warning().Msgf("Could not decode json body: %s\n", err)
-		jsonError(w, errors.Wrap(err, "could not decode json body"), http.StatusBadRequest)
+		jsonError(w, fmt.Sprintf("could not decode json body: %s", err), http.StatusBadRequest)
 		return
 	}
 	if err := h.options.Storage.SetIDPublicKey(r.CorrelationID, r.SecretKey, r.PublicKey); err != nil {
-		w.WriteHeader(http.StatusBadRequest)
 		gologger.Warning().Msgf("Could not set id and public key for %s: %s\n", r.CorrelationID, err)
-		jsonError(w, errors.Wrap(err, "could not set id and public key"), http.StatusBadRequest)
+		jsonError(w, fmt.Sprintf("could not set id and public key: %s", err), http.StatusBadRequest)
 		return
 	}
-
 	gologger.Debug().Msgf("Registered correlationID %s for key\n", r.CorrelationID)
 }
 
@@ -277,23 +272,21 @@ func (h *HTTPServer) registerHandler(w http.ResponseWriter, req *http.Request) {
 type DeregisterRequest struct {
 	// CorrelationID is an ID for correlation with requests.
 	CorrelationID string `json:"correlation-id"`
+	// SecretKey is the secretKey for the interactsh client.
+	SecretKey string `json:"secret-key"`
 }
 
 // deregisterHandler is a handler for client deregister requests
 func (h *HTTPServer) deregisterHandler(w http.ResponseWriter, req *http.Request) {
-	CORSEnabledFunction(w, req)
-
 	r := &DeregisterRequest{}
 	if err := jsoniter.NewDecoder(req.Body).Decode(r); err != nil {
-		w.WriteHeader(http.StatusBadRequest)
 		gologger.Warning().Msgf("Could not decode json body: %s\n", err)
-		jsonError(w, errors.Wrap(err, "could not decode json body"), http.StatusBadRequest)
+		jsonError(w, fmt.Sprintf("could not decode json body: %s", err), http.StatusBadRequest)
 		return
 	}
-	if err := h.options.Storage.RemoveID(r.CorrelationID); err != nil {
-		w.WriteHeader(http.StatusBadRequest)
+	if err := h.options.Storage.RemoveID(r.CorrelationID, r.SecretKey); err != nil {
 		gologger.Warning().Msgf("Could not remove id for %s: %s\n", r.CorrelationID, err)
-		jsonError(w, errors.Wrap(err, "could not remove id"), http.StatusBadRequest)
+		jsonError(w, fmt.Sprintf("could not remove id: %s", err), http.StatusBadRequest)
 		return
 	}
 	gologger.Debug().Msgf("Deregistered correlationID %s for key\n", r.CorrelationID)
@@ -302,73 +295,77 @@ func (h *HTTPServer) deregisterHandler(w http.ResponseWriter, req *http.Request)
 // PollResponse is the response for a polling request
 type PollResponse struct {
 	Data    []string `json:"data"`
+	Extra   []string `json:"extra"`
 	AESKey  string   `json:"aes_key"`
 	TLDData []string `json:"tlddata,omitempty"`
 }
 
 // pollHandler is a handler for client poll requests
 func (h *HTTPServer) pollHandler(w http.ResponseWriter, req *http.Request) {
-	CORSEnabledFunction(w, req)
-
 	ID := req.URL.Query().Get("id")
 	if ID == "" {
-		jsonError(w, errors.New("no id specified for poll"), http.StatusBadRequest)
+		jsonError(w, "no id specified for poll", http.StatusBadRequest)
 		return
 	}
 	secret := req.URL.Query().Get("secret")
 	if secret == "" {
-		jsonError(w, errors.New("no secret specified for poll"), http.StatusBadRequest)
+		jsonError(w, "no secret specified for poll", http.StatusBadRequest)
 		return
 	}
 
 	data, aesKey, err := h.options.Storage.GetInteractions(ID, secret)
 	if err != nil {
-		w.WriteHeader(http.StatusBadRequest)
 		gologger.Warning().Msgf("Could not get interactions for %s: %s\n", ID, err)
-		jsonError(w, errors.Wrap(err, "could not get interactions"), http.StatusBadRequest)
+		jsonError(w, fmt.Sprintf("could not get interactions: %s", err), http.StatusBadRequest)
 		return
+	}
+
+	// At this point the client is authenticated, so we return also the data related to the auth token
+	extradata, err := h.options.Storage.GetInteractionsWithId(h.options.Token)
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		gologger.Warning().Msgf("Could not get extra interactions for %s: %s\n", ID, err)
+		jsonError(w, errors.Wrap(err, "could not get extra interactions").Error(), http.StatusBadRequest)
 	}
 
 	var tlddata []string
 	if h.options.RootTLD {
-		tlddata, err = h.options.Storage.GetRootTLDInteractions(h.options.Domain)
+		tlddata, err = h.options.Storage.GetInteractionsWithId(h.options.Domain)
 		if err != nil {
-			w.WriteHeader(http.StatusBadRequest)
 			gologger.Warning().Msgf("Could not get root-tld interactions for %s: %s\n", h.options.Domain, err)
-			jsonError(w, errors.Wrap(err, "could not get interactions"), http.StatusBadRequest)
+			jsonError(w, fmt.Sprintf("could not get interactions: %s", err), http.StatusBadRequest)
 			return
+
 		}
 	}
 
-	response := &PollResponse{Data: data, AESKey: aesKey, TLDData: tlddata}
+	response := &PollResponse{Data: data, AESKey: aesKey, TLDData: tlddata, Extra: extradata}
+
 	if err := jsoniter.NewEncoder(w).Encode(response); err != nil {
-		w.WriteHeader(http.StatusBadRequest)
 		gologger.Warning().Msgf("Could not encode interactions for %s: %s\n", ID, err)
-		jsonError(w, errors.Wrap(err, "could not encode interactions"), http.StatusBadRequest)
+		jsonError(w, fmt.Sprintf("could not encode interactions: %s", err), http.StatusBadRequest)
 		return
 	}
 	gologger.Debug().Msgf("Polled %d interactions for %s correlationID\n", len(data), ID)
 }
 
 func (h *HTTPServer) addTemplateHandler(w http.ResponseWriter, req *http.Request) {
-	CORSEnabledFunction(w, req)
-
 	ID := req.URL.Query().Get("id")
 	if ID == "" {
-		jsonError(w, errors.New("no id specified for poll"), http.StatusBadRequest)
+		jsonError(w, errors.New("no id specified for poll").Error(), http.StatusBadRequest)
 		return
 	}
 
-	item, err := h.options.Storage.GetCorrelationDataByID(ID)
+	item, err := h.options.Storage.GetCacheItem(ID)
 	if err != nil {
-		jsonError(w, errors.New("invalid id"), http.StatusBadRequest)
+		jsonError(w, errors.New("invalid id").Error(), http.StatusBadRequest)
 		return
 	}
 
 	// unmarshal the templates and add them to the internal pointer structure
 	var callbacks []template.Callback
 	if err := json.NewDecoder(req.Body).Decode(&callbacks); err != nil {
-		jsonError(w, errors.New("couldn't decode the template body"), http.StatusBadRequest)
+		jsonError(w, errors.New("couldn't decode the template body").Error(), http.StatusBadRequest)
 		return
 	}
 
@@ -380,24 +377,22 @@ func (h *HTTPServer) addTemplateHandler(w http.ResponseWriter, req *http.Request
 }
 
 func (h *HTTPServer) removeTemplateHandler(w http.ResponseWriter, req *http.Request) {
-	CORSEnabledFunction(w, req)
-
 	ID := req.URL.Query().Get("id")
 	if ID == "" {
-		jsonError(w, errors.New("no id specified for poll"), http.StatusBadRequest)
+		jsonError(w, errors.New("no id specified for poll").Error(), http.StatusBadRequest)
 		return
 	}
 
-	item, err := h.options.Storage.GetCorrelationDataByID(ID)
+	item, err := h.options.Storage.GetCacheItem(ID)
 	if err != nil {
-		jsonError(w, errors.New("invalid id"), http.StatusBadRequest)
+		jsonError(w, errors.New("invalid id").Error(), http.StatusBadRequest)
 		return
 	}
 
 	// unmarshal the templates and add them to the internal pointer structure
 	var callbacks []template.Callback
 	if err := yaml.NewDecoder(req.Body).Decode(&callbacks); err != nil {
-		jsonError(w, errors.New("couldn't decode the template body"), http.StatusBadRequest)
+		jsonError(w, errors.New("couldn't decode the template body").Error(), http.StatusBadRequest)
 		return
 	}
 
@@ -409,28 +404,28 @@ func (h *HTTPServer) removeTemplateHandler(w http.ResponseWriter, req *http.Requ
 	gologger.Debug().Msgf("Deleted %d callbacks for %s correlationID\n", callbacksNumber, ID)
 }
 
-// CORSEnabledFunction is an example of setting CORS headers.
-// For more information about CORS and CORS preflight requests, see
-// https://developer.mozilla.org/en-US/docs/Glossary/Preflight_request.
-// Taken from https://github.com/GoogleCloudPlatform/golang-samples/blob/master/functions/http/cors.go
-func CORSEnabledFunction(w http.ResponseWriter, r *http.Request) {
-	// Set CORS headers for the preflight request
-	if r.Method == http.MethodOptions {
-		w.Header().Set("Access-Control-Allow-Origin", "*")
+func (h *HTTPServer) corsMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		// Set CORS headers for the preflight request
+		if req.Method == http.MethodOptions {
+			w.Header().Set("Access-Control-Allow-Origin", h.options.OriginURL)
+			w.Header().Set("Access-Control-Allow-Credentials", "true")
+			w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
+		w.Header().Set("Access-Control-Allow-Origin", h.options.OriginURL)
 		w.Header().Set("Access-Control-Allow-Credentials", "true")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
-		w.WriteHeader(http.StatusNoContent)
-		return
-	}
-	w.Header().Set("Access-Control-Allow-Origin", "*")
-	w.Header().Set("Access-Control-Allow-Credentials", "true")
-	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+		next.ServeHTTP(w, req)
+	})
 }
 
-func jsonError(w http.ResponseWriter, err interface{}, code int) {
+func jsonError(w http.ResponseWriter, err string, code int) {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.Header().Set("X-Content-Type-Options", "nosniff")
-	_ = json.NewEncoder(w).Encode(err)
+	w.WriteHeader(code)
+	_ = json.NewEncoder(w).Encode(map[string]interface{}{"error": err})
 }
 
 func (h *HTTPServer) authMiddleware(next http.Handler) http.Handler {
