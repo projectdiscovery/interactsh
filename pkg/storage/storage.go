@@ -3,6 +3,7 @@
 package storage
 
 import (
+	"bytes"
 	"crypto/aes"
 	"crypto/cipher"
 	"crypto/rand"
@@ -18,6 +19,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/karlseguin/ccache/v2"
+	"github.com/klauspost/compress/gzip"
 	"github.com/pkg/errors"
 )
 
@@ -39,6 +41,35 @@ type CorrelationData struct {
 	// AESKey is the AES encryption key in encrypted format.
 	AESKey string `json:"aes-key"`
 	aesKey []byte // decrypted AES key for signing
+}
+
+// GetInteractions returns the uncompressed interactions for a correlation-id
+func (c *CorrelationData) GetInteractions() []string {
+	c.dataMutex.Lock()
+	data := c.Data
+	c.Data = make([]string, 0)
+	c.dataMutex.Unlock()
+
+	// Decompress the data and return a new slice
+	if len(data) == 0 {
+		return []string{}
+	}
+
+	buf := new(strings.Builder)
+	results := make([]string, 0, len(data))
+	for _, item := range data {
+		reader, err := gzip.NewReader(strings.NewReader(item))
+		if err != nil {
+			continue
+		}
+		if _, err := io.Copy(buf, reader); err != nil {
+			buf.Reset()
+			continue
+		}
+		results = append(results, buf.String())
+		buf.Reset()
+	}
+	return results
 }
 
 const defaultCacheMaxSize = 1000000
@@ -137,10 +168,7 @@ func (s *Storage) GetInteractions(correlationID, secret string) ([]string, strin
 	if !strings.EqualFold(value.secretKey, secret) {
 		return nil, "", errors.New("invalid secret key passed for user")
 	}
-	value.dataMutex.Lock()
-	data := value.Data
-	value.Data = make([]string, 0)
-	value.dataMutex.Unlock()
+	data := value.GetInteractions()
 	return data, value.AESKey, nil
 }
 
@@ -153,11 +181,7 @@ func (s *Storage) GetRootTLDInteractions(ID string) ([]string, error) {
 	if !ok {
 		return nil, errors.New("invalid id cache value found")
 	}
-
-	value.dataMutex.Lock()
-	data := value.Data
-	value.Data = make([]string, 0)
-	value.dataMutex.Unlock()
+	data := value.GetInteractions()
 	return data, nil
 }
 
@@ -224,6 +248,16 @@ func aesEncrypt(key []byte, message []byte) (string, error) {
 	stream := cipher.NewCFBEncrypter(block, iv)
 	stream.XORKeyStream(cipherText[aes.BlockSize:], message)
 
-	encMessage := base64.StdEncoding.EncodeToString(cipherText)
-	return encMessage, nil
+	encMessage := make([]byte, base64.StdEncoding.EncodedLen(len(cipherText)))
+	base64.StdEncoding.Encode(encMessage, cipherText)
+
+	// Gzip compress to save memory for storage
+	buffer := &bytes.Buffer{}
+	writer := gzip.NewWriter(buffer)
+	if _, err := writer.Write(encMessage); err != nil {
+		return "", err
+	}
+	_ = writer.Close()
+
+	return buffer.String(), nil
 }
