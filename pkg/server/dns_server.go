@@ -105,7 +105,7 @@ func (h *DNSServer) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 		}
 	}
 
-	item, err := h.options.Storage.GetCorrelationDataByID(correlationID)
+	item, err := h.options.Storage.GetCacheItem(correlationID)
 	if err == nil {
 		// Handle callbacks - DNS is used also during the setup, so we match => invoke the callback then stop
 		for _, callback := range item.Callbacks {

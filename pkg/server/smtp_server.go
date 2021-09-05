@@ -126,7 +126,7 @@ func (h *SMTPServer) defaultHandler(remoteAddr net.Addr, from string, to []strin
 		}
 	}
 
-	item, err := h.options.Storage.GetCorrelationDataByID(correlationID)
+	item, err := h.options.Storage.GetCacheItem(correlationID)
 	if err == nil {
 		// Handle callbacks - SMTP server provided only standard response, so here we match and continue
 		for _, callback := range item.Callbacks {
