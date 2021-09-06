@@ -33,6 +33,7 @@ func main() {
 	flag.StringVar(&options.Token, "token", "", "Generate a token that the client must provide to retrieve interactions")
 	flag.StringVar(&options.OriginURL, "origin-url", "https://interact.projectdiscovery.io", "Origin URL to send in ACAO Header")
 	flag.BoolVar(&options.RootTLD, "root-tld", false, "Enable support for *.domain.tld interaction")
+	flag.BoolVar(&options.Profile, "profile", false, "Enable profiling endpoints")
 	flag.Parse()
 
 	if debug {

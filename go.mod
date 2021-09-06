@@ -9,12 +9,15 @@ require (
 	github.com/jasonlvhit/gocron v0.0.1
 	github.com/json-iterator/go v1.1.11
 	github.com/karlseguin/ccache/v2 v2.0.8
+	github.com/klauspost/compress v1.13.5 // indirect
 	github.com/miekg/dns v1.1.43
 	github.com/pkg/errors v0.9.1
 	github.com/projectdiscovery/fastdialer v0.0.13-0.20210727180624-4b8261cc6d2a
 	github.com/projectdiscovery/fileutil v0.0.0-20210601061022-8ef4fc6fbfb6
 	github.com/projectdiscovery/gologger v1.1.4
+	github.com/projectdiscovery/retryabledns v1.0.11 // indirect
 	github.com/projectdiscovery/retryablehttp-go v1.0.2
+	github.com/remeh/sizedwaitgroup v1.0.0 // indirect
 	github.com/rs/xid v1.3.0
 	github.com/stretchr/testify v1.7.0
 	gopkg.in/corvus-ch/zbase32.v1 v1.0.0
