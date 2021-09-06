@@ -19,7 +19,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/karlseguin/ccache/v2"
-	"github.com/klauspost/compress/gzip"
+	"github.com/klauspost/compress/zlib"
 	"github.com/pkg/errors"
 )
 
@@ -58,14 +58,14 @@ func (c *CorrelationData) GetInteractions() []string {
 	buf := new(strings.Builder)
 	results := make([]string, 0, len(data))
 
-	var reader *gzip.Reader
+	var reader io.ReadCloser
 	for _, item := range data {
 		var err error
 
 		if reader == nil {
-			reader, err = gzip.NewReader(strings.NewReader(item))
+			reader, err = zlib.NewReader(strings.NewReader(item))
 		} else {
-			reader.Reset(strings.NewReader(item))
+			err = reader.(zlib.Resetter).Reset(strings.NewReader(item), nil)
 		}
 		if err != nil {
 			continue
@@ -76,6 +76,9 @@ func (c *CorrelationData) GetInteractions() []string {
 		}
 		results = append(results, buf.String())
 		buf.Reset()
+	}
+	if reader != nil {
+		_ = reader.Close()
 	}
 	return results
 }
@@ -240,7 +243,7 @@ func parseB64RSAPublicKeyFromPEM(pubPEM string) (*rsa.PublicKey, error) {
 }
 
 var zippers = sync.Pool{New: func() interface{} {
-	return gzip.NewWriter(nil)
+	return zlib.NewWriter(nil)
 }}
 
 // aesEncrypt encrypts a message using AES and puts IV at the beginning of ciphertext.
@@ -266,7 +269,7 @@ func aesEncrypt(key []byte, message []byte) (string, error) {
 	// Gzip compress to save memory for storage
 	buffer := &bytes.Buffer{}
 
-	gz := zippers.Get().(*gzip.Writer)
+	gz := zippers.Get().(*zlib.Writer)
 	defer zippers.Put(gz)
 	gz.Reset(buffer)
 
