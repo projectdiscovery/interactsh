@@ -57,8 +57,16 @@ func (c *CorrelationData) GetInteractions() []string {
 
 	buf := new(strings.Builder)
 	results := make([]string, 0, len(data))
+
+	var reader *gzip.Reader
 	for _, item := range data {
-		reader, err := gzip.NewReader(strings.NewReader(item))
+		var err error
+
+		if reader == nil {
+			reader, err = gzip.NewReader(strings.NewReader(item))
+		} else {
+			reader.Reset(strings.NewReader(item))
+		}
 		if err != nil {
 			continue
 		}
@@ -231,6 +239,10 @@ func parseB64RSAPublicKeyFromPEM(pubPEM string) (*rsa.PublicKey, error) {
 	return nil, errors.New("Key type is not RSA")
 }
 
+var zippers = sync.Pool{New: func() interface{} {
+	return gzip.NewWriter(nil)
+}}
+
 // aesEncrypt encrypts a message using AES and puts IV at the beginning of ciphertext.
 func aesEncrypt(key []byte, message []byte) (string, error) {
 	block, err := aes.NewCipher(key)
@@ -253,11 +265,16 @@ func aesEncrypt(key []byte, message []byte) (string, error) {
 
 	// Gzip compress to save memory for storage
 	buffer := &bytes.Buffer{}
-	writer := gzip.NewWriter(buffer)
-	if _, err := writer.Write(encMessage); err != nil {
+
+	gz := zippers.Get().(*gzip.Writer)
+	defer zippers.Put(gz)
+	gz.Reset(buffer)
+
+	if _, err := gz.Write(encMessage); err != nil {
+		_ = gz.Close()
 		return "", err
 	}
-	_ = writer.Close()
+	_ = gz.Close()
 
 	return buffer.String(), nil
 }
