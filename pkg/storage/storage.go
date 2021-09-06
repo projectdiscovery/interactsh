@@ -56,10 +56,10 @@ func (c *CorrelationData) GetInteractions() []string {
 	}
 
 	buf := new(strings.Builder)
-	results := make([]string, 0, len(data))
+	results := make([]string, len(data))
 
 	var reader io.ReadCloser
-	for _, item := range data {
+	for i, item := range data {
 		var err error
 
 		if reader == nil {
@@ -74,7 +74,7 @@ func (c *CorrelationData) GetInteractions() []string {
 			buf.Reset()
 			continue
 		}
-		results = append(results, buf.String())
+		results[i] = buf.String()
 		buf.Reset()
 	}
 	if reader != nil {

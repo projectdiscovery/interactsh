@@ -9,10 +9,13 @@ import (
 	"crypto/x509"
 	"encoding/base64"
 	"encoding/pem"
+	"strings"
+	"sync"
 	"testing"
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/klauspost/compress/zlib"
 	"github.com/rs/xid"
 	"github.com/stretchr/testify/require"
 )
@@ -110,4 +113,20 @@ func TestStorageAddGetInteractions(t *testing.T) {
 	stream.XORKeyStream(decoded, cipherText)
 
 	require.Equal(t, dataOriginal, decoded, "could not get correct decrypted interaction")
+}
+
+func TestGetInteractions(t *testing.T) {
+	compressZlib := func(data string) string {
+		var builder strings.Builder
+		writer := zlib.NewWriter(&builder)
+		writer.Write([]byte(data))
+		writer.Close()
+		return builder.String()
+	}
+	data := &CorrelationData{
+		Data:      []string{compressZlib("test"), compressZlib("another")},
+		dataMutex: &sync.Mutex{},
+	}
+	decompressed := data.GetInteractions()
+	require.ElementsMatch(t, []string{"test", "another"}, decompressed, "could not get correct decompressed list")
 }
