@@ -17,6 +17,7 @@ require (
 	github.com/projectdiscovery/gologger v1.1.4
 	github.com/projectdiscovery/retryabledns v1.0.11
 	github.com/projectdiscovery/retryablehttp-go v1.0.2
+	github.com/pyroscope-io/pyroscope v0.0.39 // indirect
 	github.com/remeh/sizedwaitgroup v1.0.0
 	github.com/rs/xid v1.3.0
 	github.com/stretchr/testify v1.7.0

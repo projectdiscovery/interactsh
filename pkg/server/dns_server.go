@@ -61,7 +61,9 @@ func (h *DNSServer) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 	if len(r.Question) == 0 {
 		return
 	}
-	gologger.Debug().Msgf("New DNS request: %s\n", r.String())
+	requestMsg := r.String()
+
+	gologger.Debug().Msgf("New DNS request: %s\n", requestMsg)
 	domain := m.Question[0].Name
 
 	var uniqueID, fullID string
@@ -87,6 +89,7 @@ func (h *DNSServer) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 		m.Ns = append(m.Ns, &dns.NS{Hdr: nsHeader, Ns: h.ns1Domain})
 		m.Ns = append(m.Ns, &dns.NS{Hdr: nsHeader, Ns: h.ns2Domain})
 	}
+	responseMsg := m.String()
 
 	// if root-tld is enabled stores any interaction towards the main domain
 	if h.options.RootTLD && strings.HasSuffix(domain, h.dotDomain) {
@@ -97,8 +100,8 @@ func (h *DNSServer) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 			UniqueID:      domain,
 			FullId:        domain,
 			QType:         toQType(r.Question[0].Qtype),
-			RawRequest:    r.String(),
-			RawResponse:   m.String(),
+			RawRequest:    requestMsg,
+			RawResponse:   responseMsg,
 			RemoteAddress: host,
 			Timestamp:     time.Now(),
 		}
@@ -133,8 +136,8 @@ func (h *DNSServer) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 			UniqueID:      uniqueID,
 			FullId:        fullID,
 			QType:         toQType(r.Question[0].Qtype),
-			RawRequest:    r.String(),
-			RawResponse:   m.String(),
+			RawRequest:    requestMsg,
+			RawResponse:   responseMsg,
 			RemoteAddress: host,
 			Timestamp:     time.Now(),
 		}

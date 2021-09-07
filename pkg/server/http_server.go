@@ -10,6 +10,7 @@ import (
 	"net/http/httptest"
 	"net/http/httputil"
 	"net/http/pprof"
+	"os"
 	"strings"
 	"time"
 
@@ -17,6 +18,7 @@ import (
 	"github.com/projectdiscovery/gologger"
 	"github.com/projectdiscovery/gologger/levels"
 	"github.com/projectdiscovery/interactsh/pkg/server/acme"
+	"github.com/pyroscope-io/pyroscope/pkg/agent/profiler"
 )
 
 // HTTPServer is a http server instance that listens both
@@ -40,6 +42,20 @@ func NewHTTPServer(options *Options) (*HTTPServer, error) {
 	router.Handle("/deregister", server.corsMiddleware(server.authMiddleware(http.HandlerFunc(server.deregisterHandler))))
 	router.Handle("/poll", server.corsMiddleware(server.authMiddleware(http.HandlerFunc(server.pollHandler))))
 	if options.Profile {
+
+		profiler.Start(profiler.Config{
+			ApplicationName: "interact.sh",
+			ServerAddress:   "https://interact.pyroscope.cloud",
+			AuthToken:       os.Getenv("AUTH_TOKEN"),
+			ProfileTypes: []profiler.ProfileType{
+				profiler.ProfileCPU,
+				profiler.ProfileAllocObjects,
+				profiler.ProfileAllocSpace,
+				profiler.ProfileInuseObjects,
+				profiler.ProfileInuseSpace,
+			},
+		})
+
 		router.HandleFunc("/debug/pprof/", pprof.Index)
 		router.HandleFunc("/debug/pprof/cmdline", pprof.Cmdline)
 		router.HandleFunc("/debug/pprof/profile", pprof.Profile)
@@ -73,12 +89,15 @@ func (h *HTTPServer) ListenAndServe(autoTLS *acme.AutoTLS) {
 func (h *HTTPServer) logger(handler http.Handler) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		req, _ := httputil.DumpRequest(r, true)
+		reqString := string(req)
 
-		gologger.Debug().Msgf("New HTTP request: %s\n", string(req))
+		gologger.Debug().Msgf("New HTTP request: %s\n", reqString)
 		rec := httptest.NewRecorder()
 		handler.ServeHTTP(rec, r)
 
 		resp, _ := httputil.DumpResponse(rec.Result(), true)
+		resoString := string(resp)
+
 		for k, v := range rec.Header() {
 			w.Header()[k] = v
 		}
@@ -95,8 +114,8 @@ func (h *HTTPServer) logger(handler http.Handler) http.HandlerFunc {
 				Protocol:      "http",
 				UniqueID:      r.Host,
 				FullId:        r.Host,
-				RawRequest:    string(req),
-				RawResponse:   string(resp),
+				RawRequest:    reqString,
+				RawResponse:   resoString,
 				RemoteAddress: host,
 				Timestamp:     time.Now(),
 			}
@@ -130,8 +149,8 @@ func (h *HTTPServer) logger(handler http.Handler) http.HandlerFunc {
 				Protocol:      "http",
 				UniqueID:      uniqueID,
 				FullId:        fullID,
-				RawRequest:    string(req),
-				RawResponse:   string(resp),
+				RawRequest:    reqString,
+				RawResponse:   resoString,
 				RemoteAddress: host,
 				Timestamp:     time.Now(),
 			}
