@@ -9,7 +9,6 @@ import (
 	"os"
 	"os/signal"
 	"strings"
-	"time"
 
 	"github.com/projectdiscovery/gologger"
 	"github.com/projectdiscovery/gologger/levels"
@@ -19,7 +18,6 @@ import (
 )
 
 func main() {
-	var eviction int
 	var debug bool
 
 	options := &server.Options{}
@@ -28,7 +26,6 @@ func main() {
 	flag.StringVar(&options.IPAddress, "ip", "", "IP Address to use for interactsh server")
 	flag.StringVar(&options.ListenIP, "listen-ip", "0.0.0.0", "IP Address to listen on")
 	flag.StringVar(&options.Hostmaster, "hostmaster", "", "Hostmaster email to use for interactsh server")
-	flag.IntVar(&eviction, "eviction", 7, "Number of days to persist interactions for")
 	flag.BoolVar(&options.Auth, "auth", false, "Require a token from the client to retrieve interactions")
 	flag.StringVar(&options.Token, "token", "", "Generate a token that the client must provide to retrieve interactions")
 	flag.StringVar(&options.OriginURL, "origin-url", "https://interact.projectdiscovery.io", "Origin URL to send in ACAO Header")
@@ -60,7 +57,7 @@ func main() {
 		log.Printf("Client Token: %s\n", options.Token)
 	}
 
-	store := storage.New(time.Duration(eviction) * time.Hour * 24)
+	store := storage.New()
 	options.Storage = store
 
 	// If riit-tld is enabled create a singleton unencrypted record in the store

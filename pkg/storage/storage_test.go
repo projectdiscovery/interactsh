@@ -12,7 +12,6 @@ import (
 	"strings"
 	"sync"
 	"testing"
-	"time"
 
 	"github.com/google/uuid"
 	"github.com/klauspost/compress/zlib"
@@ -21,7 +20,7 @@ import (
 )
 
 func TestStorageSetIDPublicKey(t *testing.T) {
-	storage := New(1 * time.Hour)
+	storage := New()
 
 	secret := uuid.New().String()
 	correlationID := xid.New().String()
@@ -44,18 +43,19 @@ func TestStorageSetIDPublicKey(t *testing.T) {
 
 	err = storage.SetIDPublicKey(correlationID, secret, encoded)
 	require.Nil(t, err, "could not set correlation-id and rsa public key in storage")
+	storage.cache.Wait()
 
-	item := storage.cache.Get(correlationID)
+	item, _ := storage.cache.Get(correlationID)
 	require.NotNil(t, item, "could not get correlation-id item from storage")
 
-	value, ok := item.Value().(*CorrelationData)
+	value, ok := item.(*CorrelationData)
 	require.True(t, ok, "could not assert item value type as correlation data")
 
 	require.Equal(t, secret, value.secretKey, "could not get correct secret key")
 }
 
 func TestStorageAddGetInteractions(t *testing.T) {
-	storage := New(1 * time.Hour)
+	storage := New()
 
 	secret := uuid.New().String()
 	correlationID := xid.New().String()
@@ -78,6 +78,7 @@ func TestStorageAddGetInteractions(t *testing.T) {
 
 	err = storage.SetIDPublicKey(correlationID, secret, encoded)
 	require.Nil(t, err, "could not set correlation-id and rsa public key in storage")
+	storage.cache.Wait()
 
 	dataOriginal := []byte("hello world, this is unencrypted interaction")
 	err = storage.AddInteraction(correlationID, dataOriginal)

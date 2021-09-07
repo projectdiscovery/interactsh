@@ -4,6 +4,7 @@ go 1.15
 
 require (
 	git.mills.io/prologic/smtpd v0.0.0-20210710122116-a525b76c287a
+	github.com/dgraph-io/ristretto v0.1.0 // indirect
 	github.com/eggsampler/acme/v3 v3.2.1
 	github.com/google/uuid v1.3.0
 	github.com/jasonlvhit/gocron v0.0.1
