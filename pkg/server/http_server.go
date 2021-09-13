@@ -3,7 +3,6 @@ package server
 import (
 	"bytes"
 	"crypto/tls"
-	"encoding/json"
 	"fmt"
 	"net"
 	"net/http"
@@ -39,6 +38,7 @@ func NewHTTPServer(options *Options) (*HTTPServer, error) {
 	router.Handle("/register", server.corsMiddleware(server.authMiddleware(http.HandlerFunc(server.registerHandler))))
 	router.Handle("/deregister", server.corsMiddleware(server.authMiddleware(http.HandlerFunc(server.deregisterHandler))))
 	router.Handle("/poll", server.corsMiddleware(server.authMiddleware(http.HandlerFunc(server.pollHandler))))
+	router.Handle("/metrics", server.corsMiddleware(server.authMiddleware(http.HandlerFunc(server.metricsHandler))))
 	server.tlsserver = http.Server{Addr: options.ListenIP + ":443", Handler: router}
 	server.nontlsserver = http.Server{Addr: options.ListenIP + ":80", Handler: router}
 	return server, nil
@@ -196,6 +196,7 @@ func (h *HTTPServer) registerHandler(w http.ResponseWriter, req *http.Request) {
 		jsonError(w, fmt.Sprintf("could not set id and public key: %s", err), http.StatusBadRequest)
 		return
 	}
+	jsonMsg(w, "registration successful", http.StatusOK)
 	gologger.Debug().Msgf("Registered correlationID %s for key\n", r.CorrelationID)
 }
 
@@ -220,6 +221,7 @@ func (h *HTTPServer) deregisterHandler(w http.ResponseWriter, req *http.Request)
 		jsonError(w, fmt.Sprintf("could not remove id: %s", err), http.StatusBadRequest)
 		return
 	}
+	jsonMsg(w, "deregistration successful", http.StatusOK)
 	gologger.Debug().Msgf("Deregistered correlationID %s for key\n", r.CorrelationID)
 }
 
@@ -297,11 +299,19 @@ func (h *HTTPServer) corsMiddleware(next http.Handler) http.Handler {
 	})
 }
 
-func jsonError(w http.ResponseWriter, err string, code int) {
+func jsonBody(w http.ResponseWriter, key, value string, code int) {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.Header().Set("X-Content-Type-Options", "nosniff")
 	w.WriteHeader(code)
-	_ = json.NewEncoder(w).Encode(map[string]interface{}{"error": err})
+	_ = jsoniter.NewEncoder(w).Encode(map[string]interface{}{key: value})
+}
+
+func jsonError(w http.ResponseWriter, err string, code int) {
+	jsonBody(w, "error", err, code)
+}
+
+func jsonMsg(w http.ResponseWriter, err string, code int) {
+	jsonBody(w, "message", err, code)
 }
 
 func (h *HTTPServer) authMiddleware(next http.Handler) http.Handler {
@@ -322,4 +332,7 @@ func (h *HTTPServer) checkToken(req *http.Request) bool {
 func (h *HTTPServer) metricsHandler(w http.ResponseWriter, req *http.Request) {
 	metrics := h.options.Storage.GetCacheMetrics()
 
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.Header().Set("X-Content-Type-Options", "nosniff")
+	_ = jsoniter.NewEncoder(w).Encode(metrics)
 }

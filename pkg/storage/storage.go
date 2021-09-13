@@ -53,10 +53,11 @@ type CacheMetrics struct {
 var polls = int64(0)
 
 func (s *Storage) GetCacheMetrics() *CacheMetrics {
+	pollsCurrent := atomic.SwapInt64(&polls, 0)
 	return &CacheMetrics{
 		Sessions: s.cache.ItemCount(),
 		Dropped:  s.cache.GetDropped(),
-		Polls:    atomic.LoadInt64(&polls),
+		Polls:    pollsCurrent,
 	}
 }
 
@@ -170,7 +171,6 @@ func (s *Storage) AddInteraction(correlationID string, data []byte) error {
 
 // AddInteractionWithId adds an interaction data to the id bucket
 func (s *Storage) AddInteractionWithId(id string, data []byte) error {
-
 	item := s.cache.Get(id)
 	if item == nil {
 		return errors.New("could not get correlation-id from cache")
