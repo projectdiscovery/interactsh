@@ -317,3 +317,9 @@ func (h *HTTPServer) authMiddleware(next http.Handler) http.Handler {
 func (h *HTTPServer) checkToken(req *http.Request) bool {
 	return !h.options.Auth || h.options.Auth && h.options.Token == req.Header.Get("Authorization")
 }
+
+// metricsHandler is a handler for /metrics endpoint
+func (h *HTTPServer) metricsHandler(w http.ResponseWriter, req *http.Request) {
+	metrics := h.options.Storage.GetCacheMetrics()
+
+}

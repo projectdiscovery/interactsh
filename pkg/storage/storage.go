@@ -15,6 +15,7 @@ import (
 	"io"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/google/uuid"
@@ -41,6 +42,22 @@ type CorrelationData struct {
 	// AESKey is the AES encryption key in encrypted format.
 	AESKey string `json:"aes-key"`
 	aesKey []byte // decrypted AES key for signing
+}
+
+type CacheMetrics struct {
+	Sessions int   `json:"sessions"`
+	Dropped  int   `json:"dropped"`
+	Polls    int64 `json:"polls"`
+}
+
+var polls = int64(0)
+
+func (s *Storage) GetCacheMetrics() *CacheMetrics {
+	return &CacheMetrics{
+		Sessions: s.cache.ItemCount(),
+		Dropped:  s.cache.GetDropped(),
+		Polls:    atomic.LoadInt64(&polls),
+	}
 }
 
 // GetInteractions returns the uncompressed interactions for a correlation-id
@@ -130,6 +147,8 @@ func (s *Storage) SetID(ID string) error {
 // AddInteraction adds an interaction data to the correlation ID after encrypting
 // it with Public Key for the provided correlation ID.
 func (s *Storage) AddInteraction(correlationID string, data []byte) error {
+	atomic.AddInt64(&polls, 1)
+
 	item := s.cache.Get(correlationID)
 	if item == nil {
 		return errors.New("could not get correlation-id from cache")
@@ -151,6 +170,7 @@ func (s *Storage) AddInteraction(correlationID string, data []byte) error {
 
 // AddInteractionWithId adds an interaction data to the id bucket
 func (s *Storage) AddInteractionWithId(id string, data []byte) error {
+
 	item := s.cache.Get(id)
 	if item == nil {
 		return errors.New("could not get correlation-id from cache")
