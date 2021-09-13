@@ -32,7 +32,7 @@ require (
 	github.com/projectdiscovery/iputil v0.0.0-20210804143329-3a30fcde43f3 // indirect
 	github.com/projectdiscovery/mapcidr v0.0.8 // indirect
 	github.com/projectdiscovery/mapsutil v0.0.1
-	github.com/projectdiscovery/nebula v0.0.0-20210814171852-056850e3038e
+	github.com/projectdiscovery/nebula v0.0.0-20210913073015-82102bc41ee3
 	github.com/projectdiscovery/retryabledns v1.0.12 // indirect
 	github.com/projectdiscovery/retryablehttp-go v1.0.2
 	github.com/projectdiscovery/stringsutil v0.0.0-20210823090203-2f5f137e8e1d
