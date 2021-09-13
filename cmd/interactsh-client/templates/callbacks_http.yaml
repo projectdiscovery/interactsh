@@ -1,4 +1,4 @@
-- dsl: host=='127.0.0.1:80'
+- dsl: path=='/test1'
   code: |
     resp.StatusCode = 500
     headers = {'authorization':'kasdkasjd', 'another_one':'this is another header'}

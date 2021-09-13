@@ -58,22 +58,9 @@ func main() {
 		os.Exit(1)
 	}
 
-	// Requires auth if token is specified or enables it automatically for responder and smb options
-	if options.Token != "" || responder || smb {
-		options.Auth = true
-	}
+	enableAuth := shouldEnableAuth(options, smb, responder)
 
-	// if root-tld is enabled we enable auth - This ensure that any client has the token
-	if options.RootTLD {
-		options.Auth = true
-	}
-
-	// of in case a custom token is specified
-	if options.Token != "" {
-		options.Auth = true
-	}
-
-	if options.Auth && options.Token == "" {
+	if enableAuth && options.Token == "" {
 		b := make([]byte, 32)
 		if _, err := rand.Read(b); err != nil {
 			gologger.Fatal().Msgf("Could not generate token\n")
@@ -92,7 +79,7 @@ func main() {
 	_ = nebula.AddFunc("store_info", store.SetInternalById)
 	_ = nebula.AddFunc("cleanup_info", store.CleanupInternalById)
 
-	if options.Auth {
+	if enableAuth {
 		_ = options.Storage.SetID(options.Token)
 	}
 
@@ -158,6 +145,10 @@ func main() {
 	for range c {
 		os.Exit(1)
 	}
+}
+
+func shouldEnableAuth(options *server.Options, smb, responder bool) bool {
+	return options.Template || responder || smb || options.RootTLD || options.Token != ""
 }
 
 type noopWriter struct{}
