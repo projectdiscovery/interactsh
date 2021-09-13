@@ -194,6 +194,9 @@ func (h *HTTPServer) registerHandler(w http.ResponseWriter, req *http.Request) {
 		jsonError(w, fmt.Sprintf("could not set id and public key: %s", err), http.StatusBadRequest)
 		return
 	}
+
+	jsonMSg(w, "registration successful", http.StatusOK)
+
 	gologger.Debug().Msgf("Registered correlationID %s for key\n", r.CorrelationID)
 }
 
@@ -218,6 +221,9 @@ func (h *HTTPServer) deregisterHandler(w http.ResponseWriter, req *http.Request)
 		jsonError(w, fmt.Sprintf("could not remove id: %s", err), http.StatusBadRequest)
 		return
 	}
+
+	jsonMSg(w, "deregistration successful", http.StatusOK)
+
 	gologger.Debug().Msgf("Deregistered correlationID %s for key\n", r.CorrelationID)
 }
 
@@ -295,11 +301,19 @@ func (h *HTTPServer) corsMiddleware(next http.Handler) http.Handler {
 	})
 }
 
-func jsonError(w http.ResponseWriter, err string, code int) {
+func jsonBody(w http.ResponseWriter, key, value string, code int) {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.Header().Set("X-Content-Type-Options", "nosniff")
 	w.WriteHeader(code)
-	_ = json.NewEncoder(w).Encode(map[string]interface{}{"error": err})
+	_ = json.NewEncoder(w).Encode(map[string]interface{}{key: value})
+}
+
+func jsonError(w http.ResponseWriter, err string, code int) {
+	jsonBody(w, "error", err, code)
+}
+
+func jsonMSg(w http.ResponseWriter, err string, code int) {
+	jsonBody(w, "message", err, code)
 }
 
 func (h *HTTPServer) authMiddleware(next http.Handler) http.Handler {
