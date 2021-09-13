@@ -44,8 +44,8 @@ type CorrelationData struct {
 }
 
 type CacheMetrics struct {
-	Sessions int `json:"sessions"`
-	Dropped  int `json:"dropped"`
+	Sessions int `json:"active-session"`
+	Dropped  int `json:"evicted-session"`
 }
 
 func (s *Storage) GetCacheMetrics() *CacheMetrics {
