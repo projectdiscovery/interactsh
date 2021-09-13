@@ -12,7 +12,6 @@ import (
 	"time"
 
 	jsoniter "github.com/json-iterator/go"
-	"github.com/pkg/errors"
 	"github.com/projectdiscovery/gologger"
 	"github.com/projectdiscovery/gologger/levels"
 	"github.com/projectdiscovery/interactsh/pkg/server/acme"
@@ -256,9 +255,7 @@ func (h *HTTPServer) pollHandler(w http.ResponseWriter, req *http.Request) {
 	// At this point the client is authenticated, so we return also the data related to the auth token
 	extradata, err := h.options.Storage.GetInteractionsWithId(h.options.Token)
 	if err != nil {
-		w.WriteHeader(http.StatusBadRequest)
 		gologger.Warning().Msgf("Could not get extra interactions for %s: %s\n", ID, err)
-		jsonError(w, errors.Wrap(err, "could not get extra interactions").Error(), http.StatusBadRequest)
 	}
 
 	var tlddata []string
