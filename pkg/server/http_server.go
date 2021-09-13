@@ -253,22 +253,11 @@ func (h *HTTPServer) pollHandler(w http.ResponseWriter, req *http.Request) {
 	}
 
 	// At this point the client is authenticated, so we return also the data related to the auth token
-	extradata, err := h.options.Storage.GetInteractionsWithId(h.options.Token)
-	if err != nil {
-		gologger.Warning().Msgf("Could not get extra interactions for %s: %s\n", ID, err)
-	}
-
+	extradata, _ := h.options.Storage.GetInteractionsWithId(h.options.Token)
 	var tlddata []string
 	if h.options.RootTLD {
-		tlddata, err = h.options.Storage.GetInteractionsWithId(h.options.Domain)
-		if err != nil {
-			gologger.Warning().Msgf("Could not get root-tld interactions for %s: %s\n", h.options.Domain, err)
-			jsonError(w, fmt.Sprintf("could not get interactions: %s", err), http.StatusBadRequest)
-			return
-
-		}
+		tlddata, _ = h.options.Storage.GetInteractionsWithId(h.options.Domain)
 	}
-
 	response := &PollResponse{Data: data, AESKey: aesKey, TLDData: tlddata, Extra: extradata}
 
 	if err := jsoniter.NewEncoder(w).Encode(response); err != nil {
