@@ -29,7 +29,9 @@ var (
 func main() {
 	flag.Parse()
 
-	process()
+	if err := process(); err != nil {
+		log.Fatalf("Could not process: %s\n", err)
+	}
 }
 
 func process() error {

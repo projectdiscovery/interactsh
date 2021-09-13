@@ -119,7 +119,7 @@ func TestGetInteractions(t *testing.T) {
 	compressZlib := func(data string) string {
 		var builder strings.Builder
 		writer := zlib.NewWriter(&builder)
-		writer.Write([]byte(data))
+		_, _ = writer.Write([]byte(data))
 		writer.Close()
 		return builder.String()
 	}
