@@ -38,7 +38,7 @@ A hosted instance of the service with WEB UI is available at https://interact.pr
 
 <table>
 <td>
-<b>Note:</b> No data is retained on the server, restarting it for maintenance / accidental crash will wipe out prior interactions.
+<b>Note:</b>The default eviction policy for the https://interact.sh server to store interactions in memory is <b>7 days</b>, server registration re-initiate in the background upon any error or eviction time expiry. This period can be increased for <a href="#setting-up-self-hosted-instance">self-hosted</a> server using the <b>eviction</b> flag.
 </td>
 </table>
 

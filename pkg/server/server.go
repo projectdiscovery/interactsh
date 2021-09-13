@@ -49,8 +49,6 @@ type Options struct {
 	RootTLD bool
 	// OriginURL for the HTTP Server
 	OriginURL string
-
-	Profile bool
 }
 
 // URLReflection returns a reversed part of the URL payload

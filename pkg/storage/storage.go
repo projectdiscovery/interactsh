@@ -149,8 +149,9 @@ func (s *Storage) AddInteraction(correlationID string, data []byte) error {
 	return nil
 }
 
-func (s *Storage) AddRootTLD(rootTLD string, data []byte) error {
-	item := s.cache.Get(rootTLD)
+// AddInteractionWithId adds an interaction data to the id bucket
+func (s *Storage) AddInteractionWithId(id string, data []byte) error {
+	item := s.cache.Get(id)
 	if item == nil {
 		return errors.New("could not get correlation-id from cache")
 	}
@@ -183,8 +184,9 @@ func (s *Storage) GetInteractions(correlationID, secret string) ([]string, strin
 	return data, value.AESKey, nil
 }
 
-func (s *Storage) GetRootTLDInteractions(ID string) ([]string, error) {
-	item := s.cache.Get(ID)
+// GetInteractions returns the interactions for a id and empty the cache
+func (s *Storage) GetInteractionsWithId(id string) ([]string, error) {
+	item := s.cache.Get(id)
 	if item == nil {
 		return nil, errors.New("could not get id from cache")
 	}
@@ -280,4 +282,17 @@ func aesEncrypt(key []byte, message []byte) (string, error) {
 	_ = gz.Close()
 
 	return buffer.String(), nil
+}
+
+// GetCacheItem returns an item as is
+func (s *Storage) GetCacheItem(token string) (*CorrelationData, error) {
+	item := s.cache.Get(token)
+	if item == nil {
+		return nil, errors.New("could not get token from cache")
+	}
+	value, ok := item.Value().(*CorrelationData)
+	if !ok {
+		return nil, errors.New("invalid token cache value found")
+	}
+	return value, nil
 }
