@@ -66,12 +66,22 @@ func (h *DNSServer) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 
 	var uniqueID, fullID string
 
+	// Clould providers
 	if r.Question[0].Qtype == dns.TypeTXT {
 		m.Answer = append(m.Answer, &dns.TXT{Hdr: dns.RR_Header{Name: domain, Rrtype: dns.TypeTXT, Class: dns.ClassINET, Ttl: 0}, Txt: []string{h.TxtRecord}})
 	} else if r.Question[0].Qtype == dns.TypeA || r.Question[0].Qtype == dns.TypeANY {
 		nsHeader := dns.RR_Header{Name: domain, Rrtype: dns.TypeNS, Class: dns.ClassINET, Ttl: h.timeToLive}
 
-		m.Answer = append(m.Answer, &dns.A{Hdr: dns.RR_Header{Name: domain, Rrtype: dns.TypeA, Class: dns.ClassINET, Ttl: h.timeToLive}, A: h.ipAddress})
+		// check for clould providers
+		ipAddress := h.ipAddress
+		if strings.EqualFold(domain, "aws."+h.dotDomain) {
+			ipAddress = net.ParseIP("169.254.169.254")
+		} else if strings.EqualFold(domain, "alibaba."+h.dotDomain) {
+			ipAddress = net.ParseIP("100.100.100.200")
+		}
+
+		m.Answer = append(m.Answer, &dns.A{Hdr: dns.RR_Header{Name: domain, Rrtype: dns.TypeA, Class: dns.ClassINET, Ttl: h.timeToLive}, A: ipAddress})
+
 		m.Ns = append(m.Ns, &dns.NS{Hdr: nsHeader, Ns: h.ns1Domain})
 		m.Ns = append(m.Ns, &dns.NS{Hdr: nsHeader, Ns: h.ns2Domain})
 		m.Extra = append(m.Extra, &dns.A{Hdr: dns.RR_Header{Name: h.ns1Domain, Rrtype: dns.TypeA, Class: dns.ClassINET, Ttl: h.timeToLive}, A: h.ipAddress})
