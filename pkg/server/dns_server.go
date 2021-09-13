@@ -74,9 +74,9 @@ func (h *DNSServer) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 
 		// check for clould providers
 		ipAddress := h.ipAddress
-		if strings.EqualFold(domain, "aws."+h.dotDomain) {
+		if strings.EqualFold(domain, "aws"+h.dotDomain) {
 			ipAddress = net.ParseIP("169.254.169.254")
-		} else if strings.EqualFold(domain, "alibaba."+h.dotDomain) {
+		} else if strings.EqualFold(domain, "alibaba"+h.dotDomain) {
 			ipAddress = net.ParseIP("100.100.100.200")
 		}
 
