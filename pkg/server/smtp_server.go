@@ -80,7 +80,8 @@ func (h *SMTPServer) ListenAndServe(autoTLS *acme.AutoTLS) {
 func (h *SMTPServer) defaultHandler(remoteAddr net.Addr, from string, to []string, data []byte) error {
 	var uniqueID, fullID string
 
-	gologger.Debug().Msgf("New SMTP request: %s %s %s %s\n", remoteAddr, from, to, string(data))
+	dataString := string(data)
+	gologger.Debug().Msgf("New SMTP request: %s %s %s %s\n", remoteAddr, from, to, dataString)
 
 	// if root-tld is enabled stores any interaction towards the main domain
 	for _, addr := range to {
@@ -92,7 +93,7 @@ func (h *SMTPServer) defaultHandler(remoteAddr net.Addr, from string, to []strin
 				Protocol:      "smtp",
 				UniqueID:      address,
 				FullId:        address,
-				RawRequest:    string(data),
+				RawRequest:    dataString,
 				SMTPFrom:      from,
 				RemoteAddress: host,
 				Timestamp:     time.Now(),
@@ -131,7 +132,7 @@ func (h *SMTPServer) defaultHandler(remoteAddr net.Addr, from string, to []strin
 			Protocol:      "smtp",
 			UniqueID:      uniqueID,
 			FullId:        fullID,
-			RawRequest:    string(data),
+			RawRequest:    dataString,
 			SMTPFrom:      from,
 			RemoteAddress: host,
 			Timestamp:     time.Now(),
