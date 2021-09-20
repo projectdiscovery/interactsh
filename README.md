@@ -109,7 +109,7 @@ interactsh-client | notify
 
 ### Burp Suite Extension
 
-Interactsh client can be used within burp suite using [interactsh-collaborator](https://github.com/wdahlenburg/interactsh-collaborator) extension devloped by [@wdahlenb](https://twitter.com/wdahlenb)
+Interactsh client can be used within burp suite using [interactsh-collaborator](https://github.com/wdahlenburg/interactsh-collaborator) extension developed by [@wdahlenb](https://twitter.com/wdahlenb)
 
 - Download latest JAR file from https://github.com/wdahlenburg/interactsh-collaborator/releases
 - Open Burp suite, Navigate to **Extender** tab, Click on **Add** and select the downloaded JAR file
