@@ -9,11 +9,13 @@ import (
 	"crypto/x509"
 	"encoding/base64"
 	"encoding/pem"
-	"fmt"
+	"strings"
+	"sync"
 	"testing"
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/klauspost/compress/zlib"
 	"github.com/rs/xid"
 	"github.com/stretchr/testify/require"
 )
@@ -72,31 +74,6 @@ func TestStorageAddGetInteractions(t *testing.T) {
 		Bytes: pubkeyBytes,
 	})
 
-	// Decode and get the first block in the PEM file.
-	// In our case it should be the Public key block.
-	pemBlock, _ := pem.Decode([]byte(`-----BEGIN PUBLIC KEY-----
-MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAnX9FrceoIYvZn2rpOQXK
-zM6VVCURKVKuKaZEUST2hQD3S2TLQL7QrAZe2U4ME4oGqU6z0m0uLgOrCmQ7uwWC
-3x3wPMQPZE717T0SlGyp/FKs4AK+Wh2UQHGEnvXwdulTN1XgsVLSg+bwNlE0u7Nj
-7zyb+XNeryzuM73xC6YEC7V1Md6fvmL6yk9QK8iLEWf9aXpU1ErTAd5TIKJ05XQ6
-WdUYTfZI5vPhUur9raTJVGeWgphGN7LPHmCLbx/vu3iS8UoZ9U4l6/7NeskVXxyT
-RXlCsV8ZYZce6TF51p+g+47HewoKpV1xFoqPMQPJK3uDEjr8mkLIs4RPXfMp75mh
-9wIDAQAB
------END PUBLIC KEY-----`))
-	require.Nil(t, err, "could not marshal public key")
-
-	// Convert to rsa
-	rsaPubKey, err := x509.ParsePKIXPublicKey(pemBlock.Bytes)
-	require.Nil(t, err, "could not marshal public key")
-
-	// Confirm we got an rsa public key. Returned value is an interface{}
-	sshKey, _ := rsaPubKey.(*rsa.PublicKey)
-	require.Nil(t, err, "could not marshal public key")
-
-	ciphertext, err := rsa.EncryptOAEP(sha256.New(), rand.Reader, sshKey, []byte("this is a test"), []byte(""))
-	require.Nil(t, err, "could not marshal public key")
-
-	fmt.Printf("%s\n", base64.StdEncoding.EncodeToString(ciphertext))
 	encoded := base64.StdEncoding.EncodeToString(pubkeyPem)
 
 	err = storage.SetIDPublicKey(correlationID, secret, encoded)
@@ -136,4 +113,20 @@ RXlCsV8ZYZce6TF51p+g+47HewoKpV1xFoqPMQPJK3uDEjr8mkLIs4RPXfMp75mh
 	stream.XORKeyStream(decoded, cipherText)
 
 	require.Equal(t, dataOriginal, decoded, "could not get correct decrypted interaction")
+}
+
+func TestGetInteractions(t *testing.T) {
+	compressZlib := func(data string) string {
+		var builder strings.Builder
+		writer := zlib.NewWriter(&builder)
+		_, _ = writer.Write([]byte(data))
+		writer.Close()
+		return builder.String()
+	}
+	data := &CorrelationData{
+		Data:      []string{compressZlib("test"), compressZlib("another")},
+		dataMutex: &sync.Mutex{},
+	}
+	decompressed := data.GetInteractions()
+	require.ElementsMatch(t, []string{"test", "another"}, decompressed, "could not get correct decompressed list")
 }

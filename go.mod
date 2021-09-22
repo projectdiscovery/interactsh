@@ -18,10 +18,11 @@ require (
 	github.com/jasonlvhit/gocron v0.0.1
 	github.com/json-iterator/go v1.1.12
 	github.com/karlseguin/ccache/v2 v2.0.8
-	github.com/klauspost/compress v1.13.4 // indirect
+	github.com/klauspost/compress v1.13.6
 	github.com/kr/pretty v0.3.0 // indirect
 	github.com/mattn/go-isatty v0.0.14 // indirect
 	github.com/miekg/dns v1.1.43
+	github.com/onsi/gomega v1.12.0 // indirect
 	github.com/pkg/errors v0.9.1
 	github.com/projectdiscovery/executil v0.0.0-20210804143524-823f37935565 // indirect
 	github.com/projectdiscovery/fastdialer v0.0.13-0.20210824195254-0113c1406542
@@ -33,9 +34,10 @@ require (
 	github.com/projectdiscovery/mapcidr v0.0.8 // indirect
 	github.com/projectdiscovery/mapsutil v0.0.1
 	github.com/projectdiscovery/nebula v0.0.0-20210913100131-0a437b488205
-	github.com/projectdiscovery/retryabledns v1.0.12 // indirect
+	github.com/projectdiscovery/retryabledns v1.0.12
 	github.com/projectdiscovery/retryablehttp-go v1.0.2
 	github.com/projectdiscovery/stringsutil v0.0.0-20210823090203-2f5f137e8e1d
+	github.com/remeh/sizedwaitgroup v1.0.0
 	github.com/rogpeppe/go-internal v1.8.0 // indirect
 	github.com/rs/xid v1.3.0
 	github.com/stretchr/testify v1.7.0
@@ -94,6 +96,7 @@ require (
 	github.com/mewpkg/hashutil v1.0.1 // indirect
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.2 // indirect
+	github.com/onsi/ginkgo v1.16.2 // indirect
 	github.com/pelletier/go-toml v1.9.4 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/projectdiscovery/blackrock v0.0.0-20210415162320-b38689ae3a2e // indirect

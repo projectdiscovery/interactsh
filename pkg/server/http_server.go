@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"crypto/tls"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net"
 	"net/http"
@@ -13,7 +14,6 @@ import (
 	"time"
 
 	jsoniter "github.com/json-iterator/go"
-	"github.com/pkg/errors"
 	"github.com/projectdiscovery/gologger"
 	"github.com/projectdiscovery/gologger/levels"
 	"github.com/projectdiscovery/interactsh/pkg/server/acme"
@@ -43,11 +43,11 @@ func NewHTTPServer(options *Options) (*HTTPServer, error) {
 	router.Handle("/register", server.corsMiddleware(server.authMiddleware(http.HandlerFunc(server.registerHandler))))
 	router.Handle("/deregister", server.corsMiddleware(server.authMiddleware(http.HandlerFunc(server.deregisterHandler))))
 	router.Handle("/poll", server.corsMiddleware(server.authMiddleware(http.HandlerFunc(server.pollHandler))))
+	router.Handle("/metrics", server.corsMiddleware(server.authMiddleware(http.HandlerFunc(server.metricsHandler))))
 	if options.Template {
 		router.Handle("/template/add", server.corsMiddleware(server.authMiddleware(http.HandlerFunc(server.addTemplateHandler))))
 		router.Handle("/template/cleanup", server.corsMiddleware(server.authMiddleware(http.HandlerFunc(server.removeTemplateHandler))))
 	}
-
 	server.tlsserver = http.Server{Addr: options.ListenIP + ":443", Handler: router}
 	server.nontlsserver = http.Server{Addr: options.ListenIP + ":80", Handler: router}
 	return server, nil
@@ -75,12 +75,15 @@ func (h *HTTPServer) ListenAndServe(autoTLS *acme.AutoTLS) {
 func (h *HTTPServer) logger(handler http.Handler) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		req, _ := httputil.DumpRequest(r, true)
+		reqString := string(req)
 
-		gologger.Debug().Msgf("New HTTP request: %s\n", string(req))
+		gologger.Debug().Msgf("New HTTP request: %s\n", reqString)
 		rec := httptest.NewRecorder()
 		handler.ServeHTTP(rec, r)
 
 		resp, _ := httputil.DumpResponse(rec.Result(), true)
+		resoString := string(resp)
+
 		for k, v := range rec.Header() {
 			w.Header()[k] = v
 		}
@@ -97,8 +100,8 @@ func (h *HTTPServer) logger(handler http.Handler) http.HandlerFunc {
 				Protocol:      "http",
 				UniqueID:      r.Host,
 				FullId:        r.Host,
-				RawRequest:    string(req),
-				RawResponse:   string(resp),
+				RawRequest:    reqString,
+				RawResponse:   resoString,
 				RemoteAddress: host,
 				Timestamp:     time.Now(),
 			}
@@ -132,8 +135,8 @@ func (h *HTTPServer) logger(handler http.Handler) http.HandlerFunc {
 				Protocol:      "http",
 				UniqueID:      uniqueID,
 				FullId:        fullID,
-				RawRequest:    string(req),
-				RawResponse:   string(resp),
+				RawRequest:    reqString,
+				RawResponse:   resoString,
 				RemoteAddress: host,
 				Timestamp:     time.Now(),
 			}
@@ -265,6 +268,7 @@ func (h *HTTPServer) registerHandler(w http.ResponseWriter, req *http.Request) {
 		jsonError(w, fmt.Sprintf("could not set id and public key: %s", err), http.StatusBadRequest)
 		return
 	}
+	jsonMsg(w, "registration successful", http.StatusOK)
 	gologger.Debug().Msgf("Registered correlationID %s for key\n", r.CorrelationID)
 }
 
@@ -289,6 +293,7 @@ func (h *HTTPServer) deregisterHandler(w http.ResponseWriter, req *http.Request)
 		jsonError(w, fmt.Sprintf("could not remove id: %s", err), http.StatusBadRequest)
 		return
 	}
+	jsonMsg(w, "deregistration successful", http.StatusOK)
 	gologger.Debug().Msgf("Deregistered correlationID %s for key\n", r.CorrelationID)
 }
 
@@ -328,15 +333,8 @@ func (h *HTTPServer) pollHandler(w http.ResponseWriter, req *http.Request) {
 
 	var tlddata []string
 	if h.options.RootTLD {
-		tlddata, err = h.options.Storage.GetInteractionsWithId(h.options.Domain)
-		if err != nil {
-			gologger.Warning().Msgf("Could not get root-tld interactions for %s: %s\n", h.options.Domain, err)
-			jsonError(w, fmt.Sprintf("could not get interactions: %s", err), http.StatusBadRequest)
-			return
-
-		}
+		tlddata, _ = h.options.Storage.GetInteractionsWithId(h.options.Domain)
 	}
-
 	response := &PollResponse{Data: data, AESKey: aesKey, TLDData: tlddata, Extra: extradata}
 
 	if err := jsoniter.NewEncoder(w).Encode(response); err != nil {
@@ -419,11 +417,19 @@ func (h *HTTPServer) corsMiddleware(next http.Handler) http.Handler {
 	})
 }
 
-func jsonError(w http.ResponseWriter, err string, code int) {
+func jsonBody(w http.ResponseWriter, key, value string, code int) {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.Header().Set("X-Content-Type-Options", "nosniff")
 	w.WriteHeader(code)
-	_ = json.NewEncoder(w).Encode(map[string]interface{}{"error": err})
+	_ = jsoniter.NewEncoder(w).Encode(map[string]interface{}{key: value})
+}
+
+func jsonError(w http.ResponseWriter, err string, code int) {
+	jsonBody(w, "error", err, code)
+}
+
+func jsonMsg(w http.ResponseWriter, err string, code int) {
+	jsonBody(w, "message", err, code)
 }
 
 func (h *HTTPServer) authMiddleware(next http.Handler) http.Handler {
@@ -438,4 +444,13 @@ func (h *HTTPServer) authMiddleware(next http.Handler) http.Handler {
 
 func (h *HTTPServer) checkToken(req *http.Request) bool {
 	return !h.options.Auth || h.options.Auth && h.options.Token == req.Header.Get("Authorization")
+}
+
+// metricsHandler is a handler for /metrics endpoint
+func (h *HTTPServer) metricsHandler(w http.ResponseWriter, req *http.Request) {
+	metrics := h.options.Storage.GetCacheMetrics()
+
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.Header().Set("X-Content-Type-Options", "nosniff")
+	_ = jsoniter.NewEncoder(w).Encode(metrics)
 }
