@@ -17,7 +17,7 @@
   <a href="#running-interactsh-client">Interactsh Client</a> •
   <a href="#setting-up-self-hosted-instance">Interactsh Server</a> •
   <a href="#burp-suite-extension">Burp Suite Extension</a> •
-  <a href="#owasp-zap-addon">OWASP ZAP Add-on</a> •
+  <a href="#owasp-zap-add-on">OWASP ZAP Add-on</a> •
   <a href="https://discord.gg/projectdiscovery">Join Discord</a>
 </p>
 
