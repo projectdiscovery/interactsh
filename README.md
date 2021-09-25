@@ -17,6 +17,7 @@
   <a href="#running-interactsh-client">Interactsh Client</a> •
   <a href="#setting-up-self-hosted-instance">Interactsh Server</a> •
   <a href="#burp-suite-extension">Burp Suite Extension</a> •
+  <a href="#owasp-zap-addon">OWASP ZAP Add-on</a> •
   <a href="https://discord.gg/projectdiscovery">Join Discord</a>
 </p>
 
@@ -28,7 +29,7 @@
 # Features
 
 - DNS/HTTP/SMTP Interaction support
-- CLI / Web / Burp Client support
+- CLI / Web / Burp / ZAP Client support
 - AES encryption with zero logging
 - SELF Hosted server support
 - Automatic ACME based Wildcard TLS w/ Auto Renewal
@@ -114,6 +115,17 @@ Interactsh client can be used within burp suite using [interactsh-collaborator](
 - Download latest JAR file from https://github.com/wdahlenburg/interactsh-collaborator/releases
 - Open Burp suite, Navigate to **Extender** tab, Click on **Add** and select the downloaded JAR file
 - New tab named **Interactsh** will be appeared upon successful installation.
+
+
+### OWASP ZAP Add-On
+
+Interactsh can be used with OWASP ZAP via the [OAST add-on for ZAP](https://www.zaproxy.org/docs/desktop/addons/oast-support/). With ZAP's scripting capabilities, you can create powerful out-of-band scan rules that leverage Interactsh's features. A standalone script template has been provided as an example (it is added automatically when you install the add-on).
+
+- Install the OAST add-on from the [ZAP Marketplace](https://www.zaproxy.org/addons/).
+- Go to Tools &rarr; Options &rarr; OAST and select **Interactsh**.
+- Configure [the options](https://www.zaproxy.org/docs/desktop/addons/oast-support/services/interactsh/options/) for the client and click on "New Payload" to generate a new payload.
+- OOB interactions will appear in the [OAST Tab](https://www.zaproxy.org/docs/desktop/addons/oast-support/tab/) and you can click on any of them to view the full request and response.
+- See the [OAST add-on documentation](https://www.zaproxy.org/docs/desktop/addons/oast-support/) for more info.
 
 
 ### Setting up self-hosted instance 
