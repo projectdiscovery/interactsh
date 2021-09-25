@@ -3,7 +3,6 @@ package server
 import (
 	"bytes"
 	"crypto/tls"
-	"encoding/json"
 	"fmt"
 	"net"
 	"net/http"
@@ -13,7 +12,6 @@ import (
 	"time"
 
 	jsoniter "github.com/json-iterator/go"
-	"github.com/pkg/errors"
 	"github.com/projectdiscovery/gologger"
 	"github.com/projectdiscovery/gologger/levels"
 	"github.com/projectdiscovery/interactsh/pkg/server/acme"
@@ -36,10 +34,10 @@ func NewHTTPServer(options *Options) (*HTTPServer, error) {
 
 	router := &http.ServeMux{}
 	router.Handle("/", server.logger(http.HandlerFunc(server.defaultHandler)))
-	router.Handle("/register", server.authMiddleware(http.HandlerFunc(server.registerHandler)))
-	router.Handle("/deregister", server.authMiddleware(http.HandlerFunc(server.deregisterHandler)))
-	router.Handle("/poll", server.authMiddleware(http.HandlerFunc(server.pollHandler)))
-
+	router.Handle("/register", server.corsMiddleware(server.authMiddleware(http.HandlerFunc(server.registerHandler))))
+	router.Handle("/deregister", server.corsMiddleware(server.authMiddleware(http.HandlerFunc(server.deregisterHandler))))
+	router.Handle("/poll", server.corsMiddleware(server.authMiddleware(http.HandlerFunc(server.pollHandler))))
+	router.Handle("/metrics", server.corsMiddleware(server.authMiddleware(http.HandlerFunc(server.metricsHandler))))
 	server.tlsserver = http.Server{Addr: options.ListenIP + ":443", Handler: router}
 	server.nontlsserver = http.Server{Addr: options.ListenIP + ":80", Handler: router}
 	return server, nil
@@ -67,12 +65,15 @@ func (h *HTTPServer) ListenAndServe(autoTLS *acme.AutoTLS) {
 func (h *HTTPServer) logger(handler http.Handler) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		req, _ := httputil.DumpRequest(r, true)
+		reqString := string(req)
 
-		gologger.Debug().Msgf("New HTTP request: %s\n", string(req))
+		gologger.Debug().Msgf("New HTTP request: %s\n", reqString)
 		rec := httptest.NewRecorder()
 		handler.ServeHTTP(rec, r)
 
 		resp, _ := httputil.DumpResponse(rec.Result(), true)
+		resoString := string(resp)
+
 		for k, v := range rec.Header() {
 			w.Header()[k] = v
 		}
@@ -80,6 +81,30 @@ func (h *HTTPServer) logger(handler http.Handler) http.HandlerFunc {
 
 		w.WriteHeader(rec.Result().StatusCode)
 		_, _ = w.Write(data)
+
+		// if root-tld is enabled stores any interaction towards the main domain
+		if h.options.RootTLD && strings.HasSuffix(r.Host, h.domain) {
+			ID := h.domain
+			host, _, _ := net.SplitHostPort(r.RemoteAddr)
+			interaction := &Interaction{
+				Protocol:      "http",
+				UniqueID:      r.Host,
+				FullId:        r.Host,
+				RawRequest:    reqString,
+				RawResponse:   resoString,
+				RemoteAddress: host,
+				Timestamp:     time.Now(),
+			}
+			buffer := &bytes.Buffer{}
+			if err := jsoniter.NewEncoder(buffer).Encode(interaction); err != nil {
+				gologger.Warning().Msgf("Could not encode root tld http interaction: %s\n", err)
+			} else {
+				gologger.Debug().Msgf("Root TLD HTTP Interaction: \n%s\n", buffer.String())
+				if err := h.options.Storage.AddInteractionWithId(ID, buffer.Bytes()); err != nil {
+					gologger.Warning().Msgf("Could not store root tld http interaction: %s\n", err)
+				}
+			}
+		}
 
 		var uniqueID, fullID string
 		parts := strings.Split(r.Host, ".")
@@ -100,8 +125,8 @@ func (h *HTTPServer) logger(handler http.Handler) http.HandlerFunc {
 				Protocol:      "http",
 				UniqueID:      uniqueID,
 				FullId:        fullID,
-				RawRequest:    string(req),
-				RawResponse:   string(resp),
+				RawRequest:    reqString,
+				RawResponse:   resoString,
 				RemoteAddress: host,
 				Timestamp:     time.Now(),
 			}
@@ -159,21 +184,18 @@ type RegisterRequest struct {
 
 // registerHandler is a handler for client register requests
 func (h *HTTPServer) registerHandler(w http.ResponseWriter, req *http.Request) {
-	CORSEnabledFunction(w, req)
-
 	r := &RegisterRequest{}
 	if err := jsoniter.NewDecoder(req.Body).Decode(r); err != nil {
-		w.WriteHeader(http.StatusBadRequest)
 		gologger.Warning().Msgf("Could not decode json body: %s\n", err)
-		jsonError(w, errors.Wrap(err, "could not decode json body"), http.StatusBadRequest)
+		jsonError(w, fmt.Sprintf("could not decode json body: %s", err), http.StatusBadRequest)
 		return
 	}
 	if err := h.options.Storage.SetIDPublicKey(r.CorrelationID, r.SecretKey, r.PublicKey); err != nil {
-		w.WriteHeader(http.StatusBadRequest)
 		gologger.Warning().Msgf("Could not set id and public key for %s: %s\n", r.CorrelationID, err)
-		jsonError(w, errors.Wrap(err, "could not set id and public key"), http.StatusBadRequest)
+		jsonError(w, fmt.Sprintf("could not set id and public key: %s", err), http.StatusBadRequest)
 		return
 	}
+	jsonMsg(w, "registration successful", http.StatusOK)
 	gologger.Debug().Msgf("Registered correlationID %s for key\n", r.CorrelationID)
 }
 
@@ -181,88 +203,101 @@ func (h *HTTPServer) registerHandler(w http.ResponseWriter, req *http.Request) {
 type DeregisterRequest struct {
 	// CorrelationID is an ID for correlation with requests.
 	CorrelationID string `json:"correlation-id"`
+	// SecretKey is the secretKey for the interactsh client.
+	SecretKey string `json:"secret-key"`
 }
 
 // deregisterHandler is a handler for client deregister requests
 func (h *HTTPServer) deregisterHandler(w http.ResponseWriter, req *http.Request) {
-	CORSEnabledFunction(w, req)
-
 	r := &DeregisterRequest{}
 	if err := jsoniter.NewDecoder(req.Body).Decode(r); err != nil {
-		w.WriteHeader(http.StatusBadRequest)
 		gologger.Warning().Msgf("Could not decode json body: %s\n", err)
-		jsonError(w, errors.Wrap(err, "could not decode json body"), http.StatusBadRequest)
+		jsonError(w, fmt.Sprintf("could not decode json body: %s", err), http.StatusBadRequest)
 		return
 	}
-	if err := h.options.Storage.RemoveID(r.CorrelationID); err != nil {
-		w.WriteHeader(http.StatusBadRequest)
+	if err := h.options.Storage.RemoveID(r.CorrelationID, r.SecretKey); err != nil {
 		gologger.Warning().Msgf("Could not remove id for %s: %s\n", r.CorrelationID, err)
-		jsonError(w, errors.Wrap(err, "could not remove id"), http.StatusBadRequest)
+		jsonError(w, fmt.Sprintf("could not remove id: %s", err), http.StatusBadRequest)
 		return
 	}
+	jsonMsg(w, "deregistration successful", http.StatusOK)
 	gologger.Debug().Msgf("Deregistered correlationID %s for key\n", r.CorrelationID)
 }
 
 // PollResponse is the response for a polling request
 type PollResponse struct {
-	Data   []string `json:"data"`
-	AESKey string   `json:"aes_key"`
+	Data    []string `json:"data"`
+	Extra   []string `json:"extra"`
+	AESKey  string   `json:"aes_key"`
+	TLDData []string `json:"tlddata,omitempty"`
 }
 
 // pollHandler is a handler for client poll requests
 func (h *HTTPServer) pollHandler(w http.ResponseWriter, req *http.Request) {
-	CORSEnabledFunction(w, req)
-
 	ID := req.URL.Query().Get("id")
 	if ID == "" {
-		jsonError(w, errors.New("no id specified for poll"), http.StatusBadRequest)
+		jsonError(w, "no id specified for poll", http.StatusBadRequest)
 		return
 	}
 	secret := req.URL.Query().Get("secret")
 	if secret == "" {
-		jsonError(w, errors.New("no secret specified for poll"), http.StatusBadRequest)
+		jsonError(w, "no secret specified for poll", http.StatusBadRequest)
 		return
 	}
 
 	data, aesKey, err := h.options.Storage.GetInteractions(ID, secret)
 	if err != nil {
-		w.WriteHeader(http.StatusBadRequest)
 		gologger.Warning().Msgf("Could not get interactions for %s: %s\n", ID, err)
-		jsonError(w, errors.Wrap(err, "could not get interactions"), http.StatusBadRequest)
+		jsonError(w, fmt.Sprintf("could not get interactions: %s", err), http.StatusBadRequest)
 		return
 	}
-	response := &PollResponse{Data: data, AESKey: aesKey}
+
+	// At this point the client is authenticated, so we return also the data related to the auth token
+	extradata, _ := h.options.Storage.GetInteractionsWithId(h.options.Token)
+	var tlddata []string
+	if h.options.RootTLD {
+		tlddata, _ = h.options.Storage.GetInteractionsWithId(h.options.Domain)
+	}
+	response := &PollResponse{Data: data, AESKey: aesKey, TLDData: tlddata, Extra: extradata}
+
 	if err := jsoniter.NewEncoder(w).Encode(response); err != nil {
-		w.WriteHeader(http.StatusBadRequest)
 		gologger.Warning().Msgf("Could not encode interactions for %s: %s\n", ID, err)
-		jsonError(w, errors.Wrap(err, "could not encode interactions"), http.StatusBadRequest)
+		jsonError(w, fmt.Sprintf("could not encode interactions: %s", err), http.StatusBadRequest)
 		return
 	}
 	gologger.Debug().Msgf("Polled %d interactions for %s correlationID\n", len(data), ID)
 }
 
-// CORSEnabledFunction is an example of setting CORS headers.
-// For more information about CORS and CORS preflight requests, see
-// https://developer.mozilla.org/en-US/docs/Glossary/Preflight_request.
-// Taken from https://github.com/GoogleCloudPlatform/golang-samples/blob/master/functions/http/cors.go
-func CORSEnabledFunction(w http.ResponseWriter, r *http.Request) {
-	// Set CORS headers for the preflight request
-	if r.Method == http.MethodOptions {
-		w.Header().Set("Access-Control-Allow-Origin", "*")
+func (h *HTTPServer) corsMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		// Set CORS headers for the preflight request
+		if req.Method == http.MethodOptions {
+			w.Header().Set("Access-Control-Allow-Origin", h.options.OriginURL)
+			w.Header().Set("Access-Control-Allow-Credentials", "true")
+			w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
+		w.Header().Set("Access-Control-Allow-Origin", h.options.OriginURL)
 		w.Header().Set("Access-Control-Allow-Credentials", "true")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
-		w.WriteHeader(http.StatusNoContent)
-		return
-	}
-	w.Header().Set("Access-Control-Allow-Origin", "*")
-	w.Header().Set("Access-Control-Allow-Credentials", "true")
-	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+		next.ServeHTTP(w, req)
+	})
 }
 
-func jsonError(w http.ResponseWriter, err interface{}, code int) {
+func jsonBody(w http.ResponseWriter, key, value string, code int) {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.Header().Set("X-Content-Type-Options", "nosniff")
-	_ = json.NewEncoder(w).Encode(err)
+	w.WriteHeader(code)
+	_ = jsoniter.NewEncoder(w).Encode(map[string]interface{}{key: value})
+}
+
+func jsonError(w http.ResponseWriter, err string, code int) {
+	jsonBody(w, "error", err, code)
+}
+
+func jsonMsg(w http.ResponseWriter, err string, code int) {
+	jsonBody(w, "message", err, code)
 }
 
 func (h *HTTPServer) authMiddleware(next http.Handler) http.Handler {
@@ -277,4 +312,13 @@ func (h *HTTPServer) authMiddleware(next http.Handler) http.Handler {
 
 func (h *HTTPServer) checkToken(req *http.Request) bool {
 	return !h.options.Auth || h.options.Auth && h.options.Token == req.Header.Get("Authorization")
+}
+
+// metricsHandler is a handler for /metrics endpoint
+func (h *HTTPServer) metricsHandler(w http.ResponseWriter, req *http.Request) {
+	metrics := h.options.Storage.GetCacheMetrics()
+
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.Header().Set("X-Content-Type-Options", "nosniff")
+	_ = jsoniter.NewEncoder(w).Encode(metrics)
 }

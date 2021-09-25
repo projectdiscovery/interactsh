@@ -3,6 +3,7 @@
 package storage
 
 import (
+	"bytes"
 	"crypto/aes"
 	"crypto/cipher"
 	"crypto/rand"
@@ -18,6 +19,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/karlseguin/ccache/v2"
+	"github.com/klauspost/compress/zlib"
 	"github.com/pkg/errors"
 )
 
@@ -41,13 +43,71 @@ type CorrelationData struct {
 	aesKey []byte // decrypted AES key for signing
 }
 
+type CacheMetrics struct {
+	Sessions int `json:"active-session"`
+	Dropped  int `json:"evicted-session"`
+}
+
+func (s *Storage) GetCacheMetrics() *CacheMetrics {
+	return &CacheMetrics{
+		Sessions: s.cache.ItemCount(),
+		Dropped:  s.cache.GetDropped(),
+	}
+}
+
+// GetInteractions returns the uncompressed interactions for a correlation-id
+func (c *CorrelationData) GetInteractions() []string {
+	c.dataMutex.Lock()
+	data := c.Data
+	c.Data = make([]string, 0)
+	c.dataMutex.Unlock()
+
+	// Decompress the data and return a new slice
+	if len(data) == 0 {
+		return []string{}
+	}
+
+	buf := new(strings.Builder)
+	results := make([]string, len(data))
+
+	var reader io.ReadCloser
+	for i, item := range data {
+		var err error
+
+		if reader == nil {
+			reader, err = zlib.NewReader(strings.NewReader(item))
+		} else {
+			err = reader.(zlib.Resetter).Reset(strings.NewReader(item), nil)
+		}
+		if err != nil {
+			continue
+		}
+		if _, err := io.Copy(buf, reader); err != nil {
+			buf.Reset()
+			continue
+		}
+		results[i] = buf.String()
+		buf.Reset()
+	}
+	if reader != nil {
+		_ = reader.Close()
+	}
+	return results
+}
+
+const defaultCacheMaxSize = 1000000
+
 // New creates a new storage instance for interactsh data.
 func New(evictionTTL time.Duration) *Storage {
-	return &Storage{cache: ccache.New(ccache.Configure()), evictionTTL: evictionTTL}
+	return &Storage{cache: ccache.New(ccache.Configure().MaxSize(defaultCacheMaxSize)), evictionTTL: evictionTTL}
 }
 
 // SetIDPublicKey sets the correlation ID and publicKey into the cache for further operations.
 func (s *Storage) SetIDPublicKey(correlationID, secretKey string, publicKey string) error {
+	// If we already have this correlation ID, return.
+	if s.cache.Get(correlationID) != nil {
+		return errors.New("correlation-id provided is invalid")
+	}
 	publicKeyData, err := parseB64RSAPublicKeyFromPEM(publicKey)
 	if err != nil {
 		return errors.Wrap(err, "could not read public Key")
@@ -67,6 +127,15 @@ func (s *Storage) SetIDPublicKey(correlationID, secretKey string, publicKey stri
 		AESKey:    base64.StdEncoding.EncodeToString(ciphertext),
 	}
 	s.cache.Set(correlationID, data, s.evictionTTL)
+	return nil
+}
+
+func (s *Storage) SetID(ID string) error {
+	data := &CorrelationData{
+		Data:      make([]string, 0),
+		dataMutex: &sync.Mutex{},
+	}
+	s.cache.Set(ID, data, s.evictionTTL)
 	return nil
 }
 
@@ -92,6 +161,23 @@ func (s *Storage) AddInteraction(correlationID string, data []byte) error {
 	return nil
 }
 
+// AddInteractionWithId adds an interaction data to the id bucket
+func (s *Storage) AddInteractionWithId(id string, data []byte) error {
+	item := s.cache.Get(id)
+	if item == nil {
+		return errors.New("could not get correlation-id from cache")
+	}
+	value, ok := item.Value().(*CorrelationData)
+	if !ok {
+		return errors.New("invalid correlation-id cache value found")
+	}
+
+	value.dataMutex.Lock()
+	value.Data = append(value.Data, string(data))
+	value.dataMutex.Unlock()
+	return nil
+}
+
 // GetInteractions returns the interactions for a correlationID and removes
 // it from the storage. It also returns AES Encrypted Key for the IDs.
 func (s *Storage) GetInteractions(correlationID, secret string) ([]string, string, error) {
@@ -106,15 +192,26 @@ func (s *Storage) GetInteractions(correlationID, secret string) ([]string, strin
 	if !strings.EqualFold(value.secretKey, secret) {
 		return nil, "", errors.New("invalid secret key passed for user")
 	}
-	value.dataMutex.Lock()
-	data := value.Data
-	value.Data = make([]string, 0)
-	value.dataMutex.Unlock()
+	data := value.GetInteractions()
 	return data, value.AESKey, nil
 }
 
+// GetInteractions returns the interactions for a id and empty the cache
+func (s *Storage) GetInteractionsWithId(id string) ([]string, error) {
+	item := s.cache.Get(id)
+	if item == nil {
+		return nil, errors.New("could not get id from cache")
+	}
+	value, ok := item.Value().(*CorrelationData)
+	if !ok {
+		return nil, errors.New("invalid id cache value found")
+	}
+	data := value.GetInteractions()
+	return data, nil
+}
+
 // RemoveID removes data for a correlation ID and data related to it.
-func (s *Storage) RemoveID(correlationID string) error {
+func (s *Storage) RemoveID(correlationID, secret string) error {
 	item := s.cache.Get(correlationID)
 	if item == nil {
 		return errors.New("could not get correlation-id from cache")
@@ -122,6 +219,9 @@ func (s *Storage) RemoveID(correlationID string) error {
 	value, ok := item.Value().(*CorrelationData)
 	if !ok {
 		return errors.New("invalid correlation-id cache value found")
+	}
+	if !strings.EqualFold(value.secretKey, secret) {
+		return errors.New("invalid secret key passed for deregister")
 	}
 	value.dataMutex.Lock()
 	value.Data = nil
@@ -156,6 +256,10 @@ func parseB64RSAPublicKeyFromPEM(pubPEM string) (*rsa.PublicKey, error) {
 	return nil, errors.New("Key type is not RSA")
 }
 
+var zippers = sync.Pool{New: func() interface{} {
+	return zlib.NewWriter(nil)
+}}
+
 // aesEncrypt encrypts a message using AES and puts IV at the beginning of ciphertext.
 func aesEncrypt(key []byte, message []byte) (string, error) {
 	block, err := aes.NewCipher(key)
@@ -173,6 +277,34 @@ func aesEncrypt(key []byte, message []byte) (string, error) {
 	stream := cipher.NewCFBEncrypter(block, iv)
 	stream.XORKeyStream(cipherText[aes.BlockSize:], message)
 
-	encMessage := base64.StdEncoding.EncodeToString(cipherText)
-	return encMessage, nil
+	encMessage := make([]byte, base64.StdEncoding.EncodedLen(len(cipherText)))
+	base64.StdEncoding.Encode(encMessage, cipherText)
+
+	// Gzip compress to save memory for storage
+	buffer := &bytes.Buffer{}
+
+	gz := zippers.Get().(*zlib.Writer)
+	defer zippers.Put(gz)
+	gz.Reset(buffer)
+
+	if _, err := gz.Write(encMessage); err != nil {
+		_ = gz.Close()
+		return "", err
+	}
+	_ = gz.Close()
+
+	return buffer.String(), nil
+}
+
+// GetCacheItem returns an item as is
+func (s *Storage) GetCacheItem(token string) (*CorrelationData, error) {
+	item := s.cache.Get(token)
+	if item == nil {
+		return nil, errors.New("could not get token from cache")
+	}
+	value, ok := item.Value().(*CorrelationData)
+	if !ok {
+		return nil, errors.New("invalid token cache value found")
+	}
+	return value, nil
 }

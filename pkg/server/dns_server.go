@@ -26,14 +26,14 @@ type DNSServer struct {
 
 // NewDNSServer returns a new DNS server.
 func NewDNSServer(options *Options) (*DNSServer, error) {
-	options.Domain = dns.Fqdn(options.Domain)
+	dotdomain := dns.Fqdn(options.Domain)
 	server := &DNSServer{
 		options:    options,
 		ipAddress:  net.ParseIP(options.IPAddress),
-		mxDomain:   "mail." + options.Domain,
-		ns1Domain:  "ns1." + options.Domain,
-		ns2Domain:  "ns2." + options.Domain,
-		dotDomain:  "." + options.Domain,
+		mxDomain:   "mail." + dotdomain,
+		ns1Domain:  "ns1." + dotdomain,
+		ns2Domain:  "ns2." + dotdomain,
+		dotDomain:  "." + dotdomain,
 		timeToLive: 3600,
 	}
 	server.server = &dns.Server{
@@ -61,17 +61,29 @@ func (h *DNSServer) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 	if len(r.Question) == 0 {
 		return
 	}
-	gologger.Debug().Msgf("New DNS request: %s\n", r.String())
+	requestMsg := r.String()
+
+	gologger.Debug().Msgf("New DNS request: %s\n", requestMsg)
 	domain := m.Question[0].Name
 
 	var uniqueID, fullID string
 
+	// Clould providers
 	if r.Question[0].Qtype == dns.TypeTXT {
 		m.Answer = append(m.Answer, &dns.TXT{Hdr: dns.RR_Header{Name: domain, Rrtype: dns.TypeTXT, Class: dns.ClassINET, Ttl: 0}, Txt: []string{h.TxtRecord}})
 	} else if r.Question[0].Qtype == dns.TypeA || r.Question[0].Qtype == dns.TypeANY {
 		nsHeader := dns.RR_Header{Name: domain, Rrtype: dns.TypeNS, Class: dns.ClassINET, Ttl: h.timeToLive}
 
-		m.Answer = append(m.Answer, &dns.A{Hdr: dns.RR_Header{Name: domain, Rrtype: dns.TypeA, Class: dns.ClassINET, Ttl: h.timeToLive}, A: h.ipAddress})
+		// check for clould providers
+		ipAddress := h.ipAddress
+		if strings.EqualFold(domain, "aws"+h.dotDomain) {
+			ipAddress = net.ParseIP("169.254.169.254")
+		} else if strings.EqualFold(domain, "alibaba"+h.dotDomain) {
+			ipAddress = net.ParseIP("100.100.100.200")
+		}
+
+		m.Answer = append(m.Answer, &dns.A{Hdr: dns.RR_Header{Name: domain, Rrtype: dns.TypeA, Class: dns.ClassINET, Ttl: h.timeToLive}, A: ipAddress})
+
 		m.Ns = append(m.Ns, &dns.NS{Hdr: nsHeader, Ns: h.ns1Domain})
 		m.Ns = append(m.Ns, &dns.NS{Hdr: nsHeader, Ns: h.ns2Domain})
 		m.Extra = append(m.Extra, &dns.A{Hdr: dns.RR_Header{Name: h.ns1Domain, Rrtype: dns.TypeA, Class: dns.ClassINET, Ttl: h.timeToLive}, A: h.ipAddress})
@@ -84,10 +96,36 @@ func (h *DNSServer) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 		m.Answer = append(m.Answer, &dns.MX{Hdr: nsHdr, Mx: h.mxDomain, Preference: 1})
 	} else if r.Question[0].Qtype == dns.TypeNS {
 		nsHeader := dns.RR_Header{Name: domain, Rrtype: dns.TypeNS, Class: dns.ClassINET, Ttl: h.timeToLive}
-
 		m.Ns = append(m.Ns, &dns.NS{Hdr: nsHeader, Ns: h.ns1Domain})
 		m.Ns = append(m.Ns, &dns.NS{Hdr: nsHeader, Ns: h.ns2Domain})
 	}
+	responseMsg := m.String()
+
+	// if root-tld is enabled stores any interaction towards the main domain
+	if h.options.RootTLD && strings.HasSuffix(domain, h.dotDomain) {
+		correlationID := h.options.Domain
+		host, _, _ := net.SplitHostPort(w.RemoteAddr().String())
+		interaction := &Interaction{
+			Protocol:      "dns",
+			UniqueID:      domain,
+			FullId:        domain,
+			QType:         toQType(r.Question[0].Qtype),
+			RawRequest:    requestMsg,
+			RawResponse:   responseMsg,
+			RemoteAddress: host,
+			Timestamp:     time.Now(),
+		}
+		buffer := &bytes.Buffer{}
+		if err := jsoniter.NewEncoder(buffer).Encode(interaction); err != nil {
+			gologger.Warning().Msgf("Could not encode root tld dns interaction: %s\n", err)
+		} else {
+			gologger.Debug().Msgf("Root TLD DNS Interaction: \n%s\n", buffer.String())
+			if err := h.options.Storage.AddInteractionWithId(correlationID, buffer.Bytes()); err != nil {
+				gologger.Warning().Msgf("Could not store dns interaction: %s\n", err)
+			}
+		}
+	}
+
 	if strings.HasSuffix(domain, h.dotDomain) {
 		parts := strings.Split(domain, ".")
 		for i, part := range parts {
@@ -108,8 +146,8 @@ func (h *DNSServer) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 			UniqueID:      uniqueID,
 			FullId:        fullID,
 			QType:         toQType(r.Question[0].Qtype),
-			RawRequest:    r.String(),
-			RawResponse:   m.String(),
+			RawRequest:    requestMsg,
+			RawResponse:   responseMsg,
 			RemoteAddress: host,
 			Timestamp:     time.Now(),
 		}
