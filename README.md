@@ -34,7 +34,7 @@
 - SELF Hosted server support
 - Automatic ACME based Wildcard TLS w/ Auto Renewal
 
-A hosted instance of the service with WEB UI is available at https://interact.projectdiscovery.io.
+A hosted instance of the service with WEB UI is available at https://app.interachsh.com.
 
 
 <table>
