@@ -29,7 +29,7 @@ func main() {
 	flag.StringVar(&options.IPAddress, "ip", "", "IP Address to use for interactsh server")
 	flag.StringVar(&options.ListenIP, "listen-ip", "0.0.0.0", "IP Address to listen on")
 	flag.StringVar(&options.Hostmaster, "hostmaster", "", "Hostmaster email to use for interactsh server")
-	flag.IntVar(&eviction, "eviction", 7, "Number of days to persist interactions for")
+	flag.IntVar(&eviction, "eviction", 30, "Number of days to persist interactions for")
 	flag.BoolVar(&responder, "responder", false, "Start a responder agent - docker must be installed")
 	flag.BoolVar(&smb, "smb", false, "Start a smb agent - impacket and python 3 must be installed")
 	flag.BoolVar(&options.Auth, "auth", false, "Require a token from the client to retrieve interactions")

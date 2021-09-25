@@ -33,7 +33,7 @@ func showBanner() {
 func main() {
 
 	flag.CommandLine = flag.NewFlagSet(os.Args[0], flag.ExitOnError)
-	serverURL := flag.String("url", "https://interact.sh", "URL of the interactsh server")
+	serverURL := flag.String("url", "https://interactsh.com", "URL of the interactsh server")
 	n := flag.Int("n", 1, "Number of interactable URLs to generate")
 	output := flag.String("o", "", "File to write output to")
 	json := flag.Bool("json", false, "Show JSON output")

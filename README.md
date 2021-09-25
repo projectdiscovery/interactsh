@@ -39,7 +39,7 @@ A hosted instance of the service with WEB UI is available at https://interact.pr
 
 <table>
 <td>
-<b>Note:</b>The default eviction policy for the https://interact.sh server to store interactions in memory is <b>7 days</b>, server registration re-initiate in the background upon any error or eviction time expiry. This period can be increased for <a href="#setting-up-self-hosted-instance">self-hosted</a> server using the <b>eviction</b> flag.
+<b>Note:</b>The default eviction policy for the https://interactsh.com server to store interactions in memory is <b>30 days</b>, server registration re-initiate in the background upon any error or eviction time expiry. This period can be increased for <a href="#setting-up-self-hosted-instance">self-hosted</a> server using the <b>eviction</b> flag.
 </td>
 </table>
 
@@ -64,7 +64,7 @@ This will display help for the tool. Here are all the switches it supports.
 | ------------- | ------------------------------------------------------------ | ------------------------------------------ |
 | n             | Number of interactable URLs to generate (default 1)          | interactsh-client -n 2                     |
 | poll-interval | Number of seconds between each poll request (default 5)      | interactsh-client -poll-interval 1         |
-| url           | URL of the interactsh server (default "hxxps://interact.sh") | interactsh-client -url hxxps://example.com |
+| url           | URL of the interactsh server (default "hxxps://interactsh.com") | interactsh-client -url hxxps://example.com |
 | dns-only      | Filter DNS  interactions                                     | interactsh-client -dns-only                |
 | http-only     | Filter HTTP interactions                                     | interactsh-client -http-only               |
 | smtp-only     | Filter SMTP interactions                                     | interactsh-client -smtp-only               |
@@ -84,12 +84,12 @@ interactsh-client
    (_)___  / /____  _________ ______/ /______/ /_ 
   / / __ \/ __/ _ \/ ___/ __ '/ ___/ __/ ___/ __ \
  / / / / / /_/  __/ /  / /_/ / /__/ /_(__  ) / / /
-/_/_/ /_/\__/\___/_/   \__,_/\___/\__/____/_/ /_/ v0.0.4
+/_/_/ /_/\__/\___/_/   \__,_/\___/\__/____/_/ /_/ v0.0.5
 
     projectdiscovery.io
 
 [INF] Listing 1 URL for OOB Testing
-[INF] c23b2la0kl1krjcrdj10cndmnioyyyyyn.interact.sh
+[INF] c23b2la0kl1krjcrdj10cndmnioyyyyyn.interactsh.com
 
 [c23b2la0kl1krjcrdj10cndmnioyyyyyn] Received DNS interaction (A) from 172.253.226.100 at 2021-26-26 12:26
 [c23b2la0kl1krjcrdj10cndmnioyyyyyn] Received DNS interaction (AAAA) from 32.3.34.129 at 2021-26-26 12:26
