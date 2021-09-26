@@ -209,6 +209,11 @@ Considering domain name setup is completed, run the below command to run interac
 ```bash
 interactsh-server -domain example.com
 ```
+
+Following is an example of a successful installation and operation of a self-hosted server:
+
+![interactsh-server](https://user-images.githubusercontent.com/8293321/134819391-51137c77-61d5-4ae8-9504-947dd444d863.png)
+
 </td>
 </table>
 
