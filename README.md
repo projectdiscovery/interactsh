@@ -70,7 +70,20 @@ This will display help for the tool. Here are all the switches it supports.
 This will generate single Payload that can be used for OOB Testing.
 
 ```console
-interactsh-client
+interactsh-client -silent
+
+[c23b2la0kl1krjcrdj10cndmnioyyyyyn] Received DNS interaction (A) from 172.253.226.100 at 2021-26-26 12:26
+[c23b2la0kl1krjcrdj10cndmnioyyyyyn] Received DNS interaction (AAAA) from 32.3.34.129 at 2021-26-26 12:26
+[c23b2la0kl1krjcrdj10cndmnioyyyyyn] Received HTTP interaction from 43.22.22.50 at 2021-26-26 12:26
+[c23b2la0kl1krjcrdj10cndmnioyyyyyn] Received DNS interaction (MX) from 43.3.192.3 at 2021-26-26 12:26
+[c23b2la0kl1krjcrdj10cndmnioyyyyyn] Received DNS interaction (TXT) from 74.32.183.135 at 2021-26-26 12:26
+[c23b2la0kl1krjcrdj10cndmnioyyyyyn] Received SMTP interaction from 32.85.166.50 at 2021-26-26 12:26
+```
+
+Running Interactsh client in verbose mode (`v`) to display complete request and response:
+
+```console
+interactsh-client -v
 
     _       __                       __       __  
    (_)___  / /____  _________ ______/ /______/ /_ 
@@ -81,15 +94,42 @@ interactsh-client
     projectdiscovery.io
 
 [INF] Listing 1 payload for OOB Testing
-[INF] c23b2la0kl1krjcrdj10cndmnioyyyyyn.interactsh.com
+[INF] c58bduhe008dovpvhvugcfemp9yyyyyyn.interactsh.com
 
-[c23b2la0kl1krjcrdj10cndmnioyyyyyn] Received DNS interaction (A) from 172.253.226.100 at 2021-26-26 12:26
-[c23b2la0kl1krjcrdj10cndmnioyyyyyn] Received DNS interaction (AAAA) from 32.3.34.129 at 2021-26-26 12:26
-[c23b2la0kl1krjcrdj10cndmnioyyyyyn] Received HTTP interaction from 43.22.22.50 at 2021-26-26 12:26
-[c23b2la0kl1krjcrdj10cndmnioyyyyyn] Received DNS interaction (MX) from 43.3.192.3 at 2021-26-26 12:26
-[c23b2la0kl1krjcrdj10cndmnioyyyyyn] Received DNS interaction (TXT) from 74.32.183.135 at 2021-26-26 12:26
-[c23b2la0kl1krjcrdj10cndmnioyyyyyn] Received SMTP interaction from 32.85.166.50 at 2021-26-26 12:26
+[c58bduhe008dovpvhvugcfemp9yyyyyyn] Received HTTP interaction from 103.22.142.211 at 2021-09-26 18:08:07
+------------
+HTTP Request
+------------
+
+GET /favicon.ico HTTP/2.0
+Host: c58bduhe008dovpvhvugcfemp9yyyyyyn.interactsh.com
+Accept: image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8
+Accept-Encoding: gzip, deflate, br
+Accept-Language: en-IN,en;q=0.9
+Cookie: _ga=GA1.2.440163205.1619796009; _iub_cs-77854424=%7B%22timestamp%22%3A%222021-04-30T15%3A23%3A23.192Z%22%2C%22version%22%3A%221.30.2%22%2C%22consent%22%3Atrue%2C%22id%22%3A77854424%7D
+Referer: https://c58bduhe008dovpvhvugcfemp9yyyyyyn.interactsh.com/
+Sec-Ch-Ua: "Google Chrome";v="93", " Not;A Brand";v="99", "Chromium";v="93"
+Sec-Ch-Ua-Mobile: ?0
+Sec-Ch-Ua-Platform: "macOS"
+Sec-Fetch-Dest: image
+Sec-Fetch-Mode: no-cors
+Sec-Fetch-Site: same-origin
+User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/93.0.4577.82 Safari/537.36
+
+
+
+-------------
+HTTP Response
+-------------
+
+HTTP/1.1 200 OK
+Connection: close
+Content-Type: text/html; charset=utf-8
+Server: interactsh.com
+
+<html><head></head><body>nyyyyyy9pmefcguvhvpvod800ehudb85c</body></html>
 ```
+
 
 ### Interactsh CLI Client + Notify
 
@@ -183,6 +223,7 @@ A hosted instance of **interactsh-server** is available at https://interactsh.co
 
 See [Integration blog](https://blog.projectdiscovery.io/nuclei-interactsh-integration/) and [guide document](https://nuclei.projectdiscovery.io/templating-guide/interactsh/) for more info.
 
+-----
 
 ### Acknowledgement
 
