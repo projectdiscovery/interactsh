@@ -63,7 +63,7 @@ func (h *FTPServer) ListenAndServe(autoTLS *acme.AutoTLS) error {
 }
 
 func (h *FTPServer) Close() {
-	h.ftpServer.Shutdown()
+	_ = h.ftpServer.Shutdown()
 }
 
 func (h *FTPServer) recordInteraction(remoteAddress, data string) {

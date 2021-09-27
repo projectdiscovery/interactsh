@@ -123,7 +123,7 @@ func main() {
 		if err != nil {
 			gologger.Fatal().Msgf("Could not create FTP server")
 		}
-		go ftpServer.ListenAndServe(autoTLS)
+		go ftpServer.ListenAndServe(autoTLS) //nolint
 	}
 
 	if responder {
