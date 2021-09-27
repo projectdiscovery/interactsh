@@ -18,9 +18,8 @@ jobs:
         uses: actions/checkout@v2
 
       - name: Test
-        run: go test .
-        working-directory: cmd/interactsh-client
+        run: go test ./...
+        working-directory: .
 
       - name: Build
-        run: go build .
-        working-directory: cmd/interactsh-client
+        working-directory: .
