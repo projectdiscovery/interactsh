@@ -30,7 +30,7 @@ func main() {
 	flag.StringVar(&options.IPAddress, "ip", "", "IP Address to use for interactsh server")
 	flag.StringVar(&options.ListenIP, "listen-ip", "0.0.0.0", "IP Address to listen on")
 	flag.StringVar(&options.Hostmaster, "hostmaster", "", "Hostmaster email to use for interactsh server")
-	flag.IntVar(&eviction, "eviction", 7, "Number of days to persist interactions for")
+	flag.IntVar(&eviction, "eviction", 30, "Number of days to persist interactions for")
 	flag.BoolVar(&responder, "responder", false, "Start a responder agent - docker must be installed")
 	flag.BoolVar(&smb, "smb", false, "Start a smb agent - impacket and python 3 must be installed")
 	flag.BoolVar(&options.Auth, "auth", false, "Require a token from the client to retrieve interactions")
@@ -38,7 +38,7 @@ func main() {
 	flag.BoolVar(&options.Template, "template", false, "Enable client's template upload")
 	flag.BoolVar(&skipacme, "skip-acme", false, "Skip acme registration")
 	flag.BoolVar(&nebula.Unsafe, "unsafe", false, "Enable nebula's unsafe scripts")
-	flag.StringVar(&options.OriginURL, "origin-url", "https://interact.projectdiscovery.io", "Origin URL to send in ACAO Header")
+	flag.StringVar(&options.OriginURL, "origin-url", "https://app.interachsh.com", "Origin URL to send in ACAO Header")
 	flag.BoolVar(&options.RootTLD, "root-tld", false, "Enable support for *.domain.tld interaction")
 
 	flag.Parse()
