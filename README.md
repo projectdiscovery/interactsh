@@ -158,6 +158,8 @@ A hosted instance of **interactsh-web** client is available at https://app.inter
 - New tab named **Interactsh** will be appeared upon successful installation.
 - See the [interactsh-collaborator](https://github.com/wdahlenburg/interactsh-collaborator) project for more info.
 
+<img width="2032" alt="burp" src="https://user-images.githubusercontent.com/8293321/134889745-b542d0b9-1232-4d85-9447-826d48c0e3ee.png">
+
 ### OWASP ZAP Add-On
 
 Interactsh can be used with OWASP ZAP via the [OAST add-on for ZAP](https://www.zaproxy.org/docs/desktop/addons/oast-support/). With ZAP's scripting capabilities, you can create powerful out-of-band scan rules that leverage Interactsh's features. A standalone script template has been provided as an example (it is added automatically when you install the add-on).
@@ -191,7 +193,8 @@ We are using GoDaddy for domain name and DigitalOcean droplet for the server, a 
 - Navigate to `https://dns.godaddy.com/{{domain}}/nameservers`
 - I'll use my own nameservers &rarr; Submit `ns1.{{domain}}`, `ns2.{{domain}}`
 
-<img width="728" alt="gdd-ns" src="https://user-images.githubusercontent.com/8293321/134817482-15e3dc4f-6429-4e2d-9ff4-b25289cfd172.png">
+<img width="1500" height="500" alt="gdd-ns" src="https://user-images.githubusercontent.com/8293321/134817482-15e3dc4f-6429-4e2d-9ff4-b25289cfd172.png">
+
 </td>
 </table>
 
