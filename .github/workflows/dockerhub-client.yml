@@ -1,4 +1,4 @@
-name: 🌥 Docker Push
+name: 🌥 Docker Client
 
 on:
   workflow_run:
