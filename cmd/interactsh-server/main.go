@@ -20,7 +20,7 @@ import (
 
 func main() {
 	var eviction int
-	var debug, smb, responder bool
+	var debug, smb, responder, ftp bool
 
 	options := &server.Options{}
 	flag.CommandLine = flag.NewFlagSet(os.Args[0], flag.ExitOnError)
@@ -32,10 +32,12 @@ func main() {
 	flag.IntVar(&eviction, "eviction", 30, "Number of days to persist interactions for")
 	flag.BoolVar(&responder, "responder", false, "Start a responder agent - docker must be installed")
 	flag.BoolVar(&smb, "smb", false, "Start a smb agent - impacket and python 3 must be installed")
+	flag.BoolVar(&ftp, "ftp", false, "Start a ftp agent")
 	flag.BoolVar(&options.Auth, "auth", false, "Require a token from the client to retrieve interactions")
 	flag.StringVar(&options.Token, "token", "", "Generate a token that the client must provide to retrieve interactions")
 	flag.StringVar(&options.OriginURL, "origin-url", "https://app.interachsh.com", "Origin URL to send in ACAO Header")
 	flag.BoolVar(&options.RootTLD, "root-tld", false, "Enable support for *.domain.tld interaction")
+	flag.StringVar(&options.FTPDirectory, "ftp-dir", "", "Ftp directory - temporary if not specified")
 	flag.Parse()
 
 	if options.Hostmaster == "" {
@@ -54,7 +56,7 @@ func main() {
 	}
 
 	// Requires auth if token is specified or enables it automatically for responder and smb options
-	if options.Token != "" || responder || smb {
+	if options.Token != "" || responder || smb || ftp {
 		options.Auth = true
 	}
 
@@ -115,6 +117,14 @@ func main() {
 		gologger.Fatal().Msgf("Could not create SMTP server")
 	}
 	go smtpServer.ListenAndServe(autoTLS)
+
+	if ftp {
+		ftpServer, err := server.NewFTPServer(options)
+		if err != nil {
+			gologger.Fatal().Msgf("Could not create FTP server")
+		}
+		go ftpServer.ListenAndServe(autoTLS)
+	}
 
 	if responder {
 		responderServer, err := server.NewResponderServer(options)

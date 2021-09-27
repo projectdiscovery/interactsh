@@ -14,6 +14,7 @@ require (
 	github.com/eggsampler/acme/v3 v3.2.1
 	github.com/golang/glog v1.0.0 // indirect
 	github.com/golang/snappy v0.0.4 // indirect
+	github.com/google/go-cmp v0.5.6 // indirect
 	github.com/google/uuid v1.3.0
 	github.com/jasonlvhit/gocron v0.0.1
 	github.com/json-iterator/go v1.1.12
@@ -37,6 +38,7 @@ require (
 	github.com/rs/xid v1.3.0
 	github.com/stretchr/testify v1.7.0
 	go.etcd.io/bbolt v1.3.6 // indirect
+	goftp.io/server/v2 v2.0.0
 	golang.org/x/exp v0.0.0-20210826195003-46c773283d9d // indirect
 	golang.org/x/net v0.0.0-20210825183410-e898025ed96a // indirect
 	golang.org/x/sys v0.0.0-20210823070655-63515b42dcdf // indirect

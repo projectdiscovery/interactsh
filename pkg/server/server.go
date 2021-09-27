@@ -49,6 +49,8 @@ type Options struct {
 	RootTLD bool
 	// OriginURL for the HTTP Server
 	OriginURL string
+	// FTPDirectory or temporary one
+	FTPDirectory string
 }
 
 // URLReflection returns a reversed part of the URL payload

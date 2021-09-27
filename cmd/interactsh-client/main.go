@@ -104,6 +104,14 @@ func main() {
 					}
 					writeOutput(outputFile, builder)
 				}
+			case "ftp":
+				if noFilter {
+					builder.WriteString(fmt.Sprintf("Received FTP interaction at %s", interaction.Timestamp.Format("2006-01-02 15:04:05")))
+					if *verbose {
+						builder.WriteString(fmt.Sprintf("\n------------\nFTP Interaction\n------------\n\n%s\n\n", interaction.RawRequest))
+					}
+					writeOutput(outputFile, builder)
+				}
 			case "responder", "smb":
 				if noFilter {
 					builder.WriteString(fmt.Sprintf("Received Responder/Smb interaction at %s", interaction.Timestamp.Format("2006-01-02 15:04:05")))
