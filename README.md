@@ -61,8 +61,12 @@ This will display help for the tool. Here are all the switches it supports.
 | http-only     | Display only HTTP interaction in CLI output         | interactsh-client -http-only          |
 | smtp-only     | Display only SMTP interaction in CLI output         | interactsh-client -smtp-only          |
 | json          | Write output in JSONL(ines) format                  | interactsh-client -json               |
+| token         | Authentication token to connect interactsh server   | interactsh-client -token XXX          |
+| persist       | Enables persistent interactsh sessions              | interactsh-client -persist            |
 | o             | Output file to write interaction                    | interactsh-client -o logs.txt         |
 | v             | Show verbose interaction                            | interactsh-client -v                  |
+
+
 
 
 ### Running Interactsh CLI Client
@@ -191,7 +195,7 @@ Interactsh server runs multiple web services and capture all the incoming reques
 1. Domain name with custom **host names** and **nameservers**.
 2. Basic VPS running 24/7 in the background.
 
-We are using GoDaddy for domain name and DigitalOcean droplet for the server, a basic 5$ droplet should be sufficient to run self-hosted Interactsh server.
+We are using GoDaddy for domain name and DigitalOcean droplet for the server, a basic 5$ droplet should be sufficient to run self-hosted Interactsh server. If you are not using GoDaddy, follow your registrar's process for creating / updating DNS entries.
 
 <table>
 <td>
@@ -236,6 +240,28 @@ Following is an example of a successful installation and operation of a self-hos
 </td>
 </table>
 
+```sh
+interactsh-server -h
+```
+
+This will display help for the tool. Here are all the switches it supports.
+
+| Flag       | Description                                                  | Example                                           |
+| ---------- | ------------------------------------------------------------ | ------------------------------------------------- |
+| auth       | Enable authentication to server using random generated token | interactsh-server -auth                           |
+| token      | Enable authentication to server using given token            | interactsh-server -token MY_TOKEN                 |
+| domain     | Domain to use for interactsh server                          | interactsh-server -server example.com             |
+| eviction   | Number of days to persist interactions for (default 30)      | interactsh-server -domain example.com             |
+| hostmaster | Hostmaster email to use for interactsh server                | interactsh-server -hostmaster admin@example.com   |
+| ip         | Public IP Address to use for interactsh server               | interactsh-server -ip XX.XX.XX.XX                 |
+| listen-ip  | Public IP Address to listen on                               | interactsh-server -listen-ip XX.XX.XX.XX          |
+| root-tld   | Enable wildcard/global interaction                           | interactsh-server -root-tld                       |
+| origin-url | Origin URL to send in ACAO Header                            | interactsh-server -origin-url https://example.com |
+| responder  | Start a responder agent - docker must be installed           | interactsh-server -responder                      |
+| smb        | Start a smb agent - impacket and python 3 must be installed  | interactsh-server -smb                            |
+| debug      | Use interactsh in debug mode                                 | interactsh-server -debug                          |
+
+
 A hosted instance of **interactsh-server** is available at https://interactsh.com
 
 
@@ -245,7 +271,7 @@ A hosted instance of **interactsh-server** is available at https://interactsh.co
 
 [Nuclei](https://github.com/projectdiscovery/nuclei) is fast and customizable vulnerability scanner utilize **Interactsh** for automated payload generation and detection of out of band based security vulnerabilities.
 
-See [Nuclie + Interactsh](https://blog.projectdiscovery.io/nuclei-interactsh-integration/) Integration blog and [guide document](https://nuclei.projectdiscovery.io/templating-guide/interactsh/) for more info.
+See [Nuclei + Interactsh](https://blog.projectdiscovery.io/nuclei-interactsh-integration/) Integration blog and [guide document](https://nuclei.projectdiscovery.io/templating-guide/interactsh/) for more info.
 
 -----
 
