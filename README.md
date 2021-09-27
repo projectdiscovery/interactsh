@@ -52,25 +52,36 @@ interactsh-client -h
 
 This will display help for the tool. Here are all the switches it supports.
 
-| Flag          | Description                                                  | Example                                    |
-| ------------- | ------------------------------------------------------------ | ------------------------------------------ |
-| n             | Number of interactable URLs to generate (default 1)          | interactsh-client -n 2                     |
-| poll-interval | Number of seconds between each poll request (default 5)      | interactsh-client -poll-interval 1         |
-| server        | Interactsh server to use (default "interactsh.com")          | interactsh-client -server example.com      |
-| dns-only      | Filter DNS  interactions                                     | interactsh-client -dns-only                |
-| http-only     | Filter HTTP interactions                                     | interactsh-client -http-only               |
-| smtp-only     | Filter SMTP interactions                                     | interactsh-client -smtp-only               |
-| json          | Show JSON output                                             | interactsh-client -json                    |
-| o             | Store interaction logs to file                               | interactsh-client -o logs.txt              |
-| v             | Show verbose interaction                                     | interactsh-client -v                       |
+| Flag          | Description                                         | Example                               |
+| ------------- | --------------------------------------------------- | ------------------------------------- |
+| n             | Interactsh payload count to generate (default 1)    | interactsh-client -n 2                |
+| poll-interval | Interaction poll interval in seconds (default 5)    | interactsh-client -poll-interval 1    |
+| server        | Interactsh server to use (default "interactsh.com") | interactsh-client -server example.com |
+| dns-only      | Display only DNS interaction in CLI output          | interactsh-client -dns-only           |
+| http-only     | Display only HTTP interaction in CLI output         | interactsh-client -http-only          |
+| smtp-only     | Display only SMTP interaction in CLI output         | interactsh-client -smtp-only          |
+| json          | Write output in JSONL(ines) format                  | interactsh-client -json               |
+| o             | Output file to write interaction                    | interactsh-client -o logs.txt         |
+| v             | Show verbose interaction                            | interactsh-client -v                  |
 
 
 ### Running Interactsh CLI Client
 
-This will generate single Payload that can be used for OOB Testing.
+This will generate a unique payload that can be used for OOB testing with minimal interaction information in the ouput.
 
 ```console
-interactsh-client -silent
+interactsh-client
+
+    _       __                       __       __  
+   (_)___  / /____  _________ ______/ /______/ /_ 
+  / / __ \/ __/ _ \/ ___/ __ '/ ___/ __/ ___/ __ \
+ / / / / / /_/  __/ /  / /_/ / /__/ /_(__  ) / / /
+/_/_/ /_/\__/\___/_/   \__,_/\___/\__/____/_/ /_/ v0.0.5
+
+        projectdiscovery.io
+
+[INF] Listing 1 payload for OOB Testing
+[INF] c23b2la0kl1krjcrdj10cndmnioyyyyyn.interactsh.com
 
 [c23b2la0kl1krjcrdj10cndmnioyyyyyn] Received DNS interaction (A) from 172.253.226.100 at 2021-26-26 12:26
 [c23b2la0kl1krjcrdj10cndmnioyyyyyn] Received DNS interaction (AAAA) from 32.3.34.129 at 2021-26-26 12:26
@@ -132,6 +143,8 @@ Server: interactsh.com
 
 
 ### Interactsh CLI Client + Notify
+
+If you are away from your terminal, you may use [notify](https://github.com/projectdiscovery/notify) to send a real-time interaction notification to any supported platform.
 
 ```sh
 interactsh-client | notify
