@@ -22,4 +22,5 @@ jobs:
         working-directory: .
 
       - name: Build
+        run: go build ./...
         working-directory: .
