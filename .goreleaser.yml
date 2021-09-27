@@ -3,8 +3,8 @@ before:
     - go mod tidy
 
 builds:
-  - binary: interactsh-client
-    id: interactsh-client
+  - id: interactsh-client
+    binary: interactsh-client
     main: cmd/interactsh-client/main.go
     goos:
       - linux
@@ -15,8 +15,9 @@ builds:
       - 386
       - arm
       - arm64
-  - binary: interactsh-server
-    id: interactsh-server
+
+  - id: interactsh-server
+    binary: interactsh-server
     main: cmd/interactsh-server/main.go
     goos:
       - linux
@@ -29,10 +30,12 @@ builds:
       - arm64
 
 archives:
-  - id: tgz
-    format: tar.gz
+  - id: interactsh-client
+    format: zip
     replacements:
-        darwin: macOS
-    format_overrides:
-        - goos: windows
-          format: zip
+      darwin: macOS
+
+  - id: interactsh-server
+    format: zip
+    replacements:
+      darwin: macOS
