@@ -80,10 +80,10 @@ interactsh-client -silent
 [c23b2la0kl1krjcrdj10cndmnioyyyyyn] Received SMTP interaction from 32.85.166.50 at 2021-26-26 12:26
 ```
 
-Running Interactsh client in verbose mode (`v`) to display complete request and response:
+Running the Interactsh client in **verbose mode** (v) to see the whole request and response, along with an output file to analyze afterwards.
 
 ```console
-interactsh-client -v
+interactsh-client -v -o interactsh-logs.txt
 
     _       __                       __       __  
    (_)___  / /____  _________ ______/ /______/ /_ 
