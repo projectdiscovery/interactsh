@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"os"
+	"strings"
 	"time"
 
 	jsoniter "github.com/json-iterator/go"
@@ -87,12 +88,8 @@ func (h *FTPServer) recordInteraction(remoteAddress, data string) {
 	}
 }
 
-func (h *FTPServer) Print(sessionID string, message interface{}) {
-	h.recordInteraction("", fmt.Sprintf("%s: %s", sessionID, message))
-}
-func (h *FTPServer) Printf(sessionID string, format string, v ...interface{}) {
-	h.Print(sessionID, fmt.Sprintf(format, v...))
-}
+func (h *FTPServer) Print(sessionID string, message interface{})              {}
+func (h *FTPServer) Printf(sessionID string, format string, v ...interface{}) {}
 func (h *FTPServer) PrintCommand(sessionID string, command string, params string) {
 	h.Print(sessionID, fmt.Sprintf("%s %s", command, params))
 }
@@ -101,46 +98,130 @@ func (h *FTPServer) PrintResponse(sessionID string, code int, message string) {
 }
 
 func (h *FTPServer) BeforeLoginUser(ctx *ftpserver.Context, userName string) {
-	h.recordInteraction(ctx.Sess.RemoteAddr().String(), ctx.Cmd+ctx.Param)
+	var b strings.Builder
+	b.WriteString(ctx.Cmd)
+	b.WriteString(" ")
+	b.WriteString(ctx.Param)
+	b.WriteString("\n")
+	b.WriteString(userName + " logging in")
+	h.recordInteraction(ctx.Sess.RemoteAddr().String(), b.String())
 }
 func (h *FTPServer) BeforePutFile(ctx *ftpserver.Context, dstPath string) {
-	h.recordInteraction(ctx.Sess.RemoteAddr().String(), ctx.Cmd+ctx.Param)
+	var b strings.Builder
+	b.WriteString(ctx.Cmd)
+	b.WriteString(" ")
+	b.WriteString(ctx.Param)
+	b.WriteString("\n")
+	b.WriteString("uploading " + dstPath)
+	h.recordInteraction(ctx.Sess.RemoteAddr().String(), b.String())
 }
 func (h *FTPServer) BeforeDeleteFile(ctx *ftpserver.Context, dstPath string) {
-	h.recordInteraction(ctx.Sess.RemoteAddr().String(), ctx.Cmd+ctx.Param)
+	var b strings.Builder
+	b.WriteString(ctx.Cmd)
+	b.WriteString(" ")
+	b.WriteString(ctx.Param)
+	b.WriteString("\n")
+	b.WriteString("deleting " + dstPath)
+	h.recordInteraction(ctx.Sess.RemoteAddr().String(), b.String())
 }
 func (h *FTPServer) BeforeChangeCurDir(ctx *ftpserver.Context, oldCurDir, newCurDir string) {
-	h.recordInteraction(ctx.Sess.RemoteAddr().String(), ctx.Cmd+ctx.Param)
+	var b strings.Builder
+	b.WriteString(ctx.Cmd)
+	b.WriteString(" ")
+	b.WriteString(ctx.Param)
+	b.WriteString("\n")
+	b.WriteString("changing directory from " + oldCurDir + " to " + newCurDir)
+	h.recordInteraction(ctx.Sess.RemoteAddr().String(), b.String())
 }
 func (h *FTPServer) BeforeCreateDir(ctx *ftpserver.Context, dstPath string) {
-	h.recordInteraction(ctx.Sess.RemoteAddr().String(), ctx.Cmd+ctx.Param)
+	var b strings.Builder
+	b.WriteString(ctx.Cmd)
+	b.WriteString(" ")
+	b.WriteString(ctx.Param)
+	b.WriteString("\n")
+	b.WriteString("creating directory " + dstPath)
+	h.recordInteraction(ctx.Sess.RemoteAddr().String(), b.String())
 }
 func (h *FTPServer) BeforeDeleteDir(ctx *ftpserver.Context, dstPath string) {
-	h.recordInteraction(ctx.Sess.RemoteAddr().String(), ctx.Cmd+ctx.Param)
+	var b strings.Builder
+	b.WriteString(ctx.Cmd)
+	b.WriteString(" ")
+	b.WriteString(ctx.Param)
+	b.WriteString("\n")
+	b.WriteString("deleting directory " + dstPath)
+	h.recordInteraction(ctx.Sess.RemoteAddr().String(), b.String())
 }
 func (h *FTPServer) BeforeDownloadFile(ctx *ftpserver.Context, dstPath string) {
-	h.recordInteraction(ctx.Sess.RemoteAddr().String(), ctx.Cmd+ctx.Param)
+	var b strings.Builder
+	b.WriteString(ctx.Cmd)
+	b.WriteString(" ")
+	b.WriteString(ctx.Param)
+	b.WriteString("\n")
+	b.WriteString("downloading file " + dstPath)
+	h.recordInteraction(ctx.Sess.RemoteAddr().String(), b.String())
 }
 func (h *FTPServer) AfterUserLogin(ctx *ftpserver.Context, userName, password string, passMatched bool, err error) {
-	h.recordInteraction(ctx.Sess.RemoteAddr().String(), ctx.Cmd+ctx.Param)
+	var b strings.Builder
+	b.WriteString(ctx.Cmd)
+	b.WriteString(" ")
+	b.WriteString(ctx.Param)
+	b.WriteString("\n")
+	b.WriteString("user " + userName + " logged in with password " + password)
+	h.recordInteraction(ctx.Sess.RemoteAddr().String(), b.String())
 }
 func (h *FTPServer) AfterFilePut(ctx *ftpserver.Context, dstPath string, size int64, err error) {
-	h.recordInteraction(ctx.Sess.RemoteAddr().String(), ctx.Cmd+ctx.Param)
+	var b strings.Builder
+	b.WriteString(ctx.Cmd)
+	b.WriteString(" ")
+	b.WriteString(ctx.Param)
+	b.WriteString("\n")
+	b.WriteString("uploaded " + dstPath)
+	h.recordInteraction(ctx.Sess.RemoteAddr().String(), b.String())
 }
 func (h *FTPServer) AfterFileDeleted(ctx *ftpserver.Context, dstPath string, err error) {
-	h.recordInteraction(ctx.Sess.RemoteAddr().String(), ctx.Cmd+ctx.Param)
+	var b strings.Builder
+	b.WriteString(ctx.Cmd)
+	b.WriteString(" ")
+	b.WriteString(ctx.Param)
+	b.WriteString("\n")
+	b.WriteString("deleted " + dstPath)
+	h.recordInteraction(ctx.Sess.RemoteAddr().String(), b.String())
 }
 func (h *FTPServer) AfterFileDownloaded(ctx *ftpserver.Context, dstPath string, size int64, err error) {
-	h.recordInteraction(ctx.Sess.RemoteAddr().String(), ctx.Cmd+ctx.Param)
+	var b strings.Builder
+	b.WriteString(ctx.Cmd)
+	b.WriteString(" ")
+	b.WriteString(ctx.Param)
+	b.WriteString("\n")
+	b.WriteString("downloaded file " + dstPath)
+	h.recordInteraction(ctx.Sess.RemoteAddr().String(), b.String())
 }
 func (h *FTPServer) AfterCurDirChanged(ctx *ftpserver.Context, oldCurDir, newCurDir string, err error) {
-	h.recordInteraction(ctx.Sess.RemoteAddr().String(), ctx.Cmd+ctx.Param)
+	var b strings.Builder
+	b.WriteString(ctx.Cmd)
+	b.WriteString(" ")
+	b.WriteString(ctx.Param)
+	b.WriteString("\n")
+	b.WriteString("changed directory from " + oldCurDir + " to " + newCurDir)
+	h.recordInteraction(ctx.Sess.RemoteAddr().String(), b.String())
 }
 func (h *FTPServer) AfterDirCreated(ctx *ftpserver.Context, dstPath string, err error) {
-	h.recordInteraction(ctx.Sess.RemoteAddr().String(), ctx.Cmd+ctx.Param)
+	var b strings.Builder
+	b.WriteString(ctx.Cmd)
+	b.WriteString(" ")
+	b.WriteString(ctx.Param)
+	b.WriteString("\n")
+	b.WriteString("created directory " + dstPath)
+	h.recordInteraction(ctx.Sess.RemoteAddr().String(), b.String())
 }
 func (h *FTPServer) AfterDirDeleted(ctx *ftpserver.Context, dstPath string, err error) {
-	h.recordInteraction(ctx.Sess.RemoteAddr().String(), ctx.Cmd+ctx.Param)
+	var b strings.Builder
+	b.WriteString(ctx.Cmd)
+	b.WriteString(" ")
+	b.WriteString(ctx.Param)
+	b.WriteString("\n")
+	b.WriteString("delete directory " + dstPath)
+	h.recordInteraction(ctx.Sess.RemoteAddr().String(), b.String())
 }
 
 type NopAuth struct{}

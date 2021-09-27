@@ -106,7 +106,7 @@ func main() {
 				}
 			case "ftp":
 				if noFilter {
-					builder.WriteString(fmt.Sprintf("Received FTP interaction at %s", interaction.Timestamp.Format("2006-01-02 15:04:05")))
+					builder.WriteString(fmt.Sprintf("Received FTP interaction from %s at %s", interaction.RemoteAddress, interaction.Timestamp.Format("2006-01-02 15:04:05")))
 					if *verbose {
 						builder.WriteString(fmt.Sprintf("\n------------\nFTP Interaction\n------------\n\n%s\n\n", interaction.RawRequest))
 					}

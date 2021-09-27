@@ -172,8 +172,20 @@ func (s *Storage) AddInteractionWithId(id string, data []byte) error {
 		return errors.New("invalid correlation-id cache value found")
 	}
 
+	buffer := &bytes.Buffer{}
+
+	gz := zippers.Get().(*zlib.Writer)
+	defer zippers.Put(gz)
+	gz.Reset(buffer)
+
+	if _, err := gz.Write(data); err != nil {
+		_ = gz.Close()
+		return err
+	}
+	_ = gz.Close()
+
 	value.dataMutex.Lock()
-	value.Data = append(value.Data, string(data))
+	value.Data = append(value.Data, buffer.String())
 	value.dataMutex.Unlock()
 	return nil
 }
