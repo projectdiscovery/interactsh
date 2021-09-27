@@ -1,4 +1,4 @@
-name: 🌥 Docker Push
+name: 🌥 Docker Server
 
 on:
   workflow_run:
@@ -32,10 +32,11 @@ jobs:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_TOKEN }}
 
-      - name: Build and push
+      - name: Build and push server
         uses: docker/build-push-action@v2
         with:
           context: .
+          file: .github/docker/server/Dockerfile
           platforms: linux/amd64,linux/arm64,linux/arm
           push: true
-          tags: projectdiscovery/interactsh:latest,projectdiscovery/interactsh:${{ steps.meta.outputs.tag }}
+          tags: projectdiscovery/interactsh-server:latest,projectdiscovery/interactsh-server:${{ steps.meta.outputs.tag }}
