@@ -39,3 +39,6 @@ archives:
     format: zip
     replacements:
       darwin: macOS
+
+checksum:
+  algorithm: sha256
