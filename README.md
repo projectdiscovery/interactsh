@@ -178,7 +178,7 @@ Interactsh server runs multiple web services and capture all the incoming reques
 1. Domain name with custom **host names** and **nameservers**.
 2. Basic VPS running 24/7 in the background.
 
-We are using GoDaddy for domain name and DigitalOcean droplet for the server, a basic 5$ should be sufficient to run self-hosted Interactsh server.
+We are using GoDaddy for domain name and DigitalOcean droplet for the server, a basic 5$ droplet should be sufficient to run self-hosted Interactsh server.
 
 <table>
 <td>
@@ -232,7 +232,7 @@ A hosted instance of **interactsh-server** is available at https://interactsh.co
 
 [Nuclei](https://github.com/projectdiscovery/nuclei) is fast and customizable vulnerability scanner utilize **Interactsh** for automated payload generation and detection of out of band based security vulnerabilities.
 
-See [Integration blog](https://blog.projectdiscovery.io/nuclei-interactsh-integration/) and [guide document](https://nuclei.projectdiscovery.io/templating-guide/interactsh/) for more info.
+See [Nuclie + Interactsh](https://blog.projectdiscovery.io/nuclei-interactsh-integration/) Integration blog and [guide document](https://nuclei.projectdiscovery.io/templating-guide/interactsh/) for more info.
 
 -----
 
