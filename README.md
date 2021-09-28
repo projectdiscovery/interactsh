@@ -149,19 +149,19 @@ interactsh-client -h
 
 This will display help for the tool. Here are all the switches it supports.
 
-| Flag          | Description                                         | Example                               |
-| ------------- | --------------------------------------------------- | ------------------------------------- |
-| n             | Interactsh payload count to generate (default 1)    | interactsh-client -n 2                |
-| poll-interval | Interaction poll interval in seconds (default 5)    | interactsh-client -poll-interval 1    |
-| server        | Interactsh server to use (default "interactsh.com") | interactsh-client -server domain.com |
-| dns-only      | Display only DNS interaction in CLI output          | interactsh-client -dns-only           |
-| http-only     | Display only HTTP interaction in CLI output         | interactsh-client -http-only          |
-| smtp-only     | Display only SMTP interaction in CLI output         | interactsh-client -smtp-only          |
-| json          | Write output in JSONL(ines) format                  | interactsh-client -json               |
-| token         | Authentication token to connect interactsh server   | interactsh-client -token XXX          |
-| persist       | Enables persistent interactsh sessions              | interactsh-client -persist            |
-| o             | Output file to write interaction                    | interactsh-client -o logs.txt         |
-| v             | Show verbose interaction                            | interactsh-client -v                  |
+| Flag          | Description                                       | Example                                      |
+| ------------- | ------------------------------------------------- | -------------------------------------------- |
+| n             | Interactsh payload count to generate (default 1)  | interactsh-client -n 2                       |
+| poll-interval | Interaction poll interval in seconds (default 5)  | interactsh-client -poll-interval 1           |
+| server        | Interactsh server to use                          | interactsh-client -server https://domain.com |
+| dns-only      | Display only DNS interaction in CLI output        | interactsh-client -dns-only                  |
+| http-only     | Display only HTTP interaction in CLI output       | interactsh-client -http-only                 |
+| smtp-only     | Display only SMTP interaction in CLI output       | interactsh-client -smtp-only                 |
+| json          | Write output in JSONL(ines) format                | interactsh-client -json                      |
+| token         | Authentication token to connect interactsh server | interactsh-client -token XXX                 |
+| persist       | Enables persistent interactsh sessions            | interactsh-client -persist                   |
+| o             | Output file to write interaction                  | interactsh-client -o logs.txt                |
+| v             | Show verbose interaction                          | interactsh-client -v                         |
 
 
 ## Interactsh Web Client
@@ -170,8 +170,7 @@ This will display help for the tool. Here are all the switches it supports.
 
 A hosted instance of **interactsh-web** client is available at https://app.interactsh.com
 
-<img width="2032" alt="interactsh-web" src="https://user-images.githubusercontent.com/8293321/134819734-136b0109-972a-42f9-b4f4-9498d944d15d.png">
-
+<img width="2032" alt="interactsh-web" src="https://user-images.githubusercontent.com/8293321/135175927-07580994-32eb-4c06-8ca6-7ac9ea84776b.png">
 
 ## Interactsh Docker Client
 
@@ -205,7 +204,7 @@ docker run projectdiscovery/interactsh-client:latest
 - New tab named **Interactsh** will be appeared upon successful installation.
 - See the [interactsh-collaborator](https://github.com/wdahlenburg/interactsh-collaborator) project for more info.
 
-<img width="2032" alt="burp" src="https://user-images.githubusercontent.com/8293321/134889745-b542d0b9-1232-4d85-9447-826d48c0e3ee.png">
+<img width="2032" alt="burp" src="https://user-images.githubusercontent.com/8293321/135176099-0e3fa01c-bdce-4f04-a94f-de0a34c7abf6.png">
 
 ### OWASP ZAP Add-On
 
@@ -216,6 +215,10 @@ Interactsh can be used with OWASP ZAP via the [OAST add-on for ZAP](https://www.
 - Configure [the options](https://www.zaproxy.org/docs/desktop/addons/oast-support/services/interactsh/options/) for the client and click on "New Payload" to generate a new payload.
 - OOB interactions will appear in the [OAST Tab](https://www.zaproxy.org/docs/desktop/addons/oast-support/tab/) and you can click on any of them to view the full request and response.
 - See the [OAST add-on documentation](https://www.zaproxy.org/docs/desktop/addons/oast-support/) for more info.
+
+![zap](https://user-images.githubusercontent.com/8293321/135176821-6c2e9859-7f06-4334-9e69-06fd21be3219.png)
+
+-------
 
 
 # Interactsh Server
@@ -235,12 +238,12 @@ We are using GoDaddy for domain name and DigitalOcean droplet for the server, a 
 - Navigate to `https://dcc.godaddy.com/manage/{{domain}}/dns`
 - Advanced Features &rarr; Host names &rarr; Add &rarr; Submit `ns1`, `ns2` with `VPS IP` as value
 
-<img width="1288" alt="gdd-hostname" src="https://user-images.githubusercontent.com/8293321/134817477-1f83e9c4-8a2a-4f7e-bc66-106a1eb41ff1.png">
+<img width="1288" alt="gdd-hostname" src="https://user-images.githubusercontent.com/8293321/135175512-135259fb-0490-4038-845a-0b62b1b8f549.png">
 
 - Navigate to `https://dns.godaddy.com/{{domain}}/nameservers`
 - I'll use my own nameservers &rarr; Submit `ns1.{{domain}}`, `ns2.{{domain}}`
 
-<img width="1500" height="500" alt="gdd-ns" src="https://user-images.githubusercontent.com/8293321/134817482-15e3dc4f-6429-4e2d-9ff4-b25289cfd172.png">
+<img width="1288" alt="gdd-ns" src="https://user-images.githubusercontent.com/8293321/135175627-ea9639fd-353d-441b-a9a4-dae7f540d0ae.png">
 
 </td>
 </table>
