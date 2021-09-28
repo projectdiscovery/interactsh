@@ -275,7 +275,7 @@ func (c *Client) generateRSAKeyPair() error {
 		return errors.Wrap(err, "could not make register request")
 	}
 	if resp.StatusCode != 200 {
-		return errors.Wrap(err, "could not register to server")
+		return errors.New("could not register to server")
 	}
 	response := make(map[string]interface{})
 	if jsonErr := jsoniter.NewDecoder(resp.Body).Decode(&response); jsonErr != nil {
