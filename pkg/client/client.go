@@ -11,6 +11,7 @@ import (
 	"encoding/base64"
 	"encoding/binary"
 	"encoding/pem"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -274,7 +275,18 @@ func (c *Client) generateRSAKeyPair() error {
 		return errors.Wrap(err, "could not make register request")
 	}
 	if resp.StatusCode != 200 {
-		return errors.Wrap(err, "could not register to server")
+		return errors.New("could not register to server")
+	}
+	response := make(map[string]interface{})
+	if jsonErr := jsoniter.NewDecoder(resp.Body).Decode(&response); jsonErr != nil {
+		return errors.Wrap(jsonErr, "could not register to server")
+	}
+	message, ok := response["message"]
+	if !ok {
+		return errors.New("could not get register response")
+	}
+	if message.(string) != "registration successful" {
+		return fmt.Errorf("could not get register response: %s", message.(string))
 	}
 	return nil
 }
@@ -285,12 +297,13 @@ func (c *Client) URL() string {
 	i := atomic.AddUint32(&objectIDCounter, 1)
 	binary.BigEndian.PutUint32(random[0:4], uint32(time.Now().Unix()))
 	binary.BigEndian.PutUint32(random[4:8], i)
+	randomData := zbase32.StdEncoding.EncodeToString(random)
 
 	builder := &strings.Builder{}
+	builder.Grow(len(c.correlationID) + len(randomData) + len(c.serverURL.Host) + 1)
 	builder.WriteString(c.correlationID)
-	builder.WriteString(zbase32.StdEncoding.EncodeToString(random))
+	builder.WriteString(randomData)
 	builder.WriteString(".")
-	builder.WriteString("")
 	builder.WriteString(c.serverURL.Host)
 	URL := builder.String()
 	return URL

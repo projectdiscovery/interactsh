@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"crypto/tls"
 	"fmt"
+	"log"
 	"net"
 	"net/http"
 	"net/http/httptest"
@@ -26,6 +27,13 @@ type HTTPServer struct {
 	nontlsserver http.Server
 }
 
+type noopLogger struct {
+}
+
+func (l *noopLogger) Write(p []byte) (n int, err error) {
+	return 0, nil
+}
+
 // NewHTTPServer returns a new TLS & Non-TLS HTTP server.
 func NewHTTPServer(options *Options) (*HTTPServer, error) {
 	gologger.DefaultLogger.SetMaxLevel(levels.LevelDebug)
@@ -38,8 +46,8 @@ func NewHTTPServer(options *Options) (*HTTPServer, error) {
 	router.Handle("/deregister", server.corsMiddleware(server.authMiddleware(http.HandlerFunc(server.deregisterHandler))))
 	router.Handle("/poll", server.corsMiddleware(server.authMiddleware(http.HandlerFunc(server.pollHandler))))
 	router.Handle("/metrics", server.corsMiddleware(server.authMiddleware(http.HandlerFunc(server.metricsHandler))))
-	server.tlsserver = http.Server{Addr: options.ListenIP + ":443", Handler: router}
-	server.nontlsserver = http.Server{Addr: options.ListenIP + ":80", Handler: router}
+	server.tlsserver = http.Server{Addr: options.ListenIP + ":443", Handler: router, ErrorLog: log.New(&noopLogger{}, "", 0)}
+	server.nontlsserver = http.Server{Addr: options.ListenIP + ":80", Handler: router, ErrorLog: log.New(&noopLogger{}, "", 0)}
 	return server, nil
 }
 
