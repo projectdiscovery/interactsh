@@ -195,7 +195,7 @@ Interactsh server runs multiple web services and capture all the incoming reques
 1. Domain name with custom **host names** and **nameservers**.
 2. Basic VPS running 24/7 in the background.
 
-We are using GoDaddy for domain name and DigitalOcean droplet for the server, a basic 5$ droplet should be sufficient to run self-hosted Interactsh server. If you are not using GoDaddy, follow your registrar's process for creating / updating DNS entries.
+We are using GoDaddy for domain name and DigitalOcean droplet for the server, a basic $5 droplet should be sufficient to run self-hosted Interactsh server. If you are not using GoDaddy, follow your registrar's process for creating / updating DNS entries.
 
 <table>
 <td>
@@ -255,11 +255,11 @@ This will display help for the tool. Here are all the switches it supports.
 | hostmaster | Hostmaster email to use for interactsh server                | interactsh-server -hostmaster admin@example.com   |
 | ip         | Public IP Address to use for interactsh server               | interactsh-server -ip XX.XX.XX.XX                 |
 | listen-ip  | Public IP Address to listen on                               | interactsh-server -listen-ip XX.XX.XX.XX          |
-| root-tld   | Enable wildcard/global interaction                           | interactsh-server -root-tld                       |
+| root-tld   | Enable wildcard/global interaction for *.domain.com          | interactsh-server -root-tld                       |
 | origin-url | Origin URL to send in ACAO Header                            | interactsh-server -origin-url https://example.com |
 | responder  | Start a responder agent - docker must be installed           | interactsh-server -responder                      |
 | smb        | Start a smb agent - impacket and python 3 must be installed  | interactsh-server -smb                            |
-| debug      | Use interactsh in debug mode                                 | interactsh-server -debug                          |
+| debug      | Run interactsh in debug mode                                 | interactsh-server -debug                          |
 
 
 A hosted instance of **interactsh-server** is available at https://interactsh.com
