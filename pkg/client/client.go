@@ -11,6 +11,7 @@ import (
 	"encoding/base64"
 	"encoding/binary"
 	"encoding/pem"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -153,6 +154,26 @@ func (c *Client) getInteractions(callback InteractionCallback) error {
 		}
 		callback(interaction)
 	}
+
+	for _, plaintext := range response.Extra {
+		interaction := &server.Interaction{}
+		if err := jsoniter.UnmarshalFromString(plaintext, interaction); err != nil {
+			gologger.Error().Msgf("Could not unmarshal interaction data interaction: %v\n", err)
+			continue
+		}
+		callback(interaction)
+	}
+
+	// handle root-tld data if any
+	for _, data := range response.TLDData {
+		interaction := &server.Interaction{}
+		if err := jsoniter.UnmarshalFromString(data, interaction); err != nil {
+			gologger.Error().Msgf("Could not unmarshal interaction data interaction: %v\n", err)
+			continue
+		}
+		callback(interaction)
+	}
+
 	return nil
 }
 
@@ -167,6 +188,7 @@ func (c *Client) Close() error {
 	if !c.persistentSession {
 		register := server.DeregisterRequest{
 			CorrelationID: c.correlationID,
+			SecretKey:     c.secretKey,
 		}
 		data, err := jsoniter.Marshal(register)
 		if err != nil {
@@ -253,23 +275,35 @@ func (c *Client) generateRSAKeyPair() error {
 		return errors.Wrap(err, "could not make register request")
 	}
 	if resp.StatusCode != 200 {
-		return errors.Wrap(err, "could not register to server")
+		return errors.New("could not register to server")
+	}
+	response := make(map[string]interface{})
+	if jsonErr := jsoniter.NewDecoder(resp.Body).Decode(&response); jsonErr != nil {
+		return errors.Wrap(jsonErr, "could not register to server")
+	}
+	message, ok := response["message"]
+	if !ok {
+		return errors.New("could not get register response")
+	}
+	if message.(string) != "registration successful" {
+		return fmt.Errorf("could not get register response: %s", message.(string))
 	}
 	return nil
 }
 
-// URL returns a new URL that can be be used for external interaction requests.
+// URL returns a new URL that can be used for external interaction requests.
 func (c *Client) URL() string {
 	random := make([]byte, 8)
 	i := atomic.AddUint32(&objectIDCounter, 1)
 	binary.BigEndian.PutUint32(random[0:4], uint32(time.Now().Unix()))
 	binary.BigEndian.PutUint32(random[4:8], i)
+	randomData := zbase32.StdEncoding.EncodeToString(random)
 
 	builder := &strings.Builder{}
+	builder.Grow(len(c.correlationID) + len(randomData) + len(c.serverURL.Host) + 1)
 	builder.WriteString(c.correlationID)
-	builder.WriteString(zbase32.StdEncoding.EncodeToString(random))
+	builder.WriteString(randomData)
 	builder.WriteString(".")
-	builder.WriteString("")
 	builder.WriteString(c.serverURL.Host)
 	URL := builder.String()
 	return URL
