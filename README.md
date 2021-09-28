@@ -174,7 +174,7 @@ A hosted instance of **interactsh-web** client is available at https://app.inter
 
 ## Interactsh Docker Client
 
-Interactsh client includes a [Docker image](https://hub.docker.com/r/projectdiscovery/interactsh-client) that is ready to run and can be used in the following way:
+A [Docker image](https://hub.docker.com/r/projectdiscovery/interactsh-client) is also provided with interactsh client that is ready to run and can be used in the following way:
 
 ```sh
 docker run projectdiscovery/interactsh-client:latest
