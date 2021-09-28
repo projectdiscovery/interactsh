@@ -3,6 +3,7 @@ package server
 import (
 	"bytes"
 	"fmt"
+	"io"
 	"os"
 	"strings"
 	"time"
@@ -10,6 +11,7 @@ import (
 	jsoniter "github.com/json-iterator/go"
 	"github.com/projectdiscovery/gologger"
 	"github.com/projectdiscovery/interactsh/pkg/server/acme"
+	"goftp.io/server/v2"
 	ftpserver "goftp.io/server/v2"
 	"goftp.io/server/v2/driver/file"
 )
@@ -38,9 +40,11 @@ func NewFTPServer(options *Options) (*FTPServer, error) {
 		return nil, err
 	}
 
+	nopDriver := NewNopDriver(driver)
+
 	opt := &ftpserver.Options{
 		Name:   "interactsh-ftp",
-		Driver: driver,
+		Driver: nopDriver,
 		Port:   21,
 		Perm:   ftpserver.NewSimplePerm("root", "root"),
 		Logger: server,
@@ -228,4 +232,44 @@ type NopAuth struct{}
 
 func (a *NopAuth) CheckPasswd(ctx *ftpserver.Context, name, pass string) (bool, error) {
 	return true, nil
+}
+
+type NopDriver struct {
+	driver server.Driver
+}
+
+func NewNopDriver(driver server.Driver) *NopDriver {
+	return &NopDriver{driver: driver}
+}
+
+func (n *NopDriver) Stat(c *ftpserver.Context, s string) (os.FileInfo, error) {
+	return n.driver.Stat(c, s)
+}
+
+func (n *NopDriver) ListDir(c *ftpserver.Context, s string, f func(os.FileInfo) error) error {
+	return n.driver.ListDir(c, s, f)
+}
+
+func (n *NopDriver) DeleteDir(c *ftpserver.Context, s string) error {
+	return nil
+}
+
+func (n *NopDriver) DeleteFile(c *ftpserver.Context, s string) error {
+	return nil
+}
+
+func (n *NopDriver) Rename(c *ftpserver.Context, s1 string, s2 string) error {
+	return nil
+}
+
+func (n *NopDriver) MakeDir(c *ftpserver.Context, s string) error {
+	return nil
+}
+
+func (n *NopDriver) GetFile(c *ftpserver.Context, s1 string, k int64) (int64, io.ReadCloser, error) {
+	return n.driver.GetFile(c, s1, k)
+}
+
+func (n *NopDriver) PutFile(c *ftpserver.Context, s string, r io.Reader, k int64) (int64, error) {
+	return k, nil
 }
