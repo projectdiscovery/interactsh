@@ -220,7 +220,7 @@ Interactsh can be used with OWASP ZAP via the [OAST add-on for ZAP](https://www.
 
 # Interactsh Server
 
-Interactsh server runs multiple web services and capture all the incoming requests, to host interactsh-server, you are required to have followings:
+Interactsh server runs multiple services and captures all the incoming requests. To host an instance of interactsh-server, you are required to have the follow requirements:
 
 1. Domain name with custom **host names** and **nameservers**.
 2. Basic VPS running 24/7 in the background.
@@ -276,7 +276,7 @@ Following is an example of a successful installation and operation of a self-hos
 
 A number of needed flags are configured automatically to run interactsh server with default settings. For example, the `hostmaster` flag with a valid email address such as `admin@domain.com` and the `ip` and `listen-ip` flags with the public IP address of the VPS.
 
-A hosted instance of **interactsh-server** used as default with interactsh-client is available at https://interactsh.com
+A hosted instance of **interactsh-server** which is used as default with interactsh-client is available at https://interactsh.com
 
 </td>
 </table>
@@ -321,7 +321,7 @@ interactsh-server -domain domain.com -root-tld
 
 ### Nuclei - OOB Scan
 
-[Nuclei](https://github.com/projectdiscovery/nuclei) is fast and customizable vulnerability scanner utilize **Interactsh** for automated payload generation and detection of out of band based security vulnerabilities.
+[Nuclei](https://github.com/projectdiscovery/nuclei) vulnerability scanner can also utilize **Interactsh** for automated payload generation and detection of Out of band based security vulnerabilities.
 
 See [Nuclei + Interactsh](https://blog.projectdiscovery.io/nuclei-interactsh-integration/) Integration blog and [guide document](https://nuclei.projectdiscovery.io/templating-guide/interactsh/) for more info.
 
