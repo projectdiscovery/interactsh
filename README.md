@@ -273,8 +273,15 @@ Following is an example of a successful installation and operation of a self-hos
 
 ![interactsh-server](https://user-images.githubusercontent.com/8293321/134819391-51137c77-61d5-4ae8-9504-947dd444d863.png)
 
+
+A number of needed flags are configured automatically to run interactsh server with default settings. For example, the `hostmaster` flag with a valid email address such as `admin@domain.com` and the `ip` and `listen-ip` flags with the public IP address of the VPS.
+
+A hosted instance of **interactsh-server** used as default with interactsh-client is available at https://interactsh.com
+
 </td>
 </table>
+
+# Usage
 
 ```sh
 interactsh-server -h
@@ -298,8 +305,17 @@ This will display help for the tool. Here are all the switches it supports.
 | debug      | Run interactsh in debug mode                                 | interactsh-server -debug                          |
 
 
-A hosted instance of **interactsh-server** is available at https://interactsh.com
+There are more useful capabilities supported by Interactsh server that are not enabled by default and are intended to be used only by self-hosted servers. These feature are **not** available with hosted server at https://interactsh.com
 
+`root-tld` flag enables wildcard (`*.domain.com`) interaction support with your self-hosted server and includes implicit authentication protection via the `auth` flag if the `token` flag is omitted.
+
+```bash
+interactsh-server -domain domain.com -root-tld
+
+2021/09/28 12:18:24 Client Token: 4c17895a460123ea439abbad64e0e02c2c7be660464d75299f76e1a972ac4e56
+2021/09/28 12:18:24 TLS certificates are not expiring, continue!
+2021/09/28 12:18:24 Listening on DNS, SMTP and HTTP ports
+```
 
 # Interactsh Integration
 
