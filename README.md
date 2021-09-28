@@ -293,13 +293,13 @@ This will display help for the tool. Here are all the switches it supports.
 | ---------- | ------------------------------------------------------------ | ------------------------------------------------- |
 | auth       | Enable authentication to server using random generated token | interactsh-server -auth                           |
 | token      | Enable authentication to server using given token            | interactsh-server -token MY_TOKEN                 |
-| domain     | Domain to use for interactsh server                          | interactsh-server -server domain.com             |
-| eviction   | Number of days to persist interactions for (default 30)      | interactsh-server -domain domain.com             |
-| hostmaster | Hostmaster email to use for interactsh server                | interactsh-server -hostmaster admin@domain.com   |
+| domain     | Domain to use for interactsh server                          | interactsh-server -domain domain.com              |
+| eviction   | Number of days to persist interactions for (default 30)      | interactsh-server -eviction 30                    |
+| hostmaster | Hostmaster email to use for interactsh server                | interactsh-server -hostmaster admin@domain.com    |
 | ip         | Public IP Address to use for interactsh server               | interactsh-server -ip XX.XX.XX.XX                 |
 | listen-ip  | Public IP Address to listen on                               | interactsh-server -listen-ip XX.XX.XX.XX          |
 | root-tld   | Enable wildcard/global interaction for *.domain.com          | interactsh-server -root-tld                       |
-| origin-url | Origin URL to send in ACAO Header                            | interactsh-server -origin-url https://domain.com |
+| origin-url | Origin URL to send in ACAO Header                            | interactsh-server -origin-url https://domain.com  |
 | responder  | Start a responder agent - docker must be installed           | interactsh-server -responder                      |
 | smb        | Start a smb agent - impacket and python 3 must be installed  | interactsh-server -smb                            |
 | debug      | Run interactsh in debug mode                                 | interactsh-server -debug                          |
