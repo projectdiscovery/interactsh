@@ -34,7 +34,7 @@ func main() {
 	flag.BoolVar(&smb, "smb", false, "Start a smb agent - impacket and python 3 must be installed")
 	flag.BoolVar(&options.Auth, "auth", false, "Enable authentication to server using random generated token")
 	flag.StringVar(&options.Token, "token", "", "Enable authentication to server using given token")
-	flag.StringVar(&options.OriginURL, "origin-url", "https://app.interachsh.com", "Origin URL to send in ACAO Header")
+	flag.StringVar(&options.OriginURL, "origin-url", "https://app.interactsh.com", "Origin URL to send in ACAO Header")
 	flag.BoolVar(&options.RootTLD, "root-tld", false, "Enable wildcard/global interaction for *.domain.com")
 	flag.Parse()
 
