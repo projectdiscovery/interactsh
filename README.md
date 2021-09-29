@@ -206,7 +206,7 @@ docker run projectdiscovery/interactsh-client:latest
 
 <img width="2032" alt="burp" src="https://user-images.githubusercontent.com/8293321/135176099-0e3fa01c-bdce-4f04-a94f-de0a34c7abf6.png">
 
-### OWASP ZAP Add-On
+## OWASP ZAP Add-On
 
 Interactsh can be used with OWASP ZAP via the [OAST add-on for ZAP](https://www.zaproxy.org/docs/desktop/addons/oast-support/). With ZAP's scripting capabilities, you can create powerful out-of-band scan rules that leverage Interactsh's features. A standalone script template has been provided as an example (it is added automatically when you install the add-on).
 
@@ -216,7 +216,7 @@ Interactsh can be used with OWASP ZAP via the [OAST add-on for ZAP](https://www.
 - OOB interactions will appear in the [OAST Tab](https://www.zaproxy.org/docs/desktop/addons/oast-support/tab/) and you can click on any of them to view the full request and response.
 - See the [OAST add-on documentation](https://www.zaproxy.org/docs/desktop/addons/oast-support/) for more info.
 
-![zap](https://user-images.githubusercontent.com/8293321/135176821-6c2e9859-7f06-4334-9e69-06fd21be3219.png)
+![zap](https://user-images.githubusercontent.com/16446369/135211920-ed24ba5a-5547-4cd4-b6d8-656af9592c20.png)
 
 -------
 
