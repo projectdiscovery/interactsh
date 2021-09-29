@@ -29,7 +29,7 @@
 - DNS/HTTP/HTTPS/SMTP Interaction support
 - NTLM/SMB Listener support (self-hosted)
 - Wildcard Interaction support (self-hosted)
-- CLI / Web / Burp / ZAP Client support
+- CLI / Web / Burp / ZAP / Docker Client support
 - AES encryption with zero logging
 - SELF Hosted Interactsh server support
 - Automatic ACME based Wildcard TLS w/ Auto Renewal
