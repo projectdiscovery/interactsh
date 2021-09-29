@@ -3,57 +3,32 @@ before:
     - go mod tidy
 
 builds:
-  - id: interactsh-client
-    binary: interactsh-client
-    main: cmd/interactsh-client/main.go
-    goos:
-      - linux
-      - windows
-      - darwin
-    goarch:
-      - amd64
-      - 386
-      - arm
-      - arm64
+- env:
+  - CGO_ENABLED=0
+  goos:
+    - windows
+    - linux
+    - darwin
+  goarch:
+    - amd64
+    - 386
+    - arm
+    - arm64
 
-ignore:
-  - goos: darwin
-    goarch: '386'
-  - goos: windows
-    goarch: 'arm'
-  - goos: windows
-    goarch: 'arm64'
+  ignore:
+    - goos: darwin
+      goarch: '386'
+    - goos: windows
+      goarch: 'arm'
+    - goos: windows
+      goarch: 'arm64'
 
-  - id: interactsh-server
-    binary: interactsh-server
-    main: cmd/interactsh-server/main.go
-    goos:
-      - linux
-      - windows
-      - darwin
-    goarch:
-      - amd64
-      - 386
-      - arm
-      - arm64
-
-ignore:
-  - goos: darwin
-    goarch: '386'
-  - goos: windows
-    goarch: 'arm'
-  - goos: windows
-    goarch: 'arm64'
+  binary: 'interactsh-client'
+  main: cmd/interactsh-client/main.go
 
 archives:
-  - id: interactsh-client
-    format: zip
-    replacements:
-      darwin: macOS
-
-  - id: interactsh-server
-    format: zip
-    replacements:
+- format: zip
+  replacements:
       darwin: macOS
 
 checksum:
