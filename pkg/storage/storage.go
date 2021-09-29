@@ -172,6 +172,7 @@ func (s *Storage) AddInteractionWithId(id string, data []byte) error {
 		return errors.New("invalid correlation-id cache value found")
 	}
 
+	// Gzip compress to save memory for storage
 	buffer := &bytes.Buffer{}
 
 	gz := zippers.Get().(*zlib.Writer)
