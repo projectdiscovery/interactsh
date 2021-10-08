@@ -170,7 +170,7 @@ This will display help for the tool. Here are all the switches it supports.
 
 A hosted instance of **interactsh-web** client is available at https://app.interactsh.com
 
-<img width="2032" alt="interactsh-web" src="https://user-images.githubusercontent.com/8293321/135175927-07580994-32eb-4c06-8ca6-7ac9ea84776b.png">
+<img width="2032" alt="interactsh-web" src="https://user-images.githubusercontent.com/8293321/136621531-d72c9ece-0076-4db1-98c9-21dcba4ba09c.png">
 
 ## Interactsh Docker Client
 
