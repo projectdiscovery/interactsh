@@ -16,7 +16,9 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
+	"net/http"
 	"os"
+	"path"
 	"strings"
 	"sync"
 	"time"
@@ -24,17 +26,22 @@ import (
 	"github.com/eggsampler/acme/v3"
 	"github.com/jasonlvhit/gocron"
 	"github.com/pkg/errors"
+	"github.com/projectdiscovery/fastdialer/fastdialer"
+	"github.com/projectdiscovery/fileutil"
 )
 
 // TXTUpdateCallback is called when a TXT value is to be updated
 type TXTUpdateCallback func(value string)
 
-const certFile = "cacert.crt"
-const keyFile = "cacert.key"
-
 // Generate generates new certificates based on provided info
-func Generate(email, domains string, txtCallback TXTUpdateCallback) error {
-	client, err := acme.NewClient(acme.LetsEncryptProduction)
+func Generate(certFile, keyFile, email, domains string, txtCallback TXTUpdateCallback) error {
+	httpclient, dialer, err := getHTTPClient()
+	if err != nil {
+		return err
+	}
+	defer dialer.Close()
+
+	client, err := acme.NewClient(acme.LetsEncryptProduction, acme.WithHTTPClient(httpclient))
 	if err != nil {
 		return errors.Wrap(err, "could not create acme client")
 	}
@@ -86,7 +93,7 @@ func Generate(email, domains string, txtCallback TXTUpdateCallback) error {
 		log.Printf("Updating challenge for authorization %s: %s\n", auth.Identifier.Value, chal.URL)
 		chal, err = client.UpdateChallenge(account, chal)
 		if err != nil {
-			return fmt.Errorf("Error updating authorization %s challenge: %v", auth.Identifier.Value, err)
+			return fmt.Errorf("error updating authorization %s challenge: %v", auth.Identifier.Value, err)
 		}
 		log.Printf("Challenge updated\n")
 	}
@@ -173,13 +180,23 @@ type CertRefreshFunc func(email, domains string, txtCallback TXTUpdateCallback) 
 
 // NewAutomaticTLS returns a new auto-tls ACME DNS based client
 func NewAutomaticTLS(email, domains string, txtCallback TXTUpdateCallback) (*AutoTLS, error) {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return nil, errors.Wrap(err, "could not get home directory")
+	}
+	config := path.Join(home, ".config", "interactsh")
+	_ = os.MkdirAll(config, 0777)
+
+	certFile := path.Join(config, "cert.crt")
+	keyFile := path.Join(config, "cert.key")
+
 	result := &AutoTLS{
 		certPath: certFile,
 		keyPath:  keyFile,
 	}
-	certNotExists := !exists(certFile) || !exists(keyFile)
+	certNotExists := !fileutil.FileExists(certFile) || !fileutil.FileExists(keyFile)
 	if certNotExists {
-		if err := Generate(email, domains, txtCallback); err != nil {
+		if err := Generate(certFile, keyFile, email, domains, txtCallback); err != nil {
 			return nil, errors.Wrap(err, "could not generate new certs")
 		}
 	}
@@ -205,7 +222,7 @@ func NewAutomaticTLS(email, domains string, txtCallback TXTUpdateCallback) (*Aut
 			}
 		}
 		if toExpire {
-			if err := Generate(email, domains, txtCallback); err != nil {
+			if err := Generate(certFile, keyFile, email, domains, txtCallback); err != nil {
 				log.Printf("Could not check for ACME TLS updates: %s\n", err)
 			}
 			log.Printf("Received Update, reloading TLS certificate and key from %q and %q\n", certFile, keyFile)
@@ -242,12 +259,29 @@ func (kpr *AutoTLS) GetCertificateFunc() func(*tls.ClientHelloInfo) (*tls.Certif
 	}
 }
 
-// exists reports whether the named file or directory exists.
-func exists(name string) bool {
-	if _, err := os.Stat(name); err != nil {
-		if os.IsNotExist(err) {
-			return false
-		}
+func getFastDialer() (*fastdialer.Dialer, error) {
+	fastdialerOpts := fastdialer.DefaultOptions
+	fastdialerOpts.EnableFallback = true
+	fastdialerOpts.WithDialerHistory = false
+	fastdialerOpts.CacheType = fastdialer.Memory
+	fastdialerOpts.WithCleanup = false
+	return fastdialer.NewDialer(fastdialerOpts)
+}
+
+func getHTTPClient() (*http.Client, *fastdialer.Dialer, error) {
+	dialer, err := getFastDialer()
+	if err != nil {
+		return nil, nil, err
 	}
-	return true
+	transport := &http.Transport{
+		DialContext:         dialer.Dial,
+		MaxIdleConnsPerHost: -1,
+		TLSClientConfig: &tls.Config{
+			InsecureSkipVerify: true,
+		},
+		DisableKeepAlives: true,
+	}
+
+	client := &http.Client{Transport: transport}
+	return client, dialer, nil
 }
