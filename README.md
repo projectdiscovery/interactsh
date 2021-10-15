@@ -33,6 +33,7 @@
 - AES encryption with zero logging
 - SELF Hosted Interactsh server support
 - Automatic ACME based Wildcard TLS w/ Auto Renewal
+- DNS Entries for Cloud Metadata service
 
 # Interactsh Client
 
@@ -327,6 +328,25 @@ interactsh-server -domain domain.com -root-tld
 [Nuclei](https://github.com/projectdiscovery/nuclei) vulnerability scanner can also utilize **Interactsh** for automated payload generation and detection of Out of band based security vulnerabilities.
 
 See [Nuclei + Interactsh](https://blog.projectdiscovery.io/nuclei-interactsh-integration/) Integration blog and [guide document](https://nuclei.projectdiscovery.io/templating-guide/interactsh/) for more info.
+
+# Cloud Metadata
+
+Interactsh server supports DNS records for cloud metadata services, which is useful for testing SSRF-related vulnerabilities.
+
+Currently supported metadata services:
+
+- [AWS](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-instance-metadata.html)
+- [Alibaba](https://www.alibabacloud.com/blog/alibaba-cloud-ecs-metadata-user-data-and-dynamic-data_594351)
+
+Example:
+
+aws.`{interactsh-server}` points to **169.254.169.254**
+
+**aws.interactsh.com** points to 169.254.169.254
+
+alibaba.`{interactsh-server}` points to **100.100.100.200**
+
+**alibaba.interactsh.com** points to 169.254.169.254
 
 -----
 
