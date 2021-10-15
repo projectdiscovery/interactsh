@@ -346,7 +346,7 @@ aws.`{interactsh-server}` points to **169.254.169.254**
 
 alibaba.`{interactsh-server}` points to **100.100.100.200**
 
-**alibaba.interactsh.com** points to 169.254.169.254
+**alibaba.interactsh.com** points to 100.100.100.200
 
 -----
 
