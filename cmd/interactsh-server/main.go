@@ -1,11 +1,14 @@
 package main
 
 import (
+	"context"
 	"crypto/rand"
 	"encoding/hex"
 	"flag"
 	"fmt"
+	"io/ioutil"
 	"log"
+	"net/http"
 	"os"
 	"os/signal"
 	"strings"
@@ -38,10 +41,15 @@ func main() {
 	flag.BoolVar(&nebula.Unsafe, "unsafe", false, "Enable nebula's unsafe scripts")
 	flag.BoolVar(&options.Auth, "auth", false, "Enable authentication to server using random generated token")
 	flag.StringVar(&options.Token, "token", "", "Enable authentication to server using given token")
-	flag.StringVar(&options.OriginURL, "origin-url", "https://app.interachsh.com", "Origin URL to send in ACAO Header")
+	flag.StringVar(&options.OriginURL, "origin-url", "https://app.interactsh.com", "Origin URL to send in ACAO Header")
 	flag.BoolVar(&options.RootTLD, "root-tld", false, "Enable wildcard/global interaction for *.domain.com")
 	flag.Parse()
 
+	if options.IPAddress == "" && options.ListenIP == "0.0.0.0" {
+		ip := getPublicIP()
+		options.IPAddress = ip
+		options.ListenIP = ip
+	}
 	if options.Hostmaster == "" {
 		options.Hostmaster = fmt.Sprintf("admin@%s", options.Domain)
 	}
@@ -153,3 +161,23 @@ func shouldEnableAuth(options *server.Options, smb, responder bool) bool {
 type noopWriter struct{}
 
 func (n *noopWriter) Write(data []byte, level levels.Level) {}
+
+func getPublicIP() string {
+	url := "https://api.ipify.org?format=text" // we are using a pulib IP API, we're using ipify here, below are some others
+
+	req, err := http.NewRequestWithContext(context.Background(), "GET", url, nil)
+	if err != nil {
+		return ""
+	}
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return ""
+	}
+	defer resp.Body.Close()
+
+	ip, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return ""
+	}
+	return string(ip)
+}

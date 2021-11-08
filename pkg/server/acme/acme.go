@@ -17,6 +17,8 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
+	"os"
+	"path"
 	"strings"
 	"sync"
 	"time"
@@ -31,11 +33,8 @@ import (
 // TXTUpdateCallback is called when a TXT value is to be updated
 type TXTUpdateCallback func(value string)
 
-const certFile = "cacert.crt"
-const keyFile = "cacert.key"
-
 // Generate generates new certificates based on provided info
-func Generate(email, domains string, txtCallback TXTUpdateCallback) error {
+func Generate(certFile, keyFile, email, domains string, txtCallback TXTUpdateCallback) error {
 	httpclient, dialer, err := getHTTPClient()
 	if err != nil {
 		return err
@@ -181,13 +180,23 @@ type CertRefreshFunc func(email, domains string, txtCallback TXTUpdateCallback) 
 
 // NewAutomaticTLS returns a new auto-tls ACME DNS based client
 func NewAutomaticTLS(email, domains string, txtCallback TXTUpdateCallback) (*AutoTLS, error) {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return nil, errors.Wrap(err, "could not get home directory")
+	}
+	config := path.Join(home, ".config", "interactsh")
+	_ = os.MkdirAll(config, 0777)
+
+	certFile := path.Join(config, "cert.crt")
+	keyFile := path.Join(config, "cert.key")
+
 	result := &AutoTLS{
 		certPath: certFile,
 		keyPath:  keyFile,
 	}
 	certNotExists := !fileutil.FileExists(certFile) || !fileutil.FileExists(keyFile)
 	if certNotExists {
-		if err := Generate(email, domains, txtCallback); err != nil {
+		if err := Generate(certFile, keyFile, email, domains, txtCallback); err != nil {
 			return nil, errors.Wrap(err, "could not generate new certs")
 		}
 	}
@@ -213,7 +222,7 @@ func NewAutomaticTLS(email, domains string, txtCallback TXTUpdateCallback) (*Aut
 			}
 		}
 		if toExpire {
-			if err := Generate(email, domains, txtCallback); err != nil {
+			if err := Generate(certFile, keyFile, email, domains, txtCallback); err != nil {
 				log.Printf("Could not check for ACME TLS updates: %s\n", err)
 			}
 			log.Printf("Received Update, reloading TLS certificate and key from %q and %q\n", certFile, keyFile)
