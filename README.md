@@ -33,6 +33,7 @@
 - AES encryption with zero logging
 - SELF Hosted Interactsh server support
 - Automatic ACME based Wildcard TLS w/ Auto Renewal
+- DNS Entries for Cloud Metadata service
 
 # Interactsh Client
 
@@ -170,7 +171,7 @@ This will display help for the tool. Here are all the switches it supports.
 
 A hosted instance of **interactsh-web** client is available at https://app.interactsh.com
 
-<img width="2032" alt="interactsh-web" src="https://user-images.githubusercontent.com/8293321/135175927-07580994-32eb-4c06-8ca6-7ac9ea84776b.png">
+<img width="2032" alt="interactsh-web" src="https://user-images.githubusercontent.com/8293321/136621531-d72c9ece-0076-4db1-98c9-21dcba4ba09c.png">
 
 ## Interactsh Docker Client
 
@@ -327,6 +328,25 @@ interactsh-server -domain domain.com -root-tld
 [Nuclei](https://github.com/projectdiscovery/nuclei) vulnerability scanner can also utilize **Interactsh** for automated payload generation and detection of Out of band based security vulnerabilities.
 
 See [Nuclei + Interactsh](https://blog.projectdiscovery.io/nuclei-interactsh-integration/) Integration blog and [guide document](https://nuclei.projectdiscovery.io/templating-guide/interactsh/) for more info.
+
+# Cloud Metadata
+
+Interactsh server supports DNS records for cloud metadata services, which is useful for testing SSRF-related vulnerabilities.
+
+Currently supported metadata services:
+
+- [AWS](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-instance-metadata.html)
+- [Alibaba](https://www.alibabacloud.com/blog/alibaba-cloud-ecs-metadata-user-data-and-dynamic-data_594351)
+
+Example:
+
+aws.`{interactsh-server}` points to **169.254.169.254**
+
+**aws.interactsh.com** points to 169.254.169.254
+
+alibaba.`{interactsh-server}` points to **100.100.100.200**
+
+**alibaba.interactsh.com** points to 100.100.100.200
 
 -----
 
