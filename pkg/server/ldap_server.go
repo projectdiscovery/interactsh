@@ -1,10 +1,13 @@
 package server
 
 import (
-	"log"
+	"bytes"
+	"fmt"
+	"strings"
+	"time"
 
 	ldap "github.com/Mzack9999/ldapserver"
-	"github.com/lor00x/goldap/message"
+	jsoniter "github.com/json-iterator/go"
 	"github.com/projectdiscovery/gologger"
 )
 
@@ -21,6 +24,7 @@ type LDAPServer struct {
 // NewLDAPServer returns a new LDAP server.
 func NewLDAPServer(options *Options) (*LDAPServer, error) {
 	ldapserver := &LDAPServer{options: options}
+	ldap.Logger = ldapserver
 	routes := ldap.NewRouteMux()
 	routes.Bind(ldapserver.defaultHandler)
 	server := ldap.NewServer()
@@ -36,8 +40,9 @@ func NewLDAPServer(options *Options) (*LDAPServer, error) {
 // ListenAndServe listens on ldap ports for the server.
 func (h *LDAPServer) ListenAndServe() {
 	defer func() {
+		// recover from panic within the third party library
 		if err := recover(); err != nil {
-			log.Println("idiot panic occurred:", err)
+			gologger.Error().Msgf("%s\n", err)
 		}
 	}()
 	if err := h.server.ListenAndServe(h.options.ListenIP + ":10389"); err != nil {
@@ -47,12 +52,64 @@ func (h *LDAPServer) ListenAndServe() {
 
 // defaultHandler is a handler for default collaborator requests
 func (h *LDAPServer) defaultHandler(w ldap.ResponseWriter, m *ldap.Message) {
-	switch m.ProtocolOp().(type) {
-	case message.BindRequest:
-		r := m.GetBindRequest()
-		gologger.Debug().Msgf("New LDAP request: %s %s %s\n", m.Client.Addr(), r.Name(), r.Authentication())
-		w.Write(ldap.NewBindResponse(ldap.LDAPResultSuccess))
-	default:
-		// ignore
+	w.Write(ldap.NewBindResponse(ldap.LDAPResultSuccess))
+}
+
+func (h *LDAPServer) Close() error {
+	return h.server.Listener.Close()
+}
+
+func (ldapServer *LDAPServer) Fatal(v ...interface{}) {
+	ldapServer.handleLog("", v...)
+}
+func (ldapServer *LDAPServer) Fatalf(format string, v ...interface{}) {
+	ldapServer.handleLog(format, v...)
+}
+func (ldapServer *LDAPServer) Fatalln(v ...interface{}) {
+	ldapServer.handleLog("", v...)
+}
+func (ldapServer *LDAPServer) Panic(v ...interface{}) {
+	ldapServer.handleLog("", v...)
+}
+func (ldapServer *LDAPServer) Panicf(format string, v ...interface{}) {
+	ldapServer.handleLog(format, v...)
+}
+func (ldapServer *LDAPServer) Panicln(v ...interface{}) {
+	ldapServer.handleLog("", v...)
+}
+func (ldapServer *LDAPServer) Print(v ...interface{}) {
+	ldapServer.handleLog("", v...)
+}
+func (ldapServer *LDAPServer) Printf(format string, v ...interface{}) {
+	ldapServer.handleLog(format, v...)
+}
+func (ldapServer *LDAPServer) Println(v ...interface{}) {
+	ldapServer.handleLog("", v...)
+}
+
+func (ldapServer *LDAPServer) handleLog(format string, v ...interface{}) {
+	var data strings.Builder
+	if format != "" {
+		data.WriteString(fmt.Sprintf(format, v...))
+	} else {
+		for _, vv := range v {
+			data.WriteString(fmt.Sprint(vv))
+		}
+	}
+
+	// Correlation id doesn't apply here, we skip encryption
+	interaction := &Interaction{
+		Protocol:   "ldap",
+		RawRequest: data.String(),
+		Timestamp:  time.Now(),
+	}
+	buffer := &bytes.Buffer{}
+	if err := jsoniter.NewEncoder(buffer).Encode(interaction); err != nil {
+		gologger.Warning().Msgf("Could not encode ldap interaction: %s\n", err)
+	} else {
+		gologger.Debug().Msgf("LDAP Interaction: \n%s\n", buffer.String())
+		if err := ldapServer.options.Storage.AddInteractionWithId(ldapServer.options.Token, buffer.Bytes()); err != nil {
+			gologger.Warning().Msgf("Could not store ldap interaction: %s\n", err)
+		}
 	}
 }

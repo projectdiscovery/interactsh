@@ -65,7 +65,7 @@ func main() {
 	}
 
 	// Requires auth if token is specified or enables it automatically for responder and smb options
-	if options.Token != "" || responder || smb || ftp {
+	if options.Token != "" || responder || smb || ftp || ldap {
 		options.Auth = true
 	}
 
@@ -127,12 +127,16 @@ func main() {
 	}
 	go smtpServer.ListenAndServe(autoTLS)
 
+	listeningOnMessage := []string{"DNS", "SMTP", "HTTP"}
+
 	if ldap {
 		ldapServer, err := server.NewLDAPServer(options)
 		if err != nil {
 			gologger.Fatal().Msgf("Could not create LDAP server")
 		}
 		go ldapServer.ListenAndServe()
+		defer ldapServer.Close()
+		listeningOnMessage = append(listeningOnMessage, "LDAP")
 	}
 
 	if ftp {
@@ -141,6 +145,7 @@ func main() {
 			gologger.Fatal().Msgf("Could not create FTP server")
 		}
 		go ftpServer.ListenAndServe(autoTLS) //nolint
+		listeningOnMessage = append(listeningOnMessage, "FTP")
 	}
 
 	if responder {
@@ -150,6 +155,7 @@ func main() {
 		}
 		go responderServer.ListenAndServe() //nolint
 		defer responderServer.Close()
+		listeningOnMessage = append(listeningOnMessage, "RESPONDER")
 	}
 
 	if smb {
@@ -159,9 +165,10 @@ func main() {
 		}
 		go smbServer.ListenAndServe() //nolint
 		defer smbServer.Close()
+		listeningOnMessage = append(listeningOnMessage, "SMB")
 	}
 
-	log.Printf("Listening on DNS, SMTP and HTTP ports\n")
+	log.Printf("Listening on ports: %s\n", strings.Join(listeningOnMessage, ", "))
 
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt)
