@@ -60,37 +60,38 @@ func (h *LDAPServer) Close() error {
 }
 
 func (ldapServer *LDAPServer) Fatal(v ...interface{}) {
-	ldapServer.handleLog("", v...) //nolint
+	//nolint
+	ldapServer.handleLog("%v", v...) //nolint
 }
 func (ldapServer *LDAPServer) Fatalf(format string, v ...interface{}) {
 	ldapServer.handleLog(format, v...)
 }
 func (ldapServer *LDAPServer) Fatalln(v ...interface{}) {
-	ldapServer.handleLog("", v...) //nolint
+	ldapServer.handleLog("%v", v...) //nolint
 }
 func (ldapServer *LDAPServer) Panic(v ...interface{}) {
-	ldapServer.handleLog("", v...) //nolint
+	ldapServer.handleLog("%v", v...) //nolint
 }
 func (ldapServer *LDAPServer) Panicf(format string, v ...interface{}) {
 	ldapServer.handleLog(format, v...)
 }
 func (ldapServer *LDAPServer) Panicln(v ...interface{}) {
-	ldapServer.handleLog("", v...) //nolint
+	ldapServer.handleLog("%v", v...) //nolint
 }
 func (ldapServer *LDAPServer) Print(v ...interface{}) {
-	ldapServer.handleLog("", v...) //nolint
+	ldapServer.handleLog("%v", v...) //nolint
 }
 func (ldapServer *LDAPServer) Printf(format string, v ...interface{}) {
 	ldapServer.handleLog(format, v...)
 }
 func (ldapServer *LDAPServer) Println(v ...interface{}) {
-	ldapServer.handleLog("", v...) //nolint
+	ldapServer.handleLog("%v", v...) //nolint
 }
 
-func (ldapServer *LDAPServer) handleLog(format string, v ...interface{}) {
+func (ldapServer *LDAPServer) handleLog(f string, v ...interface{}) {
 	var data strings.Builder
-	if format != "" {
-		data.WriteString(fmt.Sprintf(format, v...))
+	if f != "" {
+		data.WriteString(fmt.Sprintf(f, v...))
 	} else {
 		for _, vv := range v {
 			data.WriteString(fmt.Sprint(vv))
