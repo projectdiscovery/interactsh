@@ -60,31 +60,31 @@ func (h *LDAPServer) Close() error {
 }
 
 func (ldapServer *LDAPServer) Fatal(v ...interface{}) {
-	ldapServer.handleLog("", v...)
+	ldapServer.handleLog("", v...) //nolint
 }
 func (ldapServer *LDAPServer) Fatalf(format string, v ...interface{}) {
 	ldapServer.handleLog(format, v...)
 }
 func (ldapServer *LDAPServer) Fatalln(v ...interface{}) {
-	ldapServer.handleLog("", v...)
+	ldapServer.handleLog("", v...) //nolint
 }
 func (ldapServer *LDAPServer) Panic(v ...interface{}) {
-	ldapServer.handleLog("", v...)
+	ldapServer.handleLog("", v...) //nolint
 }
 func (ldapServer *LDAPServer) Panicf(format string, v ...interface{}) {
 	ldapServer.handleLog(format, v...)
 }
 func (ldapServer *LDAPServer) Panicln(v ...interface{}) {
-	ldapServer.handleLog("", v...)
+	ldapServer.handleLog("", v...) //nolint
 }
 func (ldapServer *LDAPServer) Print(v ...interface{}) {
-	ldapServer.handleLog("", v...)
+	ldapServer.handleLog("", v...) //nolint
 }
 func (ldapServer *LDAPServer) Printf(format string, v ...interface{}) {
 	ldapServer.handleLog(format, v...)
 }
 func (ldapServer *LDAPServer) Println(v ...interface{}) {
-	ldapServer.handleLog("", v...)
+	ldapServer.handleLog("", v...) //nolint
 }
 
 func (ldapServer *LDAPServer) handleLog(format string, v ...interface{}) {
