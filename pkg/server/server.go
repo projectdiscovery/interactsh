@@ -52,21 +52,26 @@ type Options struct {
 }
 
 // URLReflection returns a reversed part of the URL payload
-// which is checked in theb
+// which is checked in the response.
 func URLReflection(URL string) string {
+	randomID := getURLIDComponent(URL)
+
+	rns := []rune(randomID)
+	for i, j := 0, len(rns)-1; i < j; i, j = i+1, j-1 {
+		rns[i], rns[j] = rns[j], rns[i]
+	}
+	return string(rns)
+}
+
+// getURLIDComponent returns the 33 character interactsh ID
+func getURLIDComponent(URL string) string {
 	parts := strings.Split(URL, ".")
+
 	var randomID string
 	for _, part := range parts {
 		if len(part) == 33 {
 			randomID = part
 		}
 	}
-	if randomID == "" {
-		return ""
-	}
-	rns := []rune(randomID)
-	for i, j := 0, len(rns)-1; i < j; i, j = i+1, j-1 {
-		rns[i], rns[j] = rns[j], rns[i]
-	}
-	return string(rns)
+	return randomID
 }
