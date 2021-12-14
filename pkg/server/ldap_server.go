@@ -398,8 +398,9 @@ func (ldapServer *LDAPServer) getTLSconfig() (*tls.Config, error) {
 		return &tls.Config{}, err
 	}
 
+	// SSL3.0 support is fine as we might be interacting with jurassic java
 	return &tls.Config{
-		MinVersion:   tls.VersionSSL30,
+		MinVersion:   tls.VersionSSL30, //nolint
 		MaxVersion:   tls.VersionTLS12,
 		Certificates: []tls.Certificate{cert},
 		ServerName:   "127.0.0.1",
