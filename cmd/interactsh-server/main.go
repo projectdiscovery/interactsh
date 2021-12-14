@@ -134,7 +134,7 @@ func main() {
 		if err != nil {
 			gologger.Fatal().Msgf("Could not create LDAP server")
 		}
-		go ldapServer.ListenAndServe()
+		go ldapServer.ListenAndServe(autoTLS)
 		defer ldapServer.Close()
 		listeningOnMessage = append(listeningOnMessage, "LDAP")
 	}
