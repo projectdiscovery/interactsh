@@ -108,7 +108,8 @@ func main() {
 	if err != nil {
 		gologger.Fatal().Msgf("Could not create DNS server")
 	}
-	go dnsServer.ListenAndServe()
+	dnsAlive := make(chan bool)
+	go dnsServer.ListenAndServe(dnsAlive)
 
 	trimmedDomain := strings.TrimSuffix(options.Domain, ".")
 	autoTLS, err := acme.NewAutomaticTLS(options.Hostmaster, fmt.Sprintf("*.%s,%s", trimmedDomain, trimmedDomain), func(txt string) {
@@ -123,41 +124,86 @@ func main() {
 	if err != nil {
 		gologger.Fatal().Msgf("Could not create HTTP server")
 	}
-	go httpServer.ListenAndServe(autoTLS)
+	httpAlive := make(chan bool)
+	httpsAlive := make(chan bool)
+	go httpServer.ListenAndServe(autoTLS, httpAlive, httpsAlive)
 
 	smtpServer, err := server.NewSMTPServer(options)
 	if err != nil {
 		gologger.Fatal().Msgf("Could not create SMTP server")
 	}
-	go smtpServer.ListenAndServe(autoTLS)
+	smtpAlive := make(chan bool)
+	smtpsAlive := make(chan bool)
+	go smtpServer.ListenAndServe(autoTLS, smtpAlive, smtpsAlive)
 
+	ftpAlive := make(chan bool)
 	if ftp {
 		ftpServer, err := server.NewFTPServer(options)
 		if err != nil {
 			gologger.Fatal().Msgf("Could not create FTP server")
 		}
-		go ftpServer.ListenAndServe(autoTLS) //nolint
+		go ftpServer.ListenAndServe(autoTLS, ftpAlive) //nolint
 	}
 
+	responderAlive := make(chan bool)
 	if responder {
 		responderServer, err := server.NewResponderServer(options)
 		if err != nil {
 			gologger.Fatal().Msgf("Could not create SMB server")
 		}
-		go responderServer.ListenAndServe() //nolint
+		go responderServer.ListenAndServe(responderAlive) //nolint
 		defer responderServer.Close()
 	}
 
+	smbAlive := make(chan bool)
 	if smb {
 		smbServer, err := server.NewSMBServer(options)
 		if err != nil {
 			gologger.Fatal().Msgf("Could not create SMB server")
 		}
-		go smbServer.ListenAndServe() //nolint
+		go smbServer.ListenAndServe(smbAlive) //nolint
 		defer smbServer.Close()
 	}
 
-	gologger.Info().Msgf("Listening on DNS, SMTP and HTTP ports\n")
+	gologger.Info().Msgf("Listening with the following services:\n")
+	go func() {
+		for {
+			service := ""
+			port := 0
+			status := true
+			select {
+			case status = <-dnsAlive:
+				service = "DNS"
+				port = 53
+			case status = <-httpAlive:
+				service = "HTTP"
+				port = 80
+			case status = <-httpsAlive:
+				service = "HTTPS"
+				port = 443
+			case status = <-smtpAlive:
+				service = "SMTP"
+				port = 25
+			case status = <-smtpsAlive:
+				service = "SMTPS"
+				port = 465
+			case status = <-ftpAlive:
+				service = "FTP"
+				port = 21
+			case status = <-responderAlive:
+				service = "Responder"
+				port = 445
+			case status = <-smbAlive:
+				service = "SMB"
+				port = 445
+			}
+			if status {
+				gologger.Silent().Msgf("\t%s :%d", service, port)
+			} else {
+				gologger.Fatal().Msgf("The %s service has unexpectedly stopped", service)
+			}
+		}
+	}()
 
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt)

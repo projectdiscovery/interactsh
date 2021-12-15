@@ -41,7 +41,11 @@ func NewResponderServer(options *Options) (*ResponderServer, error) {
 }
 
 // ListenAndServe listens on various responder ports
-func (h *ResponderServer) ListenAndServe() error {
+func (h *ResponderServer) ListenAndServe(responderAlive chan bool) error {
+	responderAlive <- true
+	defer func() {
+		responderAlive <- false
+	}()
 	tmpFolder, err := ioutil.TempDir("", "")
 	if err != nil {
 		return err
