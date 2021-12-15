@@ -7,7 +7,6 @@ import (
 	"flag"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"os"
 	"os/signal"
@@ -66,8 +65,7 @@ func main() {
 
 	// responder and smb can't be active at the same time
 	if responder && smb {
-		fmt.Printf("responder and smb can't be active at the same time\n")
-		os.Exit(1)
+		gologger.Fatal().Msgf("responder and smb can't be active at the same time\n")
 	}
 
 	// Requires auth if token is specified or enables it automatically for responder and smb options
@@ -91,7 +89,7 @@ func main() {
 			gologger.Fatal().Msgf("Could not generate token\n")
 		}
 		options.Token = hex.EncodeToString(b)
-		log.Printf("Client Token: %s\n", options.Token)
+		gologger.Info().Msgf("Client Token: %s\n", options.Token)
 	}
 
 	store := storage.New(time.Duration(eviction) * time.Hour * 24)
@@ -159,7 +157,7 @@ func main() {
 		defer smbServer.Close()
 	}
 
-	log.Printf("Listening on DNS, SMTP and HTTP ports\n")
+	gologger.Info().Msgf("Listening on DNS, SMTP and HTTP ports\n")
 
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt)
