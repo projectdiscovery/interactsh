@@ -37,6 +37,20 @@ type Options struct {
 	IPAddress string
 	// ListenIP is the IP address to listen servers on
 	ListenIP string
+	// DomainPort is the port to listen DNS servers on
+	DomainPort int
+	// HttpPort is the port to listen HTTP server on
+	HttpPort int
+	// HttpsPort is the port to listen HTTPS server on
+	HttpsPort int
+	// SmbPort is the port to listen Smb server on
+	SmbPort int
+	// SmtpPort is the port to listen Smtp server on
+	SmtpPort int
+	// SmtpsPort is the port to listen Smtps server on
+	SmtpsPort int
+	// SmtpAutoTLSPort is the port to listen Smtp autoTLS server on
+	SmtpAutoTLSPort int
 	// Hostmaster is the hostmaster email for the server.
 	Hostmaster string
 	// Storage is a storage for interaction data storage

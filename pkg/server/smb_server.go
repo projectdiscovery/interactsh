@@ -2,6 +2,7 @@ package server
 
 import (
 	"bytes"
+	"fmt"
 	"io/ioutil"
 	"net"
 	"os"
@@ -48,7 +49,7 @@ func (h *SMBServer) ListenAndServe() error {
 	h.tmpFile = tmpFile.Name()
 	tmpFile.Close()
 	// execute smb_server.py - only works with ./interactsh-server
-	cmdLine := "python3 smb_server.py " + h.tmpFile
+	cmdLine := fmt.Sprintf("python3 smb_server.py %s %d", h.tmpFile, h.options.SmbPort)
 	args := strings.Fields(cmdLine)
 	h.cmd = exec.Command(args[0], args[1:]...)
 	err = h.cmd.Start()
