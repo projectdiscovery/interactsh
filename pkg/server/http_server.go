@@ -52,7 +52,7 @@ func NewHTTPServer(options *Options) (*HTTPServer, error) {
 }
 
 // ListenAndServe listens on http and/or https ports for the server.
-func (h *HTTPServer) ListenAndServe(autoTLS *acme.AutoTLS) {
+func (h *HTTPServer) ListenAndServe(autoTLS *acme.AutoTLS, httpAlive, httpsAlive chan bool) {
 	go func() {
 		if autoTLS == nil {
 			return
@@ -60,12 +60,16 @@ func (h *HTTPServer) ListenAndServe(autoTLS *acme.AutoTLS) {
 		h.tlsserver.TLSConfig = &tls.Config{}
 		h.tlsserver.TLSConfig.GetCertificate = autoTLS.GetCertificateFunc()
 
+		httpsAlive <- true
 		if err := h.tlsserver.ListenAndServeTLS("", ""); err != nil {
+			httpsAlive <- false
 			gologger.Error().Msgf("Could not serve http on tls: %s\n", err)
 		}
 	}()
 
+	httpAlive <- true
 	if err := h.nontlsserver.ListenAndServe(); err != nil {
+		httpAlive <- false
 		gologger.Error().Msgf("Could not serve http: %s\n", err)
 	}
 }

@@ -45,8 +45,10 @@ func NewDNSServer(options *Options) (*DNSServer, error) {
 }
 
 // ListenAndServe listens on dns ports for the server.
-func (h *DNSServer) ListenAndServe() {
+func (h *DNSServer) ListenAndServe(dnsAlive chan bool) {
+	dnsAlive <- true
 	if err := h.server.ListenAndServe(); err != nil {
+		dnsAlive <- false
 		gologger.Error().Msgf("Could not serve dns on port 53: %s\n", err)
 	}
 }

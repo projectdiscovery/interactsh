@@ -40,7 +40,11 @@ func NewSMBServer(options *Options) (*SMBServer, error) {
 }
 
 // ListenAndServe listens on smb port
-func (h *SMBServer) ListenAndServe() error {
+func (h *SMBServer) ListenAndServe(smbAlive chan bool) error {
+	smbAlive <- true
+	defer func() {
+		smbAlive <- false
+	}()
 	tmpFile, err := ioutil.TempFile("", "")
 	if err != nil {
 		return err

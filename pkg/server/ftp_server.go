@@ -63,8 +63,12 @@ func NewFTPServer(options *Options) (*FTPServer, error) {
 }
 
 // ListenAndServe listens on smtp and/or smtps ports for the server.
-func (h *FTPServer) ListenAndServe(autoTLS *acme.AutoTLS) error {
-	return h.ftpServer.ListenAndServe()
+func (h *FTPServer) ListenAndServe(autoTLS *acme.AutoTLS, ftpAlive chan bool) {
+	ftpAlive <- true
+	if err := h.ftpServer.ListenAndServe(); err != nil {
+		ftpAlive <- false
+		gologger.Error().Msgf("Could not serve ftp on port 21: %s\n", err)
+	}
 }
 
 func (h *FTPServer) Close() {
