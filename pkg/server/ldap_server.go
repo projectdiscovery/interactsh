@@ -108,17 +108,14 @@ func (ldapServer *LDAPServer) handleSearch(w ldap.ResponseWriter, m *ldap.Messag
 	res := ldap.NewSearchResultDoneResponse(ldap.LDAPResultSuccess)
 	w.Write(res)
 
-	// For CVE-2021-44228, an incoming request will be formatted like the path part of a URI, e.g.:
+	// BaseObject will be formatted like the path part of a URI, e.g.:
 	//   path/to/malicious.class
-	// If a user injects on this, their collab/interact url could be in any part of it
-	// What if it's encoded?
 	domain := strings.ReplaceAll(ldapServer.options.Domain, ".", "\\.")
-	// This will attempt to match the unique ID and the interact server's configured domain, e.g.:
+	// Regex pattern will attempt to match the unique ID and the interact server's configured domain, e.g.:
 	//   abcd1234.interact.sh
 	re, _ := regexp.Compile("(?:[a-z0-9\\-]+)\\." + domain)
 	match := re.FindString(string(r.BaseObject()))
 	if match != "" {
-		//if strings.Contains(string(r.BaseObject()), ldapServer.options.Domain) {
 		parts = strings.Split(match, ".")
 	}
 
