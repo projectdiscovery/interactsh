@@ -61,7 +61,7 @@ interactsh-client
         projectdiscovery.io
 
 [INF] Listing 1 payload for OOB Testing
-[INF] c23b2la0kl1krjcrdj10cndmnioyyyyyn.interactsh.com
+[INF] c23b2la0kl1krjcrdj10cndmnioyyyyyn.interact.sh
 
 [c23b2la0kl1krjcrdj10cndmnioyyyyyn] Received DNS interaction (A) from 172.253.226.100 at 2021-26-26 12:26
 [c23b2la0kl1krjcrdj10cndmnioyyyyyn] Received DNS interaction (AAAA) from 32.3.34.129 at 2021-26-26 12:26
@@ -85,7 +85,7 @@ interactsh-client -v -o interactsh-logs.txt
     projectdiscovery.io
 
 [INF] Listing 1 payload for OOB Testing
-[INF] c58bduhe008dovpvhvugcfemp9yyyyyyn.interactsh.com
+[INF] c58bduhe008dovpvhvugcfemp9yyyyyyn.interact.sh
 
 [c58bduhe008dovpvhvugcfemp9yyyyyyn] Received HTTP interaction from 103.22.142.211 at 2021-09-26 18:08:07
 ------------
@@ -93,12 +93,12 @@ HTTP Request
 ------------
 
 GET /favicon.ico HTTP/2.0
-Host: c58bduhe008dovpvhvugcfemp9yyyyyyn.interactsh.com
+Host: c58bduhe008dovpvhvugcfemp9yyyyyyn.interact.sh
 Accept: image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8
 Accept-Encoding: gzip, deflate, br
 Accept-Language: en-IN,en;q=0.9
 Cookie: _ga=GA1.2.440163205.1619796009; _iub_cs-77854424=%7B%22timestamp%22%3A%222021-04-30T15%3A23%3A23.192Z%22%2C%22version%22%3A%221.30.2%22%2C%22consent%22%3Atrue%2C%22id%22%3A77854424%7D
-Referer: https://c58bduhe008dovpvhvugcfemp9yyyyyyn.interactsh.com/
+Referer: https://c58bduhe008dovpvhvugcfemp9yyyyyyn.interact.sh/
 Sec-Ch-Ua: "Google Chrome";v="93", " Not;A Brand";v="99", "Chromium";v="93"
 Sec-Ch-Ua-Mobile: ?0
 Sec-Ch-Ua-Platform: "macOS"
@@ -116,7 +116,7 @@ HTTP Response
 HTTP/1.1 200 OK
 Connection: close
 Content-Type: text/html; charset=utf-8
-Server: interactsh.com
+Server: interact.sh
 
 <html><head></head><body>nyyyyyy9pmefcguvhvpvod800ehudb85c</body></html>
 ```
@@ -193,7 +193,7 @@ docker run projectdiscovery/interactsh-client:latest
         projectdiscovery.io
 
 [INF] Listing 1 payload for OOB Testing
-[INF] c59e3crp82ke7bcnedq0cfjqdpeyyyyyn.interactsh.com
+[INF] c59e3crp82ke7bcnedq0cfjqdpeyyyyyn.interact.sh
 ```
 
 ## Burp Suite Extension
@@ -280,7 +280,7 @@ Following is an example of a successful installation and operation of a self-hos
 
 A number of needed flags are configured automatically to run interactsh server with default settings. For example, the `hostmaster` flag with a valid email address such as `admin@domain.com` and the `ip` and `listen-ip` flags with the public IP address of the VPS.
 
-A hosted instance of **interactsh-server** which is used as default with interactsh-client is available at https://interactsh.com
+A hosted instance of **interactsh-server** which is used as default with interactsh-client is available at https://interact.sh
 
 </td>
 </table>
@@ -309,7 +309,7 @@ This will display help for the tool. Here are all the switches it supports.
 | debug      | Run interactsh in debug mode                                 | interactsh-server -debug                          |
 
 
-There are more useful capabilities supported by Interactsh server that are not enabled by default and are intended to be used only by self-hosted servers. These feature are **not** available with hosted server at https://interactsh.com
+There are more useful capabilities supported by Interactsh server that are not enabled by default and are intended to be used only by self-hosted servers. These feature are **not** available with hosted server at https://interact.sh
 
 `root-tld` flag enables wildcard (`*.domain.com`) interaction support with your self-hosted server and includes implicit authentication protection via the `auth` flag if the `token` flag is omitted.
 
@@ -342,11 +342,11 @@ Example:
 
 aws.`{interactsh-server}` points to **169.254.169.254**
 
-**aws.interactsh.com** points to 169.254.169.254
+**aws.interact.sh** points to 169.254.169.254
 
 alibaba.`{interactsh-server}` points to **100.100.100.200**
 
-**alibaba.interactsh.com** points to 100.100.100.200
+**alibaba.interact.sh** points to 100.100.100.200
 
 -----
 
