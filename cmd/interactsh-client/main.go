@@ -19,7 +19,7 @@ const banner = `
    (_)___  / /____  _________ ______/ /______/ /_ 
   / / __ \/ __/ _ \/ ___/ __ '/ ___/ __/ ___/ __ \
  / / / / / /_/  __/ /  / /_/ / /__/ /_(__  ) / / /
-/_/_/ /_/\__/\___/_/   \__,_/\___/\__/____/_/ /_/ v0.0.6
+/_/_/ /_/\__/\___/_/   \__,_/\___/\__/____/_/ /_/ v0.0.7
 `
 
 func showBanner() {
@@ -33,7 +33,7 @@ func showBanner() {
 func main() {
 
 	flag.CommandLine = flag.NewFlagSet(os.Args[0], flag.ExitOnError)
-	serverURL := flag.String("server", "https://interactsh.com", "Interactsh server to use")
+	serverURL := flag.String("server", "https://interact.sh", "Interactsh server to use")
 	n := flag.Int("n", 1, "Interactsh payload count to generate")
 	output := flag.String("o", "", "Output file to write interaction")
 	json := flag.Bool("json", false, "Write output in JSONL(ines) format")
