@@ -52,8 +52,6 @@ func main() {
 	}
 	if debug {
 		gologger.DefaultLogger.SetMaxLevel(levels.LevelDebug)
-	} else {
-		gologger.DefaultLogger.SetWriter(&noopWriter{})
 	}
 
 	// responder and smb can't be active at the same time
