@@ -203,10 +203,6 @@ func main() {
 	}
 }
 
-type noopWriter struct{}
-
-func (n *noopWriter) Write(data []byte, level levels.Level) {}
-
 func getPublicIP() string {
 	url := "https://api.ipify.org?format=text" // we are using a pulib IP API, we're using ipify here, below are some others
 
