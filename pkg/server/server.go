@@ -38,7 +38,7 @@ type Options struct {
 	// ListenIP is the IP address to listen servers on
 	ListenIP string
 	// DomainPort is the port to listen DNS servers on
-	DomainPort int
+	DnsPort int
 	// HttpPort is the port to listen HTTP server on
 	HttpPort int
 	// HttpsPort is the port to listen HTTPS server on

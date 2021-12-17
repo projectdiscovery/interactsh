@@ -38,7 +38,7 @@ func NewDNSServer(options *Options) (*DNSServer, error) {
 		timeToLive: 3600,
 	}
 	server.server = &dns.Server{
-		Addr:    options.ListenIP + fmt.Sprintf(":%d", options.DomainPort),
+		Addr:    options.ListenIP + fmt.Sprintf(":%d", options.DnsPort),
 		Net:     "udp",
 		Handler: server,
 	}
@@ -48,7 +48,7 @@ func NewDNSServer(options *Options) (*DNSServer, error) {
 // ListenAndServe listens on dns ports for the server.
 func (h *DNSServer) ListenAndServe() {
 	if err := h.server.ListenAndServe(); err != nil {
-		gologger.Error().Msgf("Could not serve dns on port %d: %s\n", h.options.DomainPort, err)
+		gologger.Error().Msgf("Could not serve dns on port %d: %s\n", h.options.DnsPort, err)
 	}
 }
 

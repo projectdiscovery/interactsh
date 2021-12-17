@@ -29,7 +29,7 @@ func main() {
 	flag.CommandLine = flag.NewFlagSet(os.Args[0], flag.ExitOnError)
 	flag.BoolVar(&debug, "debug", false, "Run interactsh in debug mode")
 	flag.StringVar(&options.Domain, "domain", "", "Domain to use for interactsh server")
-	flag.IntVar(&options.DomainPort, "domain-port", 53, "Port to use by DNS server for interactsh server")
+	flag.IntVar(&options.DnsPort, "dns-port", 53, "Port to use by DNS server for interactsh server")
 	flag.StringVar(&options.IPAddress, "ip", "", "Public IP Address to use for interactsh server")
 	flag.StringVar(&options.ListenIP, "listen-ip", "0.0.0.0", "Public IP Address to listen on")
 	flag.IntVar(&options.HttpPort, "http-port", 80, "HTTP port to listen on")
