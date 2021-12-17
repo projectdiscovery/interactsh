@@ -236,7 +236,7 @@ We are using GoDaddy for domain name and DigitalOcean droplet for the server, a 
 
 ## Configuring Interactsh domain
 
-- Navigate to `https://dcc.godaddy.com/manage/{{domain}}/dns`
+- Navigate to `https://dcc.godaddy.com/manage/{{domain}}/dns/hosts`
 - Advanced Features &rarr; Host names &rarr; Add &rarr; Submit `ns1`, `ns2` with `VPS IP` as value
 
 <img width="1288" alt="gdd-hostname" src="https://user-images.githubusercontent.com/8293321/135175512-135259fb-0490-4038-845a-0b62b1b8f549.png">
