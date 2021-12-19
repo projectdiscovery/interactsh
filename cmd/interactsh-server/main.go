@@ -59,8 +59,6 @@ func main() {
 	}
 	if debug {
 		gologger.DefaultLogger.SetMaxLevel(levels.LevelDebug)
-	} else {
-		gologger.DefaultLogger.SetWriter(&noopWriter{})
 	}
 
 	// responder and smb can't be active at the same time
@@ -211,10 +209,6 @@ func main() {
 		os.Exit(1)
 	}
 }
-
-type noopWriter struct{}
-
-func (n *noopWriter) Write(data []byte, level levels.Level) {}
 
 func getPublicIP() string {
 	url := "https://api.ipify.org?format=text" // we are using a pulib IP API, we're using ipify here, below are some others
