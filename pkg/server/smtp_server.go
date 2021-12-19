@@ -3,6 +3,7 @@ package server
 import (
 	"bytes"
 	"crypto/tls"
+	"fmt"
 	"net"
 	"strings"
 	"time"
@@ -16,9 +17,9 @@ import (
 // SMTPServer is a smtp server instance that listens both
 // TLS and Non-TLS based servers.
 type SMTPServer struct {
-	options       *Options
-	port25server  smtpd.Server
-	port587server smtpd.Server
+	options     *Options
+	smtpServer  smtpd.Server
+	smtpsServer smtpd.Server
 }
 
 // NewSMTPServer returns a new TLS & Non-TLS SMTP server.
@@ -31,16 +32,16 @@ func NewSMTPServer(options *Options) (*SMTPServer, error) {
 	rcptHandler := func(remoteAddr net.Addr, from string, to string) bool {
 		return true
 	}
-	server.port25server = smtpd.Server{
-		Addr:        options.ListenIP + ":25",
+	server.smtpServer = smtpd.Server{
+		Addr:        fmt.Sprintf("%s:%d", options.ListenIP, options.SmtpPort),
 		AuthHandler: authHandler,
 		HandlerRcpt: rcptHandler,
 		Hostname:    options.Domain,
 		Appname:     "interactsh",
 		Handler:     smtpd.Handler(server.defaultHandler),
 	}
-	server.port587server = smtpd.Server{
-		Addr:        options.ListenIP + ":587",
+	server.smtpsServer = smtpd.Server{
+		Addr:        fmt.Sprintf("%s:%d", options.ListenIP, options.SmtpsPort),
 		AuthHandler: authHandler,
 		HandlerRcpt: rcptHandler,
 		Hostname:    options.Domain,
@@ -56,23 +57,23 @@ func (h *SMTPServer) ListenAndServe(autoTLS *acme.AutoTLS) {
 		if autoTLS == nil {
 			return
 		}
-		srv := &smtpd.Server{Addr: h.options.ListenIP + ":465", Handler: h.defaultHandler, Appname: "interactsh", Hostname: h.options.Domain}
+		srv := &smtpd.Server{Addr: fmt.Sprintf("%s:%d", h.options.ListenIP, h.options.SmtpAutoTLSPort), Handler: h.defaultHandler, Appname: "interactsh", Hostname: h.options.Domain}
 		srv.TLSConfig = &tls.Config{}
 		srv.TLSConfig.GetCertificate = autoTLS.GetCertificateFunc()
 
 		err := srv.ListenAndServe()
 		if err != nil {
-			gologger.Error().Msgf("Could not serve smtp with tls on port 465: %s\n", err)
+			gologger.Error().Msgf("Could not serve smtp with tls on port %d: %s\n", h.options.SmtpAutoTLSPort, err)
 		}
 	}()
 
 	go func() {
-		if err := h.port25server.ListenAndServe(); err != nil {
-			gologger.Error().Msgf("Could not serve smtp on port 25: %s\n", err)
+		if err := h.smtpServer.ListenAndServe(); err != nil {
+			gologger.Error().Msgf("Could not serve smtp on port %d: %s\n", h.options.SmtpPort, err)
 		}
 	}()
-	if err := h.port587server.ListenAndServe(); err != nil {
-		gologger.Error().Msgf("Could not serve smtp on port 587: %s\n", err)
+	if err := h.smtpsServer.ListenAndServe(); err != nil {
+		gologger.Error().Msgf("Could not serve smtp on port %d: %s\n", h.options.SmtpsPort, err)
 	}
 }
 
