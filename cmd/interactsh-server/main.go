@@ -42,6 +42,8 @@ func main() {
 	flag.IntVar(&options.SmtpPort, "smtp-port", 25, "SMTP port to listen on")
 	flag.IntVar(&options.SmtpsPort, "smtps-port", 587, "SMTPS port to listen on")
 	flag.IntVar(&options.SmtpAutoTLSPort, "smtp-autotls-port", 465, "SMTP autoTLS port to listen on")
+	flag.IntVar(&options.FtpPort, "ftp-port", 21, "FTP port to listen on")
+	flag.IntVar(&options.LdapPort, "ldap-port", 10389, "LDAP port to listen on")
 	flag.BoolVar(&ftp, "ftp", false, "Start a ftp agent")
 	flag.BoolVar(&options.Auth, "auth", false, "Enable authentication to server using random generated token")
 	flag.StringVar(&options.Token, "token", "", "Enable authentication to server using given token")
@@ -180,36 +182,44 @@ func main() {
 			service := ""
 			port := 0
 			status := true
+			fatal := false
 			select {
 			case status = <-dnsAlive:
 				service = "DNS"
-				port = 53
+				port = options.DnsPort
+				fatal = true
 			case status = <-httpAlive:
 				service = "HTTP"
-				port = 80
+				port = options.HttpPort
+				fatal = true
 			case status = <-httpsAlive:
 				service = "HTTPS"
-				port = 443
+				port = options.HttpsPort
 			case status = <-smtpAlive:
 				service = "SMTP"
-				port = 25
+				port = options.SmtpPort
 			case status = <-smtpsAlive:
 				service = "SMTPS"
-				port = 465
+				port = options.SmtpsPort
 			case status = <-ftpAlive:
 				service = "FTP"
-				port = 21
+				port = options.FtpPort
 			case status = <-responderAlive:
 				service = "Responder"
 				port = 445
 			case status = <-smbAlive:
 				service = "SMB"
-				port = 445
+				port = options.SmbPort
+			case status = <-ldapAlive:
+				service = "LDAP"
+				port = options.LdapPort
 			}
 			if status {
 				gologger.Silent().Msgf("\t%s :%d", service, port)
-			} else {
+			} else if fatal {
 				gologger.Fatal().Msgf("The %s service has unexpectedly stopped", service)
+			} else {
+				gologger.Warning().Msgf("The %s service has unexpectedly stopped", service)
 			}
 		}
 	}()

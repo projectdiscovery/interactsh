@@ -58,7 +58,7 @@ func NewLDAPServer(options *Options) (*LDAPServer, error) {
 func (ldapServer *LDAPServer) ListenAndServe(autoTLS *acme.AutoTLS, ldapAlive chan bool) {
 	ldapAlive <- true
 	ldapServer.autoTls = autoTLS
-	if err := ldapServer.server.ListenAndServe(ldapServer.options.ListenIP + ":10389"); err != nil {
+	if err := ldapServer.server.ListenAndServe(fmt.Sprintf("%s:%d", ldapServer.options.ListenIP, ldapServer.options.LdapPort)); err != nil {
 		ldapAlive <- false
 		gologger.Error().Msgf("Could not serve ldap on port 10389: %s\n", err)
 	}
