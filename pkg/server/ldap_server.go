@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"crypto/tls"
 	"fmt"
+	"regexp"
 	"strings"
 	"time"
 
@@ -82,7 +83,13 @@ func (ldapServer *LDAPServer) handleBind(w ldap.ResponseWriter, m *ldap.Message)
 
 // handleSearch is a handler for search requests
 func (ldapServer *LDAPServer) handleSearch(w ldap.ResponseWriter, m *ldap.Message) {
+	var uniqueID, fullID string
+	var parts []string
+
+	host := m.Client.Addr().String()
+
 	r := m.GetSearchRequest()
+
 	var message strings.Builder
 	message.WriteString("Type=Search\n")
 	message.WriteString(fmt.Sprintf("BaseDn=%s\n", r.BaseObject()))
@@ -103,8 +110,53 @@ func (ldapServer *LDAPServer) handleSearch(w ldap.ResponseWriter, m *ldap.Messag
 	res := ldap.NewSearchResultDoneResponse(ldap.LDAPResultSuccess)
 	w.Write(res)
 
+	// BaseObject will be formatted like the path part of a URI, e.g.:
+	//   path/to/malicious.class
+	domain := strings.ReplaceAll(ldapServer.options.Domain, ".", "\\.")
+	// Regex pattern will attempt to match the unique ID and the interact server's configured domain, e.g.:
+	//   abcd1234.interact.sh
+	re, _ := regexp.Compile("(?:[a-z0-9\\-]+)\\." + domain)
+	match := re.FindString(string(r.BaseObject()))
+	if match != "" {
+		parts = strings.Split(match, ".")
+	}
+
+	if len(parts) > 0 {
+		for i, part := range parts {
+			if len(part) == 33 {
+				uniqueID = part
+				fullID = part
+				if i+1 <= len(parts) {
+					fullID = strings.Join(parts[:i+1], ".")
+				}
+			}
+		}
+	}
+
+	if uniqueID != "" {
+		correlationID := uniqueID[:20]
+		interaction := &Interaction{
+			Protocol:      "ldap",
+			UniqueID:      uniqueID,
+			FullId:        fullID,
+			RawRequest:    message.String(),
+			RemoteAddress: host,
+			Timestamp:     time.Now(),
+		}
+		buffer := &bytes.Buffer{}
+		if err := jsoniter.NewEncoder(buffer).Encode(interaction); err != nil {
+			gologger.Warning().Msgf("Could not encode ldap interaction: %s\n", err)
+		} else {
+			gologger.Debug().Msgf("LDAP Interaction: \n%s\n", buffer.String())
+			if err := ldapServer.options.Storage.AddInteraction(correlationID, buffer.Bytes()); err != nil {
+				gologger.Warning().Msgf("Could not store ldap interaction: %s\n", err)
+			}
+		}
+
+	}
+
 	ldapServer.logInteraction(Interaction{
-		RemoteAddress: m.Client.Addr().String(),
+		RemoteAddress: host,
 		RawRequest:    message.String(),
 	})
 }
