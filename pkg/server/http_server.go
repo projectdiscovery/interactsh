@@ -46,13 +46,13 @@ func NewHTTPServer(options *Options) (*HTTPServer, error) {
 	router.Handle("/deregister", server.corsMiddleware(server.authMiddleware(http.HandlerFunc(server.deregisterHandler))))
 	router.Handle("/poll", server.corsMiddleware(server.authMiddleware(http.HandlerFunc(server.pollHandler))))
 	router.Handle("/metrics", server.corsMiddleware(server.authMiddleware(http.HandlerFunc(server.metricsHandler))))
-	server.tlsserver = http.Server{Addr: options.ListenIP + ":443", Handler: router, ErrorLog: log.New(&noopLogger{}, "", 0)}
-	server.nontlsserver = http.Server{Addr: options.ListenIP + ":80", Handler: router, ErrorLog: log.New(&noopLogger{}, "", 0)}
+	server.tlsserver = http.Server{Addr: options.ListenIP + fmt.Sprintf(":%d", options.HttpsPort), Handler: router, ErrorLog: log.New(&noopLogger{}, "", 0)}
+	server.nontlsserver = http.Server{Addr: options.ListenIP + fmt.Sprintf(":%d", options.HttpPort), Handler: router, ErrorLog: log.New(&noopLogger{}, "", 0)}
 	return server, nil
 }
 
 // ListenAndServe listens on http and/or https ports for the server.
-func (h *HTTPServer) ListenAndServe(autoTLS *acme.AutoTLS) {
+func (h *HTTPServer) ListenAndServe(autoTLS *acme.AutoTLS, httpAlive, httpsAlive chan bool) {
 	go func() {
 		if autoTLS == nil {
 			return
@@ -60,12 +60,16 @@ func (h *HTTPServer) ListenAndServe(autoTLS *acme.AutoTLS) {
 		h.tlsserver.TLSConfig = &tls.Config{}
 		h.tlsserver.TLSConfig.GetCertificate = autoTLS.GetCertificateFunc()
 
+		httpsAlive <- true
 		if err := h.tlsserver.ListenAndServeTLS("", ""); err != nil {
+			httpsAlive <- false
 			gologger.Error().Msgf("Could not serve http on tls: %s\n", err)
 		}
 	}()
 
+	httpAlive <- true
 	if err := h.nontlsserver.ListenAndServe(); err != nil {
+		httpAlive <- false
 		gologger.Error().Msgf("Could not serve http: %s\n", err)
 	}
 }
