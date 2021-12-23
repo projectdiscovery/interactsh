@@ -22,15 +22,20 @@ func init() {
 
 // LDAPServer is a ldap server instance
 type LDAPServer struct {
-	options *Options
-	server  *ldap.Server
-	autoTls *acme.AutoTLS
+	WithLogger bool
+	options    *Options
+	server     *ldap.Server
+	autoTls    *acme.AutoTLS
 }
 
 // NewLDAPServer returns a new LDAP server.
-func NewLDAPServer(options *Options) (*LDAPServer, error) {
-	ldapserver := &LDAPServer{options: options}
-	ldap.Logger = ldapserver
+func NewLDAPServer(options *Options, withLogger bool) (*LDAPServer, error) {
+	ldapserver := &LDAPServer{options: options, WithLogger: withLogger}
+
+	if withLogger {
+		ldap.Logger = ldapserver
+	}
+
 	routes := ldap.NewRouteMux()
 	routes.Bind(ldapserver.handleBind)
 	routes.NotFound(ldapserver.handleNotFound)
@@ -75,10 +80,12 @@ func (ldapServer *LDAPServer) handleBind(w ldap.ResponseWriter, m *ldap.Message)
 	message.WriteString(fmt.Sprintf("Pass=%s\n", r.Authentication()))
 	w.Write(res)
 
-	ldapServer.logInteraction(Interaction{
-		RemoteAddress: m.Client.Addr().String(),
-		RawRequest:    message.String(),
-	})
+	if ldapServer.WithLogger {
+		ldapServer.logInteraction(Interaction{
+			RemoteAddress: m.Client.Addr().String(),
+			RawRequest:    message.String(),
+		})
+	}
 }
 
 // handleSearch is a handler for search requests
@@ -155,10 +162,13 @@ func (ldapServer *LDAPServer) handleSearch(w ldap.ResponseWriter, m *ldap.Messag
 
 	}
 
-	ldapServer.logInteraction(Interaction{
-		RemoteAddress: host,
-		RawRequest:    message.String(),
-	})
+	// still not the full interaction without correlation if requested
+	if ldapServer.WithLogger {
+		ldapServer.logInteraction(Interaction{
+			RemoteAddress: host,
+			RawRequest:    message.String(),
+		})
+	}
 }
 
 // handleAbandon is a handler for abandon requests
@@ -171,10 +181,12 @@ func (ldapServer *LDAPServer) handleAbandon(w ldap.ResponseWriter, m *ldap.Messa
 		requestToAbandon.Abandon()
 	}
 
-	ldapServer.logInteraction(Interaction{
-		RemoteAddress: m.Client.Addr().String(),
-		RawRequest:    message.String(),
-	})
+	if ldapServer.WithLogger {
+		ldapServer.logInteraction(Interaction{
+			RemoteAddress: m.Client.Addr().String(),
+			RawRequest:    message.String(),
+		})
+	}
 }
 
 // handleNotFound is a handler for not matched routes requests
@@ -193,10 +205,12 @@ func (ldapServer *LDAPServer) handleNotFound(w ldap.ResponseWriter, m *ldap.Mess
 		w.Write(res)
 	}
 
-	ldapServer.logInteraction(Interaction{
-		RemoteAddress: m.Client.Addr().String(),
-		RawRequest:    message.String(),
-	})
+	if ldapServer.WithLogger {
+		ldapServer.logInteraction(Interaction{
+			RemoteAddress: m.Client.Addr().String(),
+			RawRequest:    message.String(),
+		})
+	}
 }
 
 // handleCompare is a handler for compare requests
@@ -210,10 +224,12 @@ func (ldapServer *LDAPServer) handleCompare(w ldap.ResponseWriter, m *ldap.Messa
 	res := ldap.NewCompareResponse(ldap.LDAPResultCompareTrue)
 	w.Write(res)
 
-	ldapServer.logInteraction(Interaction{
-		RemoteAddress: m.Client.Addr().String(),
-		RawRequest:    message.String(),
-	})
+	if ldapServer.WithLogger {
+		ldapServer.logInteraction(Interaction{
+			RemoteAddress: m.Client.Addr().String(),
+			RawRequest:    message.String(),
+		})
+	}
 }
 
 // handleCompare is a handler for compare requests
@@ -231,10 +247,12 @@ func (ldapServer *LDAPServer) handleAdd(w ldap.ResponseWriter, m *ldap.Message) 
 	res := ldap.NewAddResponse(ldap.LDAPResultSuccess)
 	w.Write(res)
 
-	ldapServer.logInteraction(Interaction{
-		RemoteAddress: m.Client.Addr().String(),
-		RawRequest:    message.String(),
-	})
+	if ldapServer.WithLogger {
+		ldapServer.logInteraction(Interaction{
+			RemoteAddress: m.Client.Addr().String(),
+			RawRequest:    message.String(),
+		})
+	}
 }
 
 // handleDelete is a handler for delete requests
@@ -247,10 +265,12 @@ func (ldapServer *LDAPServer) handleDelete(w ldap.ResponseWriter, m *ldap.Messag
 	res := ldap.NewDeleteResponse(ldap.LDAPResultSuccess)
 	w.Write(res)
 
-	ldapServer.logInteraction(Interaction{
-		RemoteAddress: m.Client.Addr().String(),
-		RawRequest:    message.String(),
-	})
+	if ldapServer.WithLogger {
+		ldapServer.logInteraction(Interaction{
+			RemoteAddress: m.Client.Addr().String(),
+			RawRequest:    message.String(),
+		})
+	}
 }
 
 // handleModify is a handler for delete requests
@@ -282,10 +302,12 @@ func (ldapServer *LDAPServer) handleModify(w ldap.ResponseWriter, m *ldap.Messag
 	res := ldap.NewModifyResponse(ldap.LDAPResultSuccess)
 	w.Write(res)
 
-	ldapServer.logInteraction(Interaction{
-		RemoteAddress: m.Client.Addr().String(),
-		RawRequest:    message.String(),
-	})
+	if ldapServer.WithLogger {
+		ldapServer.logInteraction(Interaction{
+			RemoteAddress: m.Client.Addr().String(),
+			RawRequest:    message.String(),
+		})
+	}
 }
 
 // handleStartTLS is a handler for startTLS requests
@@ -309,10 +331,12 @@ func (ldapServer *LDAPServer) handleStartTLS(w ldap.ResponseWriter, m *ldap.Mess
 	m.Client.SetConn(tlsConn)
 	message.WriteString("Result=StartTLS OK\n")
 
-	ldapServer.logInteraction(Interaction{
-		RemoteAddress: m.Client.Addr().String(),
-		RawRequest:    message.String(),
-	})
+	if ldapServer.WithLogger {
+		ldapServer.logInteraction(Interaction{
+			RemoteAddress: m.Client.Addr().String(),
+			RawRequest:    message.String(),
+		})
+	}
 }
 
 // handleWhoAmI is a handler for whoami requests
@@ -323,10 +347,12 @@ func (ldapServer *LDAPServer) handleWhoAmI(w ldap.ResponseWriter, m *ldap.Messag
 	res := ldap.NewExtendedResponse(ldap.LDAPResultSuccess)
 	w.Write(res)
 
-	ldapServer.logInteraction(Interaction{
-		RemoteAddress: m.Client.Addr().String(),
-		RawRequest:    message.String(),
-	})
+	if ldapServer.WithLogger {
+		ldapServer.logInteraction(Interaction{
+			RemoteAddress: m.Client.Addr().String(),
+			RawRequest:    message.String(),
+		})
+	}
 }
 
 // handleExtended is a handler for generic extended requests
@@ -341,10 +367,12 @@ func (ldapServer *LDAPServer) handleExtended(w ldap.ResponseWriter, m *ldap.Mess
 	res := ldap.NewExtendedResponse(ldap.LDAPResultSuccess)
 	w.Write(res)
 
-	ldapServer.logInteraction(Interaction{
-		RemoteAddress: m.Client.Addr().String(),
-		RawRequest:    message.String(),
-	})
+	if ldapServer.WithLogger {
+		ldapServer.logInteraction(Interaction{
+			RemoteAddress: m.Client.Addr().String(),
+			RawRequest:    message.String(),
+		})
+	}
 }
 
 func (ldapServer *LDAPServer) Fatal(v ...interface{}) {
@@ -377,6 +405,11 @@ func (ldapServer *LDAPServer) Println(v ...interface{}) {
 }
 
 func (ldapServer *LDAPServer) handleLog(f string, v ...interface{}) {
+	// just discard logs if logger is disabled
+	if !ldapServer.WithLogger {
+		return
+	}
+
 	var data strings.Builder
 	if f != "" {
 		data.WriteString(fmt.Sprintf(f, v...))

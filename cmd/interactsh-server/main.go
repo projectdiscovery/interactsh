@@ -22,7 +22,7 @@ import (
 
 func main() {
 	var eviction int
-	var debug, smb, responder, ftp, ldap bool
+	var debug, smb, responder, ftp, ldapWithFullLogger bool
 
 	options := &server.Options{}
 	flag.CommandLine = flag.NewFlagSet(os.Args[0], flag.ExitOnError)
@@ -34,7 +34,7 @@ func main() {
 	flag.IntVar(&options.HttpPort, "http-port", 80, "HTTP port to listen on")
 	flag.IntVar(&options.HttpsPort, "https-port", 443, "HTTPS port to listen on")
 	flag.StringVar(&options.Hostmaster, "hostmaster", "", "Hostmaster email to use for interactsh server")
-	flag.BoolVar(&ldap, "ldap", false, "Enable LDAP server")
+	flag.BoolVar(&ldapWithFullLogger, "ldap", false, "Enable full logging LDAP server - if false only ldap search query with correlation will be enabled")
 	flag.IntVar(&eviction, "eviction", 30, "Number of days to persist interactions for")
 	flag.BoolVar(&responder, "responder", false, "Start a responder agent - docker must be installed")
 	flag.BoolVar(&smb, "smb", false, "Start a smb agent - impacket and python 3 must be installed")
@@ -70,7 +70,7 @@ func main() {
 	}
 
 	// Requires auth if token is specified or enables it automatically for responder and smb options
-	if options.Token != "" || responder || smb || ftp || ldap {
+	if options.Token != "" || responder || smb || ftp || ldapWithFullLogger {
 		options.Auth = true
 	}
 
@@ -138,14 +138,12 @@ func main() {
 	go smtpServer.ListenAndServe(autoTLS, smtpAlive, smtpsAlive)
 
 	ldapAlive := make(chan bool)
-	if ldap {
-		ldapServer, err := server.NewLDAPServer(options)
-		if err != nil {
-			gologger.Fatal().Msgf("Could not create LDAP server")
-		}
-		go ldapServer.ListenAndServe(autoTLS, ldapAlive)
-		defer ldapServer.Close()
+	ldapServer, err := server.NewLDAPServer(options, ldapWithFullLogger)
+	if err != nil {
+		gologger.Fatal().Msgf("Could not create LDAP server")
 	}
+	go ldapServer.ListenAndServe(autoTLS, ldapAlive)
+	defer ldapServer.Close()
 
 	ftpAlive := make(chan bool)
 	if ftp {
