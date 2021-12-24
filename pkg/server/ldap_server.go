@@ -22,15 +22,23 @@ func init() {
 
 // LDAPServer is a ldap server instance
 type LDAPServer struct {
-	WithLogger bool
-	options    *Options
-	server     *ldap.Server
-	autoTls    *acme.AutoTLS
+	WithLogger       bool
+	options          *Options
+	server           *ldap.Server
+	autoTls          *acme.AutoTLS
+	correlationRegex *regexp.Regexp
 }
 
 // NewLDAPServer returns a new LDAP server.
 func NewLDAPServer(options *Options, withLogger bool) (*LDAPServer, error) {
 	ldapserver := &LDAPServer{options: options, WithLogger: withLogger}
+
+	// BaseObject will be formatted like the path part of a URI, e.g.:
+	//   path/to/malicious.class
+	domain := strings.ReplaceAll(options.Domain, ".", "\\.")
+	// Regex pattern will attempt to match the unique ID and the interact server's configured domain, e.g.:
+	//   abcd1234.interact.sh
+	ldapserver.correlationRegex = regexp.MustCompile("(?:[a-z0-9\\-]+)\\." + domain)
 
 	if withLogger {
 		ldap.Logger = ldapserver
@@ -99,13 +107,14 @@ func (ldapServer *LDAPServer) handleSearch(w ldap.ResponseWriter, m *ldap.Messag
 
 	var message strings.Builder
 	message.WriteString("Type=Search\n")
-	message.WriteString(fmt.Sprintf("BaseDn=%s\n", r.BaseObject()))
+	baseObject := r.BaseObject()
+	message.WriteString(fmt.Sprintf("BaseDn=%s\n", baseObject))
 	message.WriteString(fmt.Sprintf("Filter=%s\n", r.Filter()))
 	message.WriteString(fmt.Sprintf("FilterString=%s\n", r.FilterString()))
 	message.WriteString(fmt.Sprintf("Attributes=%s\n", r.Attributes()))
 	message.WriteString(fmt.Sprintf("TimeLimit=%d\n", r.TimeLimit().Int()))
 
-	e := ldap.NewSearchResultEntry("cn=interactsh, " + string(r.BaseObject()))
+	e := ldap.NewSearchResultEntry("cn=interactsh, " + string(baseObject))
 	e.AddAttribute("mail", "interact@s.h", "interact@s.h")
 	e.AddAttribute("company", "aaa")
 	e.AddAttribute("department", "bbbb")
@@ -117,13 +126,7 @@ func (ldapServer *LDAPServer) handleSearch(w ldap.ResponseWriter, m *ldap.Messag
 	res := ldap.NewSearchResultDoneResponse(ldap.LDAPResultSuccess)
 	w.Write(res)
 
-	// BaseObject will be formatted like the path part of a URI, e.g.:
-	//   path/to/malicious.class
-	domain := strings.ReplaceAll(ldapServer.options.Domain, ".", "\\.")
-	// Regex pattern will attempt to match the unique ID and the interact server's configured domain, e.g.:
-	//   abcd1234.interact.sh
-	re, _ := regexp.Compile("(?:[a-z0-9\\-]+)\\." + domain)
-	match := re.FindString(string(r.BaseObject()))
+	match := ldapServer.correlationRegex.FindString(string(baseObject))
 	if match != "" {
 		parts = strings.Split(match, ".")
 	}
