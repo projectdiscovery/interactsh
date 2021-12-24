@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"crypto/tls"
 	"fmt"
-	"regexp"
 	"strings"
 	"time"
 
@@ -22,23 +21,15 @@ func init() {
 
 // LDAPServer is a ldap server instance
 type LDAPServer struct {
-	WithLogger       bool
-	options          *Options
-	server           *ldap.Server
-	autoTls          *acme.AutoTLS
-	correlationRegex *regexp.Regexp
+	WithLogger bool
+	options    *Options
+	server     *ldap.Server
+	autoTls    *acme.AutoTLS
 }
 
 // NewLDAPServer returns a new LDAP server.
 func NewLDAPServer(options *Options, withLogger bool) (*LDAPServer, error) {
 	ldapserver := &LDAPServer{options: options, WithLogger: withLogger}
-
-	// BaseObject will be formatted like the path part of a URI, e.g.:
-	//   path/to/malicious.class
-	domain := strings.ReplaceAll(options.Domain, ".", "\\.")
-	// Regex pattern will attempt to match the unique ID and the interact server's configured domain, e.g.:
-	//   abcd1234.interact.sh
-	ldapserver.correlationRegex = regexp.MustCompile("(?:[a-z0-9\\-]+)\\." + domain)
 
 	if withLogger {
 		ldap.Logger = ldapserver
@@ -99,7 +90,6 @@ func (ldapServer *LDAPServer) handleBind(w ldap.ResponseWriter, m *ldap.Message)
 // handleSearch is a handler for search requests
 func (ldapServer *LDAPServer) handleSearch(w ldap.ResponseWriter, m *ldap.Message) {
 	var uniqueID, fullID string
-	var parts []string
 
 	host := m.Client.Addr().String()
 
@@ -126,18 +116,17 @@ func (ldapServer *LDAPServer) handleSearch(w ldap.ResponseWriter, m *ldap.Messag
 	res := ldap.NewSearchResultDoneResponse(ldap.LDAPResultSuccess)
 	w.Write(res)
 
-	match := ldapServer.correlationRegex.FindString(string(baseObject))
-	if match != "" {
-		parts = strings.Split(match, ".")
-	}
-
-	if len(parts) > 0 {
-		for i, part := range parts {
-			if len(part) == 33 {
-				uniqueID = part
-				fullID = part
-				if i+1 <= len(parts) {
-					fullID = strings.Join(parts[:i+1], ".")
+	parts := ldapServer.splitSearchMsg(string(baseObject))
+	for _, part := range parts {
+		partChunks := strings.Split(part, ".")
+		if len(partChunks) > 0 {
+			for i, partChunk := range partChunks {
+				if len(partChunk) == 33 {
+					uniqueID = partChunk
+					fullID = partChunk
+					if i+1 <= len(partChunks) {
+						fullID = strings.Join(partChunks[:i+1], ".")
+					}
 				}
 			}
 		}
@@ -172,6 +161,14 @@ func (ldapServer *LDAPServer) handleSearch(w ldap.ResponseWriter, m *ldap.Messag
 			RawRequest:    message.String(),
 		})
 	}
+}
+
+func (LDAPServer *LDAPServer) splitSearchMsg(data string) (parts []string) {
+	tokens := strings.Split(data, ",")
+	for _, token := range tokens {
+		parts = append(parts, strings.Split(token, "=")...)
+	}
+	return parts
 }
 
 // handleAbandon is a handler for abandon requests
