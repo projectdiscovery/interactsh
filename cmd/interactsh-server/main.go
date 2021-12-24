@@ -43,7 +43,7 @@ func main() {
 	flag.IntVar(&options.SmtpsPort, "smtps-port", 587, "SMTPS port to listen on")
 	flag.IntVar(&options.SmtpAutoTLSPort, "smtp-autotls-port", 465, "SMTP autoTLS port to listen on")
 	flag.IntVar(&options.FtpPort, "ftp-port", 21, "FTP port to listen on")
-	flag.IntVar(&options.LdapPort, "ldap-port", 10389, "LDAP port to listen on")
+	flag.IntVar(&options.LdapPort, "ldap-port", 389, "LDAP port to listen on")
 	flag.BoolVar(&ftp, "ftp", false, "Start a ftp agent")
 	flag.BoolVar(&options.Auth, "auth", false, "Enable authentication to server using random generated token")
 	flag.StringVar(&options.Token, "token", "", "Enable authentication to server using given token")
