@@ -60,6 +60,7 @@ func main() {
 	if options.Hostmaster == "" {
 		options.Hostmaster = fmt.Sprintf("admin@%s", options.Domain)
 	}
+
 	if debug {
 		gologger.DefaultLogger.SetMaxLevel(levels.LevelDebug)
 	}
@@ -213,7 +214,7 @@ func main() {
 				port = options.LdapPort
 			}
 			if status {
-				gologger.Silent().Msgf("\t%s :%d", service, port)
+				gologger.Silent().Msgf("[%s] Listening on %s:%d", service, options.ListenIP, port)
 			} else if fatal {
 				gologger.Fatal().Msgf("The %s service has unexpectedly stopped", service)
 			} else {
