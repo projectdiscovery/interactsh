@@ -23,7 +23,7 @@ require (
 	github.com/klauspost/compress v1.13.6
 	github.com/kr/pretty v0.3.0 // indirect
 	github.com/lor00x/goldap v0.0.0-20180618054307-a546dffdd1a3
-	github.com/miekg/dns v1.1.43
+	github.com/miekg/dns v1.1.45
 	github.com/onsi/gomega v1.12.0 // indirect
 	github.com/pkg/errors v0.9.1
 	github.com/projectdiscovery/fastdialer v0.0.13-0.20210824195254-0113c1406542
