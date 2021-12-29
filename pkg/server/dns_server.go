@@ -105,7 +105,7 @@ func (h *DNSServer) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 			handleClould(net.ParseIP("169.254.169.254"))
 		case strings.EqualFold(domain, "alibaba"+h.dotDomain):
 			handleClould(net.ParseIP("100.100.100.200"))
-		case strings.EqualFold(domain, "app"+h.dotDomain):
+		case h.options.AppCnameDNSRecord && strings.EqualFold(domain, "app"+h.dotDomain):
 			handleAppWithCname("projectdiscovery.github.io", net.ParseIP("185.199.108.153"), net.ParseIP("185.199.110.153"), net.ParseIP("185.199.111.153"), net.ParseIP("185.199.108.153"))
 		default:
 			handleClould(h.ipAddress)

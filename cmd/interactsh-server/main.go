@@ -51,6 +51,7 @@ func main() {
 	flag.BoolVar(&options.RootTLD, "root-tld", false, "Enable wildcard/global interaction for *.domain.com")
 	flag.StringVar(&options.FTPDirectory, "ftp-dir", "", "Ftp directory - temporary if not specified")
 	flag.BoolVar(&skipacme, "skip-acme", false, "Skip acme registration (certificate checks/handshake + TLS protocols will be disabled)")
+	flag.BoolVar(&options.AppCnameDNSRecord, "app-cname", false, "Enable DNS CNAME record (eg. app.interactsh.domain) for web app")
 	flag.Parse()
 
 	if options.IPAddress == "" && options.ListenIP == "0.0.0.0" {

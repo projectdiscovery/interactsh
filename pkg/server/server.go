@@ -69,6 +69,9 @@ type Options struct {
 	OriginURL string
 	// FTPDirectory or temporary one
 	FTPDirectory string
+	// AppCnameDNSRecord determines if the dns server returns CNAME record
+	// similar to app.interactsh.domain
+	AppCnameDNSRecord bool
 }
 
 // URLReflection returns a reversed part of the URL payload
