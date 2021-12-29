@@ -22,7 +22,7 @@ import (
 
 func main() {
 	var eviction int
-	var debug, smb, responder, ftp, skipacme.ldapWithFullLogger bool
+	var debug, smb, responder, ftp, skipacme, ldapWithFullLogger bool
 
 	options := &server.Options{}
 	flag.CommandLine = flag.NewFlagSet(os.Args[0], flag.ExitOnError)
