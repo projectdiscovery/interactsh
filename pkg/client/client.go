@@ -54,6 +54,8 @@ type Options struct {
 	PersistentSession bool
 	// Token if the server requires authentication
 	Token string
+	// HTTPFallback determines if failed requests over https should be retried over http
+	HTTPFallback bool
 }
 
 // New creates a new client instance based on provided options
@@ -71,8 +73,13 @@ func New(options *Options) (*Client, error) {
 		httpClient:        retryablehttp.NewClient(retryablehttp.DefaultOptionsSingle),
 		token:             options.Token,
 	}
+gen_keys:
 	// Generate an RSA Public / Private key for interactsh client
 	if err := client.generateRSAKeyPair(); err != nil {
+		if options.HTTPFallback && parsed.Scheme == "https" {
+			parsed.Scheme = "http"
+			goto gen_keys
+		}
 		return nil, err
 	}
 	return client, nil
