@@ -22,7 +22,7 @@ import (
 
 func main() {
 	var eviction int
-	var debug, smb, responder, ftp, skipacme bool
+	var debug, smb, responder, ftp, skipacme, ldapWithFullLogger bool
 
 	options := &server.Options{}
 	flag.CommandLine = flag.NewFlagSet(os.Args[0], flag.ExitOnError)
@@ -34,6 +34,7 @@ func main() {
 	flag.IntVar(&options.HttpPort, "http-port", 80, "HTTP port to listen on")
 	flag.IntVar(&options.HttpsPort, "https-port", 443, "HTTPS port to listen on")
 	flag.StringVar(&options.Hostmaster, "hostmaster", "", "Hostmaster email to use for interactsh server")
+	flag.BoolVar(&ldapWithFullLogger, "ldap", false, "Enable full logging LDAP server - if false only ldap search query with correlation will be enabled")
 	flag.IntVar(&eviction, "eviction", 30, "Number of days to persist interactions for")
 	flag.BoolVar(&responder, "responder", false, "Start a responder agent - docker must be installed")
 	flag.BoolVar(&smb, "smb", false, "Start a smb agent - impacket and python 3 must be installed")
@@ -41,6 +42,8 @@ func main() {
 	flag.IntVar(&options.SmtpPort, "smtp-port", 25, "SMTP port to listen on")
 	flag.IntVar(&options.SmtpsPort, "smtps-port", 587, "SMTPS port to listen on")
 	flag.IntVar(&options.SmtpAutoTLSPort, "smtp-autotls-port", 465, "SMTP autoTLS port to listen on")
+	flag.IntVar(&options.FtpPort, "ftp-port", 21, "FTP port to listen on")
+	flag.IntVar(&options.LdapPort, "ldap-port", 389, "LDAP port to listen on")
 	flag.BoolVar(&ftp, "ftp", false, "Start a ftp agent")
 	flag.BoolVar(&options.Auth, "auth", false, "Enable authentication to server using random generated token")
 	flag.StringVar(&options.Token, "token", "", "Enable authentication to server using given token")
@@ -58,6 +61,7 @@ func main() {
 	if options.Hostmaster == "" {
 		options.Hostmaster = fmt.Sprintf("admin@%s", options.Domain)
 	}
+
 	if debug {
 		gologger.DefaultLogger.SetMaxLevel(levels.LevelDebug)
 	}
@@ -68,7 +72,7 @@ func main() {
 	}
 
 	// Requires auth if token is specified or enables it automatically for responder and smb options
-	if options.Token != "" || responder || smb || ftp {
+	if options.Token != "" || responder || smb || ftp || ldapWithFullLogger {
 		options.Auth = true
 	}
 
@@ -139,6 +143,14 @@ func main() {
 	smtpsAlive := make(chan bool)
 	go smtpServer.ListenAndServe(autoTLS, smtpAlive, smtpsAlive)
 
+	ldapAlive := make(chan bool)
+	ldapServer, err := server.NewLDAPServer(options, ldapWithFullLogger)
+	if err != nil {
+		gologger.Fatal().Msgf("Could not create LDAP server")
+	}
+	go ldapServer.ListenAndServe(autoTLS, ldapAlive)
+	defer ldapServer.Close()
+
 	ftpAlive := make(chan bool)
 	if ftp {
 		ftpServer, err := server.NewFTPServer(options)
@@ -174,36 +186,44 @@ func main() {
 			service := ""
 			port := 0
 			status := true
+			fatal := false
 			select {
 			case status = <-dnsAlive:
 				service = "DNS"
-				port = 53
+				port = options.DnsPort
+				fatal = true
 			case status = <-httpAlive:
 				service = "HTTP"
-				port = 80
+				port = options.HttpPort
+				fatal = true
 			case status = <-httpsAlive:
 				service = "HTTPS"
-				port = 443
+				port = options.HttpsPort
 			case status = <-smtpAlive:
 				service = "SMTP"
-				port = 25
+				port = options.SmtpPort
 			case status = <-smtpsAlive:
 				service = "SMTPS"
-				port = 465
+				port = options.SmtpsPort
 			case status = <-ftpAlive:
 				service = "FTP"
-				port = 21
+				port = options.FtpPort
 			case status = <-responderAlive:
 				service = "Responder"
 				port = 445
 			case status = <-smbAlive:
 				service = "SMB"
-				port = 445
+				port = options.SmbPort
+			case status = <-ldapAlive:
+				service = "LDAP"
+				port = options.LdapPort
 			}
 			if status {
-				gologger.Silent().Msgf("\t%s :%d", service, port)
-			} else {
+				gologger.Silent().Msgf("[%s] Listening on %s:%d", service, options.ListenIP, port)
+			} else if fatal {
 				gologger.Fatal().Msgf("The %s service has unexpectedly stopped", service)
+			} else {
+				gologger.Warning().Msgf("The %s service has unexpectedly stopped", service)
 			}
 		}
 	}()

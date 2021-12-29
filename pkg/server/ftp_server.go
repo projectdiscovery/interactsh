@@ -11,7 +11,6 @@ import (
 	jsoniter "github.com/json-iterator/go"
 	"github.com/projectdiscovery/gologger"
 	"github.com/projectdiscovery/interactsh/pkg/server/acme"
-	"goftp.io/server/v2"
 	ftpserver "goftp.io/server/v2"
 	"goftp.io/server/v2/driver/file"
 )
@@ -45,7 +44,7 @@ func NewFTPServer(options *Options) (*FTPServer, error) {
 	opt := &ftpserver.Options{
 		Name:   "interactsh-ftp",
 		Driver: nopDriver,
-		Port:   21,
+		Port:   options.FtpPort,
 		Perm:   ftpserver.NewSimplePerm("root", "root"),
 		Logger: server,
 		Auth:   &NopAuth{},
@@ -239,10 +238,10 @@ func (a *NopAuth) CheckPasswd(ctx *ftpserver.Context, name, pass string) (bool, 
 }
 
 type NopDriver struct {
-	driver server.Driver
+	driver ftpserver.Driver
 }
 
-func NewNopDriver(driver server.Driver) *NopDriver {
+func NewNopDriver(driver ftpserver.Driver) *NopDriver {
 	return &NopDriver{driver: driver}
 }
 

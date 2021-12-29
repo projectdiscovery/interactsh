@@ -120,6 +120,14 @@ func main() {
 					}
 					writeOutput(outputFile, builder)
 				}
+			case "ldap":
+				if noFilter {
+					builder.WriteString(fmt.Sprintf("[%s] Received LDAP interaction from %s at %s", interaction.FullId, interaction.RemoteAddress, interaction.Timestamp.Format("2006-01-02 15:04:05")))
+					if *verbose {
+						builder.WriteString(fmt.Sprintf("\n------------\nLDAP Interaction\n------------\n\n%s\n\n", interaction.RawRequest))
+					}
+					writeOutput(outputFile, builder)
+				}
 			}
 		} else {
 			b, err := jsonpkg.MarshalIndent(interaction, "", "\t")

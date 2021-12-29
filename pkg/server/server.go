@@ -51,6 +51,10 @@ type Options struct {
 	SmtpsPort int
 	// SmtpAutoTLSPort is the port to listen Smtp autoTLS server on
 	SmtpAutoTLSPort int
+	// FtpPort is the port to listen Ftp server on
+	FtpPort int
+	// FtpPort is the port to listen Ftp server on
+	LdapPort int
 	// Hostmaster is the hostmaster email for the server.
 	Hostmaster string
 	// Storage is a storage for interaction data storage

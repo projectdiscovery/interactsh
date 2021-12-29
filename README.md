@@ -26,9 +26,9 @@
 
 # Features
 
-- DNS/HTTP/HTTPS/SMTP Interaction support
+- DNS/HTTP(S)/SMTP(S)/LDAP Interaction support
 - NTLM/SMB Listener support (self-hosted)
-- Wildcard Interaction support (self-hosted)
+- Wildcard / Global Interaction support (self-hosted)
 - CLI / Web / Burp / ZAP / Docker client support
 - AES encryption with zero logging
 - SELF Hosted Interactsh server support
@@ -150,19 +150,19 @@ interactsh-client -h
 
 This will display help for the tool. Here are all the switches it supports.
 
-| Flag          | Description                                       | Example                                      |
-| ------------- | ------------------------------------------------- | -------------------------------------------- |
-| n             | Interactsh payload count to generate (default 1)  | interactsh-client -n 2                       |
-| poll-interval | Interaction poll interval in seconds (default 5)  | interactsh-client -poll-interval 1           |
-| server        | Interactsh server to use                          | interactsh-client -server https://domain.com |
-| dns-only      | Display only DNS interaction in CLI output        | interactsh-client -dns-only                  |
-| http-only     | Display only HTTP interaction in CLI output       | interactsh-client -http-only                 |
-| smtp-only     | Display only SMTP interaction in CLI output       | interactsh-client -smtp-only                 |
-| json          | Write output in JSONL(ines) format                | interactsh-client -json                      |
-| token         | Authentication token to connect interactsh server | interactsh-client -token XXX                 |
-| persist       | Enables persistent interactsh sessions            | interactsh-client -persist                   |
-| o             | Output file to write interaction                  | interactsh-client -o logs.txt                |
-| v             | Show verbose interaction                          | interactsh-client -v                         |
+| Flag          | Description                                       | Example                                             |
+| ------------- | ------------------------------------------------- | --------------------------------------------------- |
+| n             | Interactsh payload count to generate (default 1)  | interactsh-client -n 2                              |
+| poll-interval | Interaction poll interval in seconds (default 5)  | interactsh-client -poll-interval 1                  |
+| server        | Interactsh server to use                          | interactsh-client -server https://INTERACTSH_DOMAIN |
+| dns-only      | Display only DNS interaction in CLI output        | interactsh-client -dns-only                         |
+| http-only     | Display only HTTP interaction in CLI output       | interactsh-client -http-only                        |
+| smtp-only     | Display only SMTP interaction in CLI output       | interactsh-client -smtp-only                        |
+| json          | Write output in JSONL(ines) format                | interactsh-client -json                             |
+| token         | Authentication token to connect interactsh server | interactsh-client -token XXX                        |
+| persist       | Enables persistent interactsh sessions            | interactsh-client -persist                          |
+| o             | Output file to write interaction                  | interactsh-client -o logs.txt                       |
+| v             | Show verbose interaction                          | interactsh-client -v                                |
 
 
 ## Interactsh Web Client
@@ -264,13 +264,13 @@ go install -v github.com/projectdiscovery/interactsh/cmd/interactsh-server@lates
 Considering **domain name setup is completed**, run the below command to run interactsh server
 
 ```bash
-interactsh-server -domain domain.com
+interactsh-server -domain INTERACTSH_DOMAIN
 ```
 
 **Alternatively**, you can utilize ready to run [docker image](https://hub.docker.com/r/projectdiscovery/interactsh-server) of interactsh-server on your **remote machine** with
 
 ```sh
-docker run projectdiscovery/interactsh-server:latest -domain domain.com
+docker run projectdiscovery/interactsh-server:latest -domain INTERACTSH_DOMAIN
 ```
 
 Following is an example of a successful installation and operation of a self-hosted server:
@@ -278,7 +278,7 @@ Following is an example of a successful installation and operation of a self-hos
 ![interactsh-server](https://user-images.githubusercontent.com/8293321/134819391-51137c77-61d5-4ae8-9504-947dd444d863.png)
 
 
-A number of needed flags are configured automatically to run interactsh server with default settings. For example, the `hostmaster` flag with a valid email address such as `admin@domain.com` and the `ip` and `listen-ip` flags with the public IP address of the VPS.
+A number of needed flags are configured automatically to run interactsh server with default settings. For example, the `hostmaster` flag with a valid email address such as `admin@INTERACTSH_DOMAIN` and the `ip` and `listen-ip` flags with the public IP address of the VPS.
 
 A hosted instance of **interactsh-server** which is used as default with interactsh-client is available at https://interact.sh
 
@@ -293,28 +293,27 @@ interactsh-server -h
 
 This will display help for the tool. Here are all the switches it supports.
 
-| Flag       | Description                                                  | Example                                           |
-| ---------- | ------------------------------------------------------------ | ------------------------------------------------- |
-| auth       | Enable authentication to server using random generated token | interactsh-server -auth                           |
-| token      | Enable authentication to server using given token            | interactsh-server -token MY_TOKEN                 |
-| domain     | Domain to use for interactsh server                          | interactsh-server -domain domain.com              |
-| eviction   | Number of days to persist interactions for (default 30)      | interactsh-server -eviction 30                    |
-| hostmaster | Hostmaster email to use for interactsh server                | interactsh-server -hostmaster admin@domain.com    |
-| ip         | Public IP Address to use for interactsh server               | interactsh-server -ip XX.XX.XX.XX                 |
-| listen-ip  | Public IP Address to listen on                               | interactsh-server -listen-ip XX.XX.XX.XX          |
-| root-tld   | Enable wildcard/global interaction for *.domain.com          | interactsh-server -root-tld                       |
-| origin-url | Origin URL to send in ACAO Header                            | interactsh-server -origin-url https://domain.com  |
-| responder  | Start a responder agent - docker must be installed           | interactsh-server -responder                      |
-| smb        | Start a smb agent - impacket and python 3 must be installed  | interactsh-server -smb                            |
-| debug      | Run interactsh in debug mode                                 | interactsh-server -debug                          |
-
+| Flag       | Description                                                  | Example                                                 |
+| ---------- | ------------------------------------------------------------ | ------------------------------------------------------- |
+| auth       | Enable authentication to server using random generated token | interactsh-server -auth                                 |
+| token      | Enable authentication to server using given token            | interactsh-server -token MY_TOKEN                       |
+| domain     | Domain to use for interactsh server                          | interactsh-server -domain INTERACTSH_DOMAIN             |
+| eviction   | Number of days to persist interactions for (default 30)      | interactsh-server -eviction 30                          |
+| hostmaster | Hostmaster email to use for interactsh server                | interactsh-server -hostmaster admin@INTERACTSH_DOMAIN   |
+| ip         | Public IP Address to use for interactsh server               | interactsh-server -ip XX.XX.XX.XX                       |
+| listen-ip  | Public IP Address to listen on                               | interactsh-server -listen-ip XX.XX.XX.XX                |
+| root-tld   | Enable wildcard/global interaction for *.INTERACTSH_DOMAIN   | interactsh-server -root-tld                             |
+| origin-url | Origin URL to send in ACAO Header                            | interactsh-server -origin-url https://INTERACTSH_DOMAIN |
+| responder  | Start a responder agent - docker must be installed           | interactsh-server -responder                            |
+| smb        | Start a smb agent - impacket and python 3 must be installed  | interactsh-server -smb                                  |
+| debug      | Run interactsh in debug mode                                 | interactsh-server -debug                                |
 
 There are more useful capabilities supported by Interactsh server that are not enabled by default and are intended to be used only by self-hosted servers. These feature are **not** available with hosted server at https://interact.sh
 
-`root-tld` flag enables wildcard (`*.domain.com`) interaction support with your self-hosted server and includes implicit authentication protection via the `auth` flag if the `token` flag is omitted.
+`root-tld` flag enables global / wildcard (`*.INTERACTSH_DOMAIN`) interaction support for your self-hosted domain and includes implicit authentication protection via the `auth` flag if the `token` flag is omitted.
 
 ```bash
-interactsh-server -domain domain.com -root-tld
+interactsh-server -domain INTERACTSH_DOMAIN -root-tld
 
 2021/09/28 12:18:24 Client Token: 4c17895a460123ea439abbad64e0e02c2c7be660464d75299f76e1a972ac4e56
 2021/09/28 12:18:24 TLS certificates are not expiring, continue!

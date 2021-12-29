@@ -14,7 +14,6 @@ import (
 
 	jsoniter "github.com/json-iterator/go"
 	"github.com/projectdiscovery/gologger"
-	"github.com/projectdiscovery/gologger/levels"
 	"github.com/projectdiscovery/interactsh/pkg/server/acme"
 )
 
@@ -36,8 +35,6 @@ func (l *noopLogger) Write(p []byte) (n int, err error) {
 
 // NewHTTPServer returns a new TLS & Non-TLS HTTP server.
 func NewHTTPServer(options *Options) (*HTTPServer, error) {
-	gologger.DefaultLogger.SetMaxLevel(levels.LevelDebug)
-
 	server := &HTTPServer{options: options, domain: strings.TrimSuffix(options.Domain, ".")}
 
 	router := &http.ServeMux{}
