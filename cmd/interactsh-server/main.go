@@ -22,7 +22,7 @@ import (
 
 func main() {
 	var eviction int
-	var debug, smb, responder, ftp, ldapWithFullLogger bool
+	var debug, smb, responder, ftp, skipacme.ldapWithFullLogger bool
 
 	options := &server.Options{}
 	flag.CommandLine = flag.NewFlagSet(os.Args[0], flag.ExitOnError)
@@ -50,6 +50,7 @@ func main() {
 	flag.StringVar(&options.OriginURL, "origin-url", "https://app.interactsh.com", "Origin URL to send in ACAO Header")
 	flag.BoolVar(&options.RootTLD, "root-tld", false, "Enable wildcard/global interaction for *.domain.com")
 	flag.StringVar(&options.FTPDirectory, "ftp-dir", "", "Ftp directory - temporary if not specified")
+	flag.BoolVar(&skipacme, "skip-acme", false, "Skip acme registration (certificate checks/handshake + TLS protocols will be disabled)")
 	flag.Parse()
 
 	if options.IPAddress == "" && options.ListenIP == "0.0.0.0" {
@@ -114,12 +115,16 @@ func main() {
 	go dnsServer.ListenAndServe(dnsAlive)
 
 	trimmedDomain := strings.TrimSuffix(options.Domain, ".")
-	autoTLS, err := acme.NewAutomaticTLS(options.Hostmaster, fmt.Sprintf("*.%s,%s", trimmedDomain, trimmedDomain), func(txt string) {
-		dnsServer.TxtRecord = txt
-	})
-	if err != nil {
-		gologger.Warning().Msgf("An error occurred while applying for an certificate, error: %v", err)
-		gologger.Warning().Msgf("Could not generate certs for auto TLS, https will be disabled")
+
+	var autoTLS *acme.AutoTLS
+	if !skipacme {
+		autoTLS, err = acme.NewAutomaticTLS(options.Hostmaster, fmt.Sprintf("*.%s,%s", trimmedDomain, trimmedDomain), func(txt string) {
+			dnsServer.TxtRecord = txt
+		})
+		if err != nil {
+			gologger.Warning().Msgf("An error occurred while applying for an certificate, error: %v", err)
+			gologger.Warning().Msgf("Could not generate certs for auto TLS, https will be disabled")
+		}
 	}
 
 	httpServer, err := server.NewHTTPServer(options)
