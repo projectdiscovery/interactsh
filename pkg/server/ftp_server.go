@@ -11,7 +11,6 @@ import (
 	jsoniter "github.com/json-iterator/go"
 	"github.com/projectdiscovery/gologger"
 	"github.com/projectdiscovery/interactsh/pkg/server/acme"
-	"goftp.io/server/v2"
 	ftpserver "goftp.io/server/v2"
 	"goftp.io/server/v2/driver/file"
 )
@@ -45,7 +44,7 @@ func NewFTPServer(options *Options) (*FTPServer, error) {
 	opt := &ftpserver.Options{
 		Name:   "interactsh-ftp",
 		Driver: nopDriver,
-		Port:   21,
+		Port:   options.FtpPort,
 		Perm:   ftpserver.NewSimplePerm("root", "root"),
 		Logger: server,
 		Auth:   &NopAuth{},
@@ -63,8 +62,12 @@ func NewFTPServer(options *Options) (*FTPServer, error) {
 }
 
 // ListenAndServe listens on smtp and/or smtps ports for the server.
-func (h *FTPServer) ListenAndServe(autoTLS *acme.AutoTLS) error {
-	return h.ftpServer.ListenAndServe()
+func (h *FTPServer) ListenAndServe(autoTLS *acme.AutoTLS, ftpAlive chan bool) {
+	ftpAlive <- true
+	if err := h.ftpServer.ListenAndServe(); err != nil {
+		ftpAlive <- false
+		gologger.Error().Msgf("Could not serve ftp on port 21: %s\n", err)
+	}
 }
 
 func (h *FTPServer) Close() {
@@ -235,10 +238,10 @@ func (a *NopAuth) CheckPasswd(ctx *ftpserver.Context, name, pass string) (bool, 
 }
 
 type NopDriver struct {
-	driver server.Driver
+	driver ftpserver.Driver
 }
 
-func NewNopDriver(driver server.Driver) *NopDriver {
+func NewNopDriver(driver ftpserver.Driver) *NopDriver {
 	return &NopDriver{driver: driver}
 }
 

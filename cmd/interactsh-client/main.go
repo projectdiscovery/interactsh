@@ -19,7 +19,7 @@ const banner = `
    (_)___  / /____  _________ ______/ /______/ /_ 
   / / __ \/ __/ _ \/ ___/ __ '/ ___/ __/ ___/ __ \
  / / / / / /_/  __/ /  / /_/ / /__/ /_(__  ) / / /
-/_/_/ /_/\__/\___/_/   \__,_/\___/\__/____/_/ /_/ v0.0.7-dev
+/_/_/ /_/\__/\___/_/   \__,_/\___/\__/____/_/ /_/ v0.0.8-dev
 `
 
 func showBanner() {
@@ -33,7 +33,7 @@ func showBanner() {
 func main() {
 
 	flag.CommandLine = flag.NewFlagSet(os.Args[0], flag.ExitOnError)
-	serverURL := flag.String("server", "https://interactsh.com", "Interactsh server to use")
+	serverURL := flag.String("server", "https://interact.sh", "Interactsh server to use")
 	n := flag.Int("n", 1, "Interactsh payload count to generate")
 	output := flag.String("o", "", "Output file to write interaction")
 	json := flag.Bool("json", false, "Write output in JSONL(ines) format")
@@ -44,6 +44,7 @@ func main() {
 	httpOnly := flag.Bool("http-only", false, "Display only http interaction in CLI output")
 	smtpOnly := flag.Bool("smtp-only", false, "Display only smtp interactions in CLI output")
 	token := flag.String("token", "", "Authentication token to connect interactsh server")
+	disableHttpFallback := flag.Bool("no-http-fallback", false, "Disable http fallback")
 
 	flag.Parse()
 
@@ -62,6 +63,7 @@ func main() {
 		ServerURL:         *serverURL,
 		PersistentSession: *persistent,
 		Token:             *token,
+		HTTPFallback:      !*disableHttpFallback,
 	})
 	if err != nil {
 		gologger.Fatal().Msgf("Could not create client: %s\n", err)
@@ -117,6 +119,14 @@ func main() {
 					builder.WriteString(fmt.Sprintf("Received Responder/Smb interaction at %s", interaction.Timestamp.Format("2006-01-02 15:04:05")))
 					if *verbose {
 						builder.WriteString(fmt.Sprintf("\n------------\nResponder/SMB Interaction\n------------\n\n%s\n\n", interaction.RawRequest))
+					}
+					writeOutput(outputFile, builder)
+				}
+			case "ldap":
+				if noFilter {
+					builder.WriteString(fmt.Sprintf("[%s] Received LDAP interaction from %s at %s", interaction.FullId, interaction.RemoteAddress, interaction.Timestamp.Format("2006-01-02 15:04:05")))
+					if *verbose {
+						builder.WriteString(fmt.Sprintf("\n------------\nLDAP Interaction\n------------\n\n%s\n\n", interaction.RawRequest))
 					}
 					writeOutput(outputFile, builder)
 				}

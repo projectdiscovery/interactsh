@@ -5,6 +5,7 @@ go 1.15
 require (
 	git.mills.io/prologic/smtpd v0.0.0-20210710122116-a525b76c287a
 	github.com/DataDog/zstd v1.4.8 // indirect
+	github.com/Mzack9999/ldapserver v1.0.2-0.20211229000134-b44a0d6ad0dd // indirect
 	github.com/akrylysov/pogreb v0.10.1 // indirect
 	github.com/cespare/xxhash/v2 v2.1.2 // indirect
 	github.com/cockroachdb/errors v1.8.6 // indirect
@@ -21,7 +22,8 @@ require (
 	github.com/karlseguin/ccache/v2 v2.0.8
 	github.com/klauspost/compress v1.13.6
 	github.com/kr/pretty v0.3.0 // indirect
-	github.com/miekg/dns v1.1.43
+	github.com/lor00x/goldap v0.0.0-20180618054307-a546dffdd1a3
+	github.com/miekg/dns v1.1.45
 	github.com/onsi/gomega v1.12.0 // indirect
 	github.com/pkg/errors v0.9.1
 	github.com/projectdiscovery/fastdialer v0.0.13-0.20210824195254-0113c1406542
