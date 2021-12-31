@@ -116,8 +116,8 @@ func (h *DNSServer) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 		m.Answer = append(m.Answer, &dns.MX{Hdr: nsHdr, Mx: h.mxDomain, Preference: 1})
 	} else if r.Question[0].Qtype == dns.TypeNS {
 		nsHeader := dns.RR_Header{Name: dns.Fqdn(domain), Rrtype: dns.TypeNS, Class: dns.ClassINET, Ttl: h.timeToLive}
-		m.Ns = append(m.Ns, &dns.NS{Hdr: nsHeader, Ns: h.ns1Domain})
-		m.Ns = append(m.Ns, &dns.NS{Hdr: nsHeader, Ns: h.ns2Domain})
+		m.Answer = append(m.Answer, &dns.NS{Hdr: nsHeader, Ns: h.ns1Domain})
+		m.Answer = append(m.Answer, &dns.NS{Hdr: nsHeader, Ns: h.ns2Domain})
 	}
 	responseMsg := m.String()
 
