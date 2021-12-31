@@ -14,7 +14,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/lightstep/otel-launcher-go/launcher"
 	"github.com/projectdiscovery/gologger"
 	"github.com/projectdiscovery/gologger/levels"
 	"github.com/projectdiscovery/interactsh/pkg/server"
@@ -25,12 +24,6 @@ import (
 func main() {
 	var eviction int
 	var debug, smb, responder bool
-
-	ls := launcher.ConfigureOpentelemetry(
-		launcher.WithServiceName("interact-new-server"),
-		launcher.WithAccessToken("xx"),
-	)
-	defer ls.Shutdown()
 
 	options := &server.Options{}
 	flag.CommandLine = flag.NewFlagSet(os.Args[0], flag.ExitOnError)

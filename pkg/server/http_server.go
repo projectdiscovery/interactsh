@@ -15,9 +15,6 @@ import (
 	jsoniter "github.com/json-iterator/go"
 	"github.com/projectdiscovery/gologger"
 	"github.com/projectdiscovery/interactsh/pkg/server/acme"
-	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
-	"go.opentelemetry.io/otel"
-	"go.opentelemetry.io/otel/trace"
 )
 
 // HTTPServer is a http server instance that listens both
@@ -41,10 +38,10 @@ func NewHTTPServer(options *Options) (*HTTPServer, error) {
 	server := &HTTPServer{options: options, domain: strings.TrimSuffix(options.Domain, ".")}
 
 	router := &http.ServeMux{}
-	router.Handle("/", otelhttp.NewHandler(server.logger(http.HandlerFunc(server.defaultHandler)), "/"))
-	router.Handle("/register", otelhttp.NewHandler(server.corsMiddleware(server.authMiddleware(http.HandlerFunc(server.registerHandler))), "/register"))
-	router.Handle("/deregister", otelhttp.NewHandler(server.corsMiddleware(server.authMiddleware(http.HandlerFunc(server.deregisterHandler))), "/deregister"))
-	router.Handle("/poll", otelhttp.NewHandler(server.corsMiddleware(server.authMiddleware(http.HandlerFunc(server.pollHandler))), "/poll"))
+	router.Handle("/", server.logger(http.HandlerFunc(server.defaultHandler)))
+	router.Handle("/register", server.corsMiddleware(server.authMiddleware(http.HandlerFunc(server.registerHandler))))
+	router.Handle("/deregister", server.corsMiddleware(server.authMiddleware(http.HandlerFunc(server.deregisterHandler))))
+	router.Handle("/poll", server.corsMiddleware(server.authMiddleware(http.HandlerFunc(server.pollHandler))))
 	router.Handle("/metrics", server.corsMiddleware(server.authMiddleware(http.HandlerFunc(server.metricsHandler))))
 	server.tlsserver = http.Server{Addr: options.ListenIP + ":443", Handler: router, ErrorLog: log.New(&noopLogger{}, "", 0)}
 	server.nontlsserver = http.Server{Addr: options.ListenIP + ":80", Handler: router, ErrorLog: log.New(&noopLogger{}, "", 0)}
@@ -193,22 +190,16 @@ type RegisterRequest struct {
 
 // registerHandler is a handler for client register requests
 func (h *HTTPServer) registerHandler(w http.ResponseWriter, req *http.Request) {
-	span := trace.SpanFromContext(req.Context())
-
 	r := &RegisterRequest{}
 	if err := jsoniter.NewDecoder(req.Body).Decode(r); err != nil {
 		gologger.Warning().Msgf("Could not decode json body: %s\n", err)
 		jsonError(w, fmt.Sprintf("could not decode json body: %s", err), http.StatusBadRequest)
-		span.RecordError(err)
 		return
 	}
-	_, finish := otel.GetTracerProvider().Tracer("db_access").Start(req.Context(), "db_access")
-	defer finish.End()
 
 	if err := h.options.Storage.SetIDPublicKey(r.CorrelationID, r.SecretKey, r.PublicKey); err != nil {
 		gologger.Warning().Msgf("Could not set id and public key for %s: %s\n", r.CorrelationID, err)
 		jsonError(w, fmt.Sprintf("could not set id and public key: %s", err), http.StatusBadRequest)
-		span.RecordError(err)
 		return
 	}
 	jsonMsg(w, "registration successful", http.StatusOK)
@@ -225,22 +216,16 @@ type DeregisterRequest struct {
 
 // deregisterHandler is a handler for client deregister requests
 func (h *HTTPServer) deregisterHandler(w http.ResponseWriter, req *http.Request) {
-	span := trace.SpanFromContext(req.Context())
-
 	r := &DeregisterRequest{}
 	if err := jsoniter.NewDecoder(req.Body).Decode(r); err != nil {
 		gologger.Warning().Msgf("Could not decode json body: %s\n", err)
-		span.RecordError(err)
 		jsonError(w, fmt.Sprintf("could not decode json body: %s", err), http.StatusBadRequest)
 		return
 	}
-	_, finish := otel.GetTracerProvider().Tracer("db_access").Start(req.Context(), "db_access")
-	defer finish.End()
 
 	if err := h.options.Storage.RemoveID(r.CorrelationID, r.SecretKey); err != nil {
 		gologger.Warning().Msgf("Could not remove id for %s: %s\n", r.CorrelationID, err)
 		jsonError(w, fmt.Sprintf("could not remove id: %s", err), http.StatusBadRequest)
-		span.RecordError(err)
 		return
 	}
 	jsonMsg(w, "deregistration successful", http.StatusOK)
@@ -257,8 +242,6 @@ type PollResponse struct {
 
 // pollHandler is a handler for client poll requests
 func (h *HTTPServer) pollHandler(w http.ResponseWriter, req *http.Request) {
-	span := trace.SpanFromContext(req.Context())
-
 	ID := req.URL.Query().Get("id")
 	if ID == "" {
 		jsonError(w, "no id specified for poll", http.StatusBadRequest)
@@ -270,13 +253,9 @@ func (h *HTTPServer) pollHandler(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	_, finish := otel.GetTracerProvider().Tracer("db_access").Start(req.Context(), "db_access")
-	defer finish.End()
-
 	data, aesKey, err := h.options.Storage.GetInteractions(ID, secret)
 	if err != nil {
 		gologger.Warning().Msgf("Could not get interactions for %s: %s\n", ID, err)
-		span.RecordError(err)
 		jsonError(w, fmt.Sprintf("could not get interactions: %s", err), http.StatusBadRequest)
 		return
 	}
@@ -291,7 +270,6 @@ func (h *HTTPServer) pollHandler(w http.ResponseWriter, req *http.Request) {
 
 	if err := jsoniter.NewEncoder(w).Encode(response); err != nil {
 		gologger.Warning().Msgf("Could not encode interactions for %s: %s\n", ID, err)
-		span.RecordError(err)
 		jsonError(w, fmt.Sprintf("could not encode interactions: %s", err), http.StatusBadRequest)
 		return
 	}

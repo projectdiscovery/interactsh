@@ -27,7 +27,6 @@ import (
 	"github.com/projectdiscovery/interactsh/pkg/server"
 	"github.com/projectdiscovery/retryablehttp-go"
 	"github.com/rs/xid"
-	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"gopkg.in/corvus-ch/zbase32.v1"
 )
 
@@ -75,7 +74,6 @@ func New(options *Options) (*Client, error) {
 		httpClient:        retryablehttp.NewClient(opts),
 		token:             options.Token,
 	}
-	client.httpClient.HTTPClient.Transport = otelhttp.NewTransport(http.DefaultTransport)
 
 	// Generate an RSA Public / Private key for interactsh client
 	if err := client.generateRSAKeyPair(); err != nil {
