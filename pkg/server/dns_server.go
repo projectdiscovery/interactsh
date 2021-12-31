@@ -74,7 +74,7 @@ func (h *DNSServer) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 	} else if r.Question[0].Qtype == dns.TypeA || r.Question[0].Qtype == dns.TypeANY {
 		nsHeader := dns.RR_Header{Name: dns.Fqdn(domain), Rrtype: dns.TypeNS, Class: dns.ClassINET, Ttl: h.timeToLive}
 
-		handleClould := func(ipAddress net.IP) {
+		handleCloud := func(ipAddress net.IP) {
 			m.Answer = append(m.Answer, &dns.A{Hdr: dns.RR_Header{Name: dns.Fqdn(domain), Rrtype: dns.TypeA, Class: dns.ClassINET, Ttl: h.timeToLive}, A: ipAddress})
 
 			m.Ns = append(m.Ns, &dns.NS{Hdr: nsHeader, Ns: h.ns1Domain})
@@ -99,13 +99,13 @@ func (h *DNSServer) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 		// check for clould providers
 		switch {
 		case strings.EqualFold(domain, "aws"+h.dotDomain):
-			handleClould(net.ParseIP("169.254.169.254"))
+			handleCloud(net.ParseIP("169.254.169.254"))
 		case strings.EqualFold(domain, "alibaba"+h.dotDomain):
-			handleClould(net.ParseIP("100.100.100.200"))
+			handleCloud(net.ParseIP("100.100.100.200"))
 		case strings.EqualFold(domain, "app"+h.dotDomain):
 			handleAppWithCname("projectdiscovery.github.io", net.ParseIP("185.199.108.153"), net.ParseIP("185.199.110.153"), net.ParseIP("185.199.111.153"), net.ParseIP("185.199.108.153"))
 		default:
-			handleClould(h.ipAddress)
+			handleCloud(h.ipAddress)
 		}
 
 	} else if r.Question[0].Qtype == dns.TypeSOA {
