@@ -44,6 +44,7 @@ func main() {
 	httpOnly := flag.Bool("http-only", false, "Display only http interaction in CLI output")
 	smtpOnly := flag.Bool("smtp-only", false, "Display only smtp interactions in CLI output")
 	token := flag.String("token", "", "Authentication token to connect interactsh server")
+	disableHttpFallback := flag.Bool("no-http-fallback", false, "Disable http fallback")
 
 	flag.Parse()
 
@@ -62,6 +63,7 @@ func main() {
 		ServerURL:         *serverURL,
 		PersistentSession: *persistent,
 		Token:             *token,
+		HTTPFallback:      !*disableHttpFallback,
 	})
 	if err != nil {
 		gologger.Fatal().Msgf("Could not create client: %s\n", err)
