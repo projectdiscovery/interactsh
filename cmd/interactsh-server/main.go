@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"crypto/rand"
+	"crypto/tls"
 	"encoding/hex"
 	"flag"
 	"fmt"
@@ -108,24 +109,26 @@ func main() {
 		_ = store.SetID(options.Domain)
 	}
 
+	acmeStore := acme.NewProvider()
+	options.ACMEStore = acmeStore
+
 	dnsServer, err := server.NewDNSServer(options)
 	if err != nil {
 		gologger.Fatal().Msgf("Could not create DNS server")
 	}
-	dnsAlive := make(chan bool)
+	dnsAlive := make(chan bool, 2)
 	go dnsServer.ListenAndServe(dnsAlive)
 
 	trimmedDomain := strings.TrimSuffix(options.Domain, ".")
 
-	var autoTLS *acme.AutoTLS
+	var tlsConfig *tls.Config
 	if !skipacme {
-		autoTLS, err = acme.NewAutomaticTLS(options.Hostmaster, fmt.Sprintf("*.%s,%s", trimmedDomain, trimmedDomain), func(txt string) {
-			dnsServer.TxtRecord = txt
-		})
-		if err != nil {
+		acmeManagerTLS, acmeErr := acme.HandleWildcardCertificates(fmt.Sprintf("*.%s", trimmedDomain), options.Hostmaster, acmeStore)
+		if acmeErr != nil {
 			gologger.Warning().Msgf("An error occurred while applying for an certificate, error: %v", err)
 			gologger.Warning().Msgf("Could not generate certs for auto TLS, https will be disabled")
 		}
+		tlsConfig = acmeManagerTLS
 	}
 
 	httpServer, err := server.NewHTTPServer(options)
@@ -134,7 +137,7 @@ func main() {
 	}
 	httpAlive := make(chan bool)
 	httpsAlive := make(chan bool)
-	go httpServer.ListenAndServe(autoTLS, httpAlive, httpsAlive)
+	go httpServer.ListenAndServe(tlsConfig, httpAlive, httpsAlive)
 
 	smtpServer, err := server.NewSMTPServer(options)
 	if err != nil {
@@ -142,14 +145,14 @@ func main() {
 	}
 	smtpAlive := make(chan bool)
 	smtpsAlive := make(chan bool)
-	go smtpServer.ListenAndServe(autoTLS, smtpAlive, smtpsAlive)
+	go smtpServer.ListenAndServe(tlsConfig, smtpAlive, smtpsAlive)
 
 	ldapAlive := make(chan bool)
 	ldapServer, err := server.NewLDAPServer(options, ldapWithFullLogger)
 	if err != nil {
 		gologger.Fatal().Msgf("Could not create LDAP server")
 	}
-	go ldapServer.ListenAndServe(autoTLS, ldapAlive)
+	go ldapServer.ListenAndServe(tlsConfig, ldapAlive)
 	defer ldapServer.Close()
 
 	ftpAlive := make(chan bool)
@@ -158,7 +161,7 @@ func main() {
 		if err != nil {
 			gologger.Fatal().Msgf("Could not create FTP server")
 		}
-		go ftpServer.ListenAndServe(autoTLS, ftpAlive) //nolint
+		go ftpServer.ListenAndServe(tlsConfig, ftpAlive) //nolint
 	}
 
 	responderAlive := make(chan bool)

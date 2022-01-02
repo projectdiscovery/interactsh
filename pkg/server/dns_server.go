@@ -50,8 +50,8 @@ func NewDNSServer(options *Options) (*DNSServer, error) {
 func (h *DNSServer) ListenAndServe(dnsAlive chan bool) {
 	dnsAlive <- true
 	if err := h.server.ListenAndServe(); err != nil {
-		dnsAlive <- false
 		gologger.Error().Msgf("Could not serve dns on port %d: %s\n", h.options.DnsPort, err)
+		dnsAlive <- false
 	}
 }
 
@@ -71,18 +71,22 @@ func (h *DNSServer) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 		return
 	}
 
+	isDNSChallenge := false
 	for _, question := range r.Question {
 		domain := question.Name
 
 		// Handle DNS server cases for ACME server
 		if strings.HasPrefix(strings.ToLower(domain), dnsChallengeString) {
+			isDNSChallenge = true
+
+			fmt.Printf("got acme dns request: \n%s\n", r.String())
 			switch question.Qtype {
 			case dns.TypeSOA:
 				h.handleSOA(domain, m)
 			case dns.TypeTXT:
 				err := h.handleACMETXTChallenge(domain, m)
 				if err != nil {
-					fmt.Printf("acmeHandler.solveDNSChallenge for zone %s err: %+v\n", domain, err)
+					fmt.Printf("handleACMETXTChallenge for zone %s err: %+v\n", domain, err)
 					return
 				}
 			case dns.TypeNS:
@@ -90,6 +94,7 @@ func (h *DNSServer) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 			case dns.TypeA, dns.TypeAAAA:
 				h.handleACNAMEANY(domain, m)
 			}
+			fmt.Printf("got acme dns response: \n%s\n", m.String())
 		} else {
 			switch question.Qtype {
 			case dns.TypeA, dns.TypeAAAA, dns.TypeCNAME, dns.TypeANY:
@@ -105,8 +110,10 @@ func (h *DNSServer) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 			}
 		}
 	}
-	// Write interaction for first question and dns request
-	h.handleInteraction(r.Question[0].Name, w, r, m)
+	if !isDNSChallenge {
+		// Write interaction for first question and dns request
+		h.handleInteraction(r.Question[0].Name, w, r, m)
+	}
 
 	if err := w.WriteMsg(m); err != nil {
 		gologger.Warning().Msgf("Could not write DNS response: \n%s\n %s\n", m.String(), err)
