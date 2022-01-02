@@ -7,4 +7,5 @@ ENV PATH="/opt/venv/bin:$PATH"
 RUN git clone --depth 1 https://github.com/SecureAuthCorp/impacket.git
 RUN python3 -m pip install impacket/
 RUN git clone --depth 1 https://github.com/lgandx/Responder.git
+RUN python3 -m pip install netifaces
 ENTRYPOINT ["python3","/opt/Responder/Responder.py","-I","eth0"]

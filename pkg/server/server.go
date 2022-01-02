@@ -37,6 +37,24 @@ type Options struct {
 	IPAddress string
 	// ListenIP is the IP address to listen servers on
 	ListenIP string
+	// DomainPort is the port to listen DNS servers on
+	DnsPort int
+	// HttpPort is the port to listen HTTP server on
+	HttpPort int
+	// HttpsPort is the port to listen HTTPS server on
+	HttpsPort int
+	// SmbPort is the port to listen Smb server on
+	SmbPort int
+	// SmtpPort is the port to listen Smtp server on
+	SmtpPort int
+	// SmtpsPort is the port to listen Smtps server on
+	SmtpsPort int
+	// SmtpAutoTLSPort is the port to listen Smtp autoTLS server on
+	SmtpAutoTLSPort int
+	// FtpPort is the port to listen Ftp server on
+	FtpPort int
+	// FtpPort is the port to listen Ftp server on
+	LdapPort int
 	// Hostmaster is the hostmaster email for the server.
 	Hostmaster string
 	// Storage is a storage for interaction data storage
@@ -49,6 +67,11 @@ type Options struct {
 	RootTLD bool
 	// OriginURL for the HTTP Server
 	OriginURL string
+	// FTPDirectory or temporary one
+	FTPDirectory string
+	// AppCnameDNSRecord determines if the dns server returns CNAME record
+	// similar to app.interactsh.domain
+	AppCnameDNSRecord bool
 }
 
 // URLReflection returns a reversed part of the URL payload

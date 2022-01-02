@@ -2,6 +2,7 @@ package server
 
 import (
 	"bytes"
+	"fmt"
 	"net"
 	"strings"
 	"time"
@@ -37,7 +38,7 @@ func NewDNSServer(options *Options) (*DNSServer, error) {
 		timeToLive: 3600,
 	}
 	server.server = &dns.Server{
-		Addr:    options.ListenIP + ":53",
+		Addr:    options.ListenIP + fmt.Sprintf(":%d", options.DnsPort),
 		Net:     "udp",
 		Handler: server,
 	}
@@ -45,9 +46,11 @@ func NewDNSServer(options *Options) (*DNSServer, error) {
 }
 
 // ListenAndServe listens on dns ports for the server.
-func (h *DNSServer) ListenAndServe() {
+func (h *DNSServer) ListenAndServe(dnsAlive chan bool) {
+	dnsAlive <- true
 	if err := h.server.ListenAndServe(); err != nil {
-		gologger.Error().Msgf("Could not serve dns on port 53: %s\n", err)
+		dnsAlive <- false
+		gologger.Error().Msgf("Could not serve dns on port %d: %s\n", h.options.DnsPort, err)
 	}
 }
 
@@ -64,7 +67,7 @@ func (h *DNSServer) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 	requestMsg := r.String()
 
 	gologger.Debug().Msgf("New DNS request: %s\n", requestMsg)
-	domain := m.Question[0].Name
+	domain := strings.ToLower(m.Question[0].Name)
 
 	var uniqueID, fullID string
 
@@ -102,7 +105,7 @@ func (h *DNSServer) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 			handleClould(net.ParseIP("169.254.169.254"))
 		case strings.EqualFold(domain, "alibaba"+h.dotDomain):
 			handleClould(net.ParseIP("100.100.100.200"))
-		case strings.EqualFold(domain, "app"+h.dotDomain):
+		case h.options.AppCnameDNSRecord && strings.EqualFold(domain, "app"+h.dotDomain):
 			handleAppWithCname("projectdiscovery.github.io", net.ParseIP("185.199.108.153"), net.ParseIP("185.199.110.153"), net.ParseIP("185.199.111.153"), net.ParseIP("185.199.108.153"))
 		default:
 			handleClould(h.ipAddress)
