@@ -132,7 +132,7 @@ func main() {
 				}
 			}
 		} else {
-			b, err := jsonpkg.MarshalIndent(interaction, "", "\t")
+			b, err := jsonpkg.Marshal(interaction)
 			if err != nil {
 				gologger.Error().Msgf("Could not marshal json output: %s\n", err)
 			} else {
