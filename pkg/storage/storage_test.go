@@ -11,6 +11,7 @@ import (
 	"encoding/pem"
 	"strconv"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -48,6 +49,7 @@ func TestStorageSetIDPublicKey(t *testing.T) {
 	require.Nil(t, err, "could not set correlation-id and rsa public key in storage")
 
 	item, ok := storage.cache.GetIfPresent(correlationID)
+	require.True(t, ok, "could not assert item value presence")
 	require.NotNil(t, item, "could not get correlation-id item from storage")
 
 	value, ok := item.(*CorrelationData)
@@ -126,7 +128,8 @@ func TestGetInteractions(t *testing.T) {
 		return builder.String()
 	}
 	data := &CorrelationData{
-		Data: []string{compressZlib("test"), compressZlib("another")},
+		dataMutex: &sync.Mutex{},
+		Data:      []string{compressZlib("test"), compressZlib("another")},
 	}
 	decompressed := data.GetInteractions()
 	require.ElementsMatch(t, []string{"test", "another"}, decompressed, "could not get correct decompressed list")
