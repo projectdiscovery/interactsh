@@ -469,26 +469,19 @@ AM65XAOw8Dsg9Kq78aYXiOEDc5DL0sbFUu/SlmRcCg93
 
 // getTLSconfig returns a tls configuration used to build a TLSlistener for TLS or StartTLS
 func (ldapServer *LDAPServer) getTLSconfig() (*tls.Config, error) {
-	var (
-		cert tls.Certificate
-		err  error
-	)
 	if ldapServer.tlsConfig == nil {
-		cert, err = tls.X509KeyPair(localhostCert, localhostKey)
-	} else {
-		if autoCert, err := ldapServer.tlsConfig.GetCertificate(nil); err == nil {
-			cert = *autoCert
+		cert, err := tls.X509KeyPair(localhostCert, localhostKey)
+		if err != nil {
+			return &tls.Config{InsecureSkipVerify: true}, err
 		}
-	}
-	if err != nil {
-		return &tls.Config{}, err
+		// SSL3.0 support is fine as we might be interacting with jurassic java
+		return &tls.Config{
+			MinVersion:   tls.VersionSSL30, //nolint
+			MaxVersion:   tls.VersionTLS12,
+			Certificates: []tls.Certificate{cert},
+			ServerName:   "127.0.0.1",
+		}, nil
 	}
 
-	// SSL3.0 support is fine as we might be interacting with jurassic java
-	return &tls.Config{
-		MinVersion:   tls.VersionSSL30, //nolint
-		MaxVersion:   tls.VersionTLS12,
-		Certificates: []tls.Certificate{cert},
-		ServerName:   "127.0.0.1",
-	}, nil
+	return ldapServer.tlsConfig, nil
 }
