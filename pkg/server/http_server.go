@@ -14,7 +14,6 @@ import (
 
 	jsoniter "github.com/json-iterator/go"
 	"github.com/projectdiscovery/gologger"
-	"github.com/projectdiscovery/interactsh/pkg/server/acme"
 )
 
 // HTTPServer is a http server instance that listens both
@@ -49,18 +48,17 @@ func NewHTTPServer(options *Options) (*HTTPServer, error) {
 }
 
 // ListenAndServe listens on http and/or https ports for the server.
-func (h *HTTPServer) ListenAndServe(autoTLS *acme.AutoTLS, httpAlive, httpsAlive chan bool) {
+func (h *HTTPServer) ListenAndServe(tlsConfig *tls.Config, httpAlive, httpsAlive chan bool) {
 	go func() {
-		if autoTLS == nil {
+		if tlsConfig == nil {
 			return
 		}
-		h.tlsserver.TLSConfig = &tls.Config{}
-		h.tlsserver.TLSConfig.GetCertificate = autoTLS.GetCertificateFunc()
+		h.tlsserver.TLSConfig = tlsConfig
 
 		httpsAlive <- true
 		if err := h.tlsserver.ListenAndServeTLS("", ""); err != nil {
-			httpsAlive <- false
 			gologger.Error().Msgf("Could not serve http on tls: %s\n", err)
+			httpsAlive <- false
 		}
 	}()
 

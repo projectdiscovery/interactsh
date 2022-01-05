@@ -2,6 +2,7 @@ package server
 
 import (
 	"bytes"
+	"crypto/tls"
 	"fmt"
 	"io"
 	"os"
@@ -10,7 +11,6 @@ import (
 
 	jsoniter "github.com/json-iterator/go"
 	"github.com/projectdiscovery/gologger"
-	"github.com/projectdiscovery/interactsh/pkg/server/acme"
 	ftpserver "goftp.io/server/v2"
 	"goftp.io/server/v2/driver/file"
 )
@@ -62,11 +62,11 @@ func NewFTPServer(options *Options) (*FTPServer, error) {
 }
 
 // ListenAndServe listens on smtp and/or smtps ports for the server.
-func (h *FTPServer) ListenAndServe(autoTLS *acme.AutoTLS, ftpAlive chan bool) {
+func (h *FTPServer) ListenAndServe(tlsConfig *tls.Config, ftpAlive chan bool) {
 	ftpAlive <- true
 	if err := h.ftpServer.ListenAndServe(); err != nil {
-		ftpAlive <- false
 		gologger.Error().Msgf("Could not serve ftp on port 21: %s\n", err)
+		ftpAlive <- false
 	}
 }
 

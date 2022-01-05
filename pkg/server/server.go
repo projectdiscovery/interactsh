@@ -4,6 +4,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/projectdiscovery/interactsh/pkg/server/acme"
 	"github.com/projectdiscovery/interactsh/pkg/storage"
 )
 
@@ -72,6 +73,8 @@ type Options struct {
 	// AppCnameDNSRecord determines if the dns server returns CNAME record
 	// similar to app.interactsh.domain
 	AppCnameDNSRecord bool
+
+	ACMEStore *acme.Provider
 }
 
 // URLReflection returns a reversed part of the URL payload
