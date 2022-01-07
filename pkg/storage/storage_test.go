@@ -9,12 +9,15 @@ import (
 	"crypto/x509"
 	"encoding/base64"
 	"encoding/pem"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
 	"time"
 
+	"github.com/goburrow/cache"
 	"github.com/google/uuid"
+	"github.com/karlseguin/ccache/v2"
 	"github.com/klauspost/compress/zlib"
 	"github.com/rs/xid"
 	"github.com/stretchr/testify/require"
@@ -45,10 +48,11 @@ func TestStorageSetIDPublicKey(t *testing.T) {
 	err = storage.SetIDPublicKey(correlationID, secret, encoded)
 	require.Nil(t, err, "could not set correlation-id and rsa public key in storage")
 
-	item := storage.cache.Get(correlationID)
+	item, ok := storage.cache.GetIfPresent(correlationID)
+	require.True(t, ok, "could not assert item value presence")
 	require.NotNil(t, item, "could not get correlation-id item from storage")
 
-	value, ok := item.Value().(*CorrelationData)
+	value, ok := item.(*CorrelationData)
 	require.True(t, ok, "could not assert item value type as correlation data")
 
 	require.Equal(t, secret, value.secretKey, "could not get correct secret key")
@@ -124,9 +128,44 @@ func TestGetInteractions(t *testing.T) {
 		return builder.String()
 	}
 	data := &CorrelationData{
-		Data:      []string{compressZlib("test"), compressZlib("another")},
 		dataMutex: &sync.Mutex{},
+		Data:      []string{compressZlib("test"), compressZlib("another")},
 	}
 	decompressed := data.GetInteractions()
 	require.ElementsMatch(t, []string{"test", "another"}, decompressed, "could not get correct decompressed list")
+}
+
+func BenchmarkCacheParallel(b *testing.B) {
+	config := ccache.Configure().MaxSize(defaultCacheMaxSize).Buckets(64).GetsPerPromote(10).PromoteBuffer(4096)
+	cache := ccache.New(config)
+
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			doStuffWithCache(cache)
+		}
+	})
+}
+
+func BenchmarkCacheParallelOther(b *testing.B) {
+	cache := cache.New(cache.WithMaximumSize(defaultCacheMaxSize), cache.WithExpireAfterWrite(24*7*time.Hour))
+
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			doStuffWithOtherCache(cache)
+		}
+	})
+}
+
+func doStuffWithCache(cache *ccache.Cache) {
+	for i := 0; i < 1e2; i++ {
+		cache.Set(strconv.Itoa(i), "test", 1*time.Minute)
+		_ = cache.Get(strconv.Itoa(i))
+	}
+}
+
+func doStuffWithOtherCache(cache cache.Cache) {
+	for i := 0; i < 1e2; i++ {
+		cache.Put(strconv.Itoa(i), "test")
+		_, _ = cache.GetIfPresent(strconv.Itoa(i))
+	}
 }

@@ -142,6 +142,7 @@ func (h *HTTPServer) logger(handler http.Handler) http.HandlerFunc {
 				gologger.Warning().Msgf("Could not encode http interaction: %s\n", err)
 			} else {
 				gologger.Debug().Msgf("HTTP Interaction: \n%s\n", buffer.String())
+
 				if err := h.options.Storage.AddInteraction(correlationID, buffer.Bytes()); err != nil {
 					gologger.Warning().Msgf("Could not store http interaction: %s\n", err)
 				}
@@ -197,6 +198,7 @@ func (h *HTTPServer) registerHandler(w http.ResponseWriter, req *http.Request) {
 		jsonError(w, fmt.Sprintf("could not decode json body: %s", err), http.StatusBadRequest)
 		return
 	}
+
 	if err := h.options.Storage.SetIDPublicKey(r.CorrelationID, r.SecretKey, r.PublicKey); err != nil {
 		gologger.Warning().Msgf("Could not set id and public key for %s: %s\n", r.CorrelationID, err)
 		jsonError(w, fmt.Sprintf("could not set id and public key: %s", err), http.StatusBadRequest)
@@ -222,6 +224,7 @@ func (h *HTTPServer) deregisterHandler(w http.ResponseWriter, req *http.Request)
 		jsonError(w, fmt.Sprintf("could not decode json body: %s", err), http.StatusBadRequest)
 		return
 	}
+
 	if err := h.options.Storage.RemoveID(r.CorrelationID, r.SecretKey); err != nil {
 		gologger.Warning().Msgf("Could not remove id for %s: %s\n", r.CorrelationID, err)
 		jsonError(w, fmt.Sprintf("could not remove id: %s", err), http.StatusBadRequest)
@@ -260,10 +263,10 @@ func (h *HTTPServer) pollHandler(w http.ResponseWriter, req *http.Request) {
 	}
 
 	// At this point the client is authenticated, so we return also the data related to the auth token
-	extradata, _ := h.options.Storage.GetInteractionsWithId(h.options.Token)
-	var tlddata []string
+	var tlddata, extradata []string
 	if h.options.RootTLD {
 		tlddata, _ = h.options.Storage.GetInteractionsWithId(h.options.Domain)
+		extradata, _ = h.options.Storage.GetInteractionsWithId(h.options.Token)
 	}
 	response := &PollResponse{Data: data, AESKey: aesKey, TLDData: tlddata, Extra: extradata}
 

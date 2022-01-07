@@ -64,15 +64,19 @@ func New(options *Options) (*Client, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "could not parse server URL")
 	}
+	opts := retryablehttp.DefaultOptionsSingle
+	opts.Timeout = 15 * time.Second
+
 	// Generate a random ksuid which will be used as server secret.
 	client := &Client{
 		serverURL:         parsed,
 		secretKey:         uuid.New().String(), // uuid as more secure
 		correlationID:     xid.New().String(),
 		persistentSession: options.PersistentSession,
-		httpClient:        retryablehttp.NewClient(retryablehttp.DefaultOptionsSingle),
+		httpClient:        retryablehttp.NewClient(opts),
 		token:             options.Token,
 	}
+
 gen_keys:
 	// Generate an RSA Public / Private key for interactsh client
 	if err := client.generateRSAKeyPair(); err != nil {
@@ -140,7 +144,8 @@ func (c *Client) getInteractions(callback InteractionCallback) error {
 		if resp.StatusCode == http.StatusUnauthorized {
 			return authError
 		}
-		return errors.New("couldn't poll interactions")
+		data, _ := ioutil.ReadAll(resp.Body)
+		return fmt.Errorf("could not poll interactions: %s", string(data))
 	}
 	response := &server.PollResponse{}
 	if err := jsoniter.NewDecoder(resp.Body).Decode(response); err != nil {
@@ -223,7 +228,8 @@ func (c *Client) Close() error {
 			return errors.Wrap(err, "could not make deregister request")
 		}
 		if resp.StatusCode != 200 {
-			return errors.Wrap(err, "could not deregister to server")
+			data, _ := ioutil.ReadAll(resp.Body)
+			return fmt.Errorf("could not deregister to server: %s", string(data))
 		}
 	}
 	return nil
@@ -282,7 +288,8 @@ func (c *Client) generateRSAKeyPair() error {
 		return errors.Wrap(err, "could not make register request")
 	}
 	if resp.StatusCode != 200 {
-		return errors.New("could not register to server")
+		data, _ := ioutil.ReadAll(resp.Body)
+		return fmt.Errorf("could not register to server: %s", string(data))
 	}
 	response := make(map[string]interface{})
 	if jsonErr := jsoniter.NewDecoder(resp.Body).Decode(&response); jsonErr != nil {

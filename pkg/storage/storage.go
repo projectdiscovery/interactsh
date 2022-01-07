@@ -17,8 +17,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/goburrow/cache"
 	"github.com/google/uuid"
-	"github.com/karlseguin/ccache/v2"
 	"github.com/klauspost/compress/zlib"
 	"github.com/pkg/errors"
 )
@@ -26,7 +26,7 @@ import (
 // Storage is an storage for interactsh interaction data as well
 // as correlation-id -> rsa-public-key data.
 type Storage struct {
-	cache       *ccache.Cache
+	cache       cache.Cache
 	evictionTTL time.Duration
 }
 
@@ -44,14 +44,25 @@ type CorrelationData struct {
 }
 
 type CacheMetrics struct {
-	Sessions int `json:"active-session"`
-	Dropped  int `json:"evicted-session"`
+	HitCount         uint64        `json:"hit-count"`
+	MissCount        uint64        `json:"miss-count"`
+	LoadSuccessCount uint64        `json:"load-success-count"`
+	LoadErrorCount   uint64        `json:"load-error-count"`
+	TotalLoadTime    time.Duration `json:"total-load-time"`
+	EvictionCount    uint64        `json:"eviction-count"`
 }
 
 func (s *Storage) GetCacheMetrics() *CacheMetrics {
+	info := &cache.Stats{}
+	s.cache.Stats(info)
+
 	return &CacheMetrics{
-		Sessions: s.cache.ItemCount(),
-		Dropped:  s.cache.GetDropped(),
+		HitCount:         info.HitCount,
+		MissCount:        info.MissCount,
+		LoadSuccessCount: info.LoadSuccessCount,
+		LoadErrorCount:   info.LoadErrorCount,
+		TotalLoadTime:    info.TotalLoadTime,
+		EvictionCount:    info.EvictionCount,
 	}
 }
 
@@ -95,18 +106,19 @@ func (c *CorrelationData) GetInteractions() []string {
 	return results
 }
 
-const defaultCacheMaxSize = 1000000
+const defaultCacheMaxSize = 2500000
 
 // New creates a new storage instance for interactsh data.
 func New(evictionTTL time.Duration) *Storage {
-	return &Storage{cache: ccache.New(ccache.Configure().MaxSize(defaultCacheMaxSize)), evictionTTL: evictionTTL}
+	return &Storage{cache: cache.New(cache.WithMaximumSize(defaultCacheMaxSize), cache.WithExpireAfterWrite(evictionTTL)), evictionTTL: evictionTTL}
 }
 
 // SetIDPublicKey sets the correlation ID and publicKey into the cache for further operations.
 func (s *Storage) SetIDPublicKey(correlationID, secretKey string, publicKey string) error {
 	// If we already have this correlation ID, return.
-	if s.cache.Get(correlationID) != nil {
-		return errors.New("correlation-id provided is invalid")
+	_, found := s.cache.GetIfPresent(correlationID)
+	if found {
+		return errors.New("correlation-id provided already exists")
 	}
 	publicKeyData, err := parseB64RSAPublicKeyFromPEM(publicKey)
 	if err != nil {
@@ -126,7 +138,7 @@ func (s *Storage) SetIDPublicKey(correlationID, secretKey string, publicKey stri
 		aesKey:    []byte(aesKey),
 		AESKey:    base64.StdEncoding.EncodeToString(ciphertext),
 	}
-	s.cache.Set(correlationID, data, s.evictionTTL)
+	s.cache.Put(correlationID, data)
 	return nil
 }
 
@@ -135,18 +147,18 @@ func (s *Storage) SetID(ID string) error {
 		Data:      make([]string, 0),
 		dataMutex: &sync.Mutex{},
 	}
-	s.cache.Set(ID, data, s.evictionTTL)
+	s.cache.Put(ID, data)
 	return nil
 }
 
 // AddInteraction adds an interaction data to the correlation ID after encrypting
 // it with Public Key for the provided correlation ID.
 func (s *Storage) AddInteraction(correlationID string, data []byte) error {
-	item := s.cache.Get(correlationID)
-	if item == nil {
+	item, found := s.cache.GetIfPresent(correlationID)
+	if !found {
 		return errors.New("could not get correlation-id from cache")
 	}
-	value, ok := item.Value().(*CorrelationData)
+	value, ok := item.(*CorrelationData)
 	if !ok {
 		return errors.New("invalid correlation-id cache value found")
 	}
@@ -163,11 +175,11 @@ func (s *Storage) AddInteraction(correlationID string, data []byte) error {
 
 // AddInteractionWithId adds an interaction data to the id bucket
 func (s *Storage) AddInteractionWithId(id string, data []byte) error {
-	item := s.cache.Get(id)
-	if item == nil {
+	item, ok := s.cache.GetIfPresent(id)
+	if !ok {
 		return errors.New("could not get correlation-id from cache")
 	}
-	value, ok := item.Value().(*CorrelationData)
+	value, ok := item.(*CorrelationData)
 	if !ok {
 		return errors.New("invalid correlation-id cache value found")
 	}
@@ -194,11 +206,11 @@ func (s *Storage) AddInteractionWithId(id string, data []byte) error {
 // GetInteractions returns the interactions for a correlationID and removes
 // it from the storage. It also returns AES Encrypted Key for the IDs.
 func (s *Storage) GetInteractions(correlationID, secret string) ([]string, string, error) {
-	item := s.cache.Get(correlationID)
-	if item == nil {
+	item, ok := s.cache.GetIfPresent(correlationID)
+	if !ok {
 		return nil, "", errors.New("could not get correlation-id from cache")
 	}
-	value, ok := item.Value().(*CorrelationData)
+	value, ok := item.(*CorrelationData)
 	if !ok {
 		return nil, "", errors.New("invalid correlation-id cache value found")
 	}
@@ -211,11 +223,11 @@ func (s *Storage) GetInteractions(correlationID, secret string) ([]string, strin
 
 // GetInteractions returns the interactions for a id and empty the cache
 func (s *Storage) GetInteractionsWithId(id string) ([]string, error) {
-	item := s.cache.Get(id)
-	if item == nil {
+	item, ok := s.cache.GetIfPresent(id)
+	if !ok {
 		return nil, errors.New("could not get id from cache")
 	}
-	value, ok := item.Value().(*CorrelationData)
+	value, ok := item.(*CorrelationData)
 	if !ok {
 		return nil, errors.New("invalid id cache value found")
 	}
@@ -225,11 +237,11 @@ func (s *Storage) GetInteractionsWithId(id string) ([]string, error) {
 
 // RemoveID removes data for a correlation ID and data related to it.
 func (s *Storage) RemoveID(correlationID, secret string) error {
-	item := s.cache.Get(correlationID)
-	if item == nil {
+	item, ok := s.cache.GetIfPresent(correlationID)
+	if !ok {
 		return errors.New("could not get correlation-id from cache")
 	}
-	value, ok := item.Value().(*CorrelationData)
+	value, ok := item.(*CorrelationData)
 	if !ok {
 		return errors.New("invalid correlation-id cache value found")
 	}
@@ -239,7 +251,7 @@ func (s *Storage) RemoveID(correlationID, secret string) error {
 	value.dataMutex.Lock()
 	value.Data = nil
 	value.dataMutex.Unlock()
-	s.cache.Delete(correlationID)
+	s.cache.Invalidate(correlationID)
 	return nil
 }
 
@@ -311,13 +323,13 @@ func aesEncrypt(key []byte, message []byte) (string, error) {
 
 // GetCacheItem returns an item as is
 func (s *Storage) GetCacheItem(token string) (*CorrelationData, error) {
-	item := s.cache.Get(token)
-	if item == nil {
-		return nil, errors.New("could not get token from cache")
-	}
-	value, ok := item.Value().(*CorrelationData)
+	item, ok := s.cache.GetIfPresent(token)
 	if !ok {
-		return nil, errors.New("invalid token cache value found")
+		return nil, errors.New("cache item not found")
+	}
+	value, ok := item.(*CorrelationData)
+	if !ok {
+		return nil, errors.New("cache item not found")
 	}
 	return value, nil
 }
