@@ -106,7 +106,7 @@ func (c *CorrelationData) GetInteractions() []string {
 	return results
 }
 
-const defaultCacheMaxSize = 1000000
+const defaultCacheMaxSize = 2500000
 
 // New creates a new storage instance for interactsh data.
 func New(evictionTTL time.Duration) *Storage {
