@@ -10,7 +10,6 @@ import (
 	ldap "github.com/Mzack9999/ldapserver"
 	jsoniter "github.com/json-iterator/go"
 	"github.com/projectdiscovery/gologger"
-	"github.com/projectdiscovery/interactsh/pkg/server/acme"
 )
 
 // Most routes handlers are taken from the example at https://github.com/vjeantet/ldapserver/blob/master/examples/complex/main.go
@@ -24,7 +23,7 @@ type LDAPServer struct {
 	WithLogger bool
 	options    *Options
 	server     *ldap.Server
-	autoTls    *acme.AutoTLS
+	tlsConfig  *tls.Config
 }
 
 // NewLDAPServer returns a new LDAP server.
@@ -59,12 +58,12 @@ func NewLDAPServer(options *Options, withLogger bool) (*LDAPServer, error) {
 }
 
 // ListenAndServe listens on ldap ports for the server.
-func (ldapServer *LDAPServer) ListenAndServe(autoTLS *acme.AutoTLS, ldapAlive chan bool) {
+func (ldapServer *LDAPServer) ListenAndServe(tlsConfig *tls.Config, ldapAlive chan bool) {
 	ldapAlive <- true
-	ldapServer.autoTls = autoTLS
+	ldapServer.tlsConfig = tlsConfig
 	if err := ldapServer.server.ListenAndServe(fmt.Sprintf("%s:%d", ldapServer.options.ListenIP, ldapServer.options.LdapPort)); err != nil {
-		ldapAlive <- false
 		gologger.Error().Msgf("Could not serve ldap on port 10389: %s\n", err)
+		ldapAlive <- false
 	}
 }
 
@@ -474,10 +473,10 @@ func (ldapServer *LDAPServer) getTLSconfig() (*tls.Config, error) {
 		cert tls.Certificate
 		err  error
 	)
-	if ldapServer.autoTls != nil {
+	if ldapServer.tlsConfig == nil {
 		cert, err = tls.X509KeyPair(localhostCert, localhostKey)
 	} else {
-		if autoCert, err := ldapServer.autoTls.GetCertificateFunc()(nil); err == nil {
+		if autoCert, err := ldapServer.tlsConfig.GetCertificate(nil); err == nil {
 			cert = *autoCert
 		}
 	}

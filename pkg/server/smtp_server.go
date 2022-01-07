@@ -11,7 +11,6 @@ import (
 	"git.mills.io/prologic/smtpd"
 	jsoniter "github.com/json-iterator/go"
 	"github.com/projectdiscovery/gologger"
-	"github.com/projectdiscovery/interactsh/pkg/server/acme"
 )
 
 // SMTPServer is a smtp server instance that listens both
@@ -52,20 +51,19 @@ func NewSMTPServer(options *Options) (*SMTPServer, error) {
 }
 
 // ListenAndServe listens on smtp and/or smtps ports for the server.
-func (h *SMTPServer) ListenAndServe(autoTLS *acme.AutoTLS, smtpAlive, smtpsAlive chan bool) {
+func (h *SMTPServer) ListenAndServe(tlsConfig *tls.Config, smtpAlive, smtpsAlive chan bool) {
 	go func() {
-		if autoTLS == nil {
+		if tlsConfig == nil {
 			return
 		}
 		srv := &smtpd.Server{Addr: fmt.Sprintf("%s:%d", h.options.ListenIP, h.options.SmtpAutoTLSPort), Handler: h.defaultHandler, Appname: "interactsh", Hostname: h.options.Domain}
-		srv.TLSConfig = &tls.Config{}
-		srv.TLSConfig.GetCertificate = autoTLS.GetCertificateFunc()
+		srv.TLSConfig = tlsConfig
 
 		smtpsAlive <- true
 		err := srv.ListenAndServe()
 		if err != nil {
-			smtpsAlive <- false
 			gologger.Error().Msgf("Could not serve smtp with tls on port %d: %s\n", h.options.SmtpAutoTLSPort, err)
+			smtpsAlive <- false
 		}
 	}()
 
@@ -77,8 +75,8 @@ func (h *SMTPServer) ListenAndServe(autoTLS *acme.AutoTLS, smtpAlive, smtpsAlive
 		}
 	}()
 	if err := h.smtpsServer.ListenAndServe(); err != nil {
-		smtpAlive <- false
 		gologger.Error().Msgf("Could not serve smtp on port %d: %s\n", h.options.SmtpsPort, err)
+		smtpAlive <- false
 	}
 }
 
