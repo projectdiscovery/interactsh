@@ -31,9 +31,10 @@ func showBanner() {
 }
 
 func main() {
+	defaultOpts := client.DefaultOptions
 
 	flag.CommandLine = flag.NewFlagSet(os.Args[0], flag.ExitOnError)
-	serverURL := flag.String("server", "https://interact.sh", "Interactsh server to use")
+	serverURL := flag.String("server", defaultOpts.ServerURL, "Interactsh server(s) to use")
 	n := flag.Int("n", 1, "Interactsh payload count to generate")
 	output := flag.String("o", "", "Output file to write interaction")
 	json := flag.Bool("json", false, "Write output in JSONL(ines) format")
@@ -60,10 +61,10 @@ func main() {
 	}
 
 	client, err := client.New(&client.Options{
-		ServerURL:         *serverURL,
-		PersistentSession: *persistent,
-		Token:             *token,
-		HTTPFallback:      !*disableHttpFallback,
+		ServerURL:           *serverURL,
+		PersistentSession:   *persistent,
+		Token:               *token,
+		DisableHTTPFallback: *disableHttpFallback,
 	})
 	if err != nil {
 		gologger.Fatal().Msgf("Could not create client: %s\n", err)
