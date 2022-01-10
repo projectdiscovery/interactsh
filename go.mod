@@ -24,7 +24,7 @@ require (
 	github.com/rogpeppe/go-internal v1.8.0 // indirect
 	github.com/rs/xid v1.3.0
 	github.com/stretchr/testify v1.7.0
-	go.uber.org/zap v1.17.0
+	go.uber.org/zap v1.20.0
 	goftp.io/server/v2 v2.0.0
 	golang.org/x/net v0.0.0-20210825183410-e898025ed96a // indirect
 	golang.org/x/sys v0.0.0-20211210111614-af8b64212486 // indirect
