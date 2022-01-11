@@ -3,6 +3,7 @@ package acme
 import (
 	"context"
 	"crypto/tls"
+	"strings"
 
 	"github.com/caddyserver/certmagic"
 	"github.com/pkg/errors"
@@ -27,6 +28,8 @@ func HandleWildcardCertificates(domain, email string, store *Provider) (*tls.Con
 			"1.0.0.1:53",
 		},
 	}
+	originalDomain := strings.TrimPrefix(domain, "*.")
+
 	certmagic.DefaultACME.CA = certmagic.LetsEncryptProductionCA
 	certmagic.DefaultACME.Logger = logger
 	certmagic.DefaultACME.DisableHTTPChallenge = true
@@ -39,9 +42,13 @@ func HandleWildcardCertificates(domain, email string, store *Provider) (*tls.Con
 	if syncerr := cfg.ObtainCertSync(context.Background(), domain); syncerr != nil {
 		return nil, syncerr
 	}
-	syncerr := cfg.ManageAsync(context.Background(), []string{domain})
+	syncerr := cfg.ManageAsync(context.Background(), []string{domain, originalDomain})
 	if syncerr != nil {
 		return nil, errors.Wrap(syncerr, "could not get certificates")
 	}
-	return cfg.TLSConfig(), nil
+
+	config := cfg.TLSConfig()
+	config.ServerName = originalDomain
+	config.NextProtos = []string{"h2", "http/1.1"}
+	return config, nil
 }
