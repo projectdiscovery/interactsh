@@ -6,7 +6,7 @@ import (
 	"strings"
 
 	"github.com/caddyserver/certmagic"
-	"github.com/pkg/errors"
+	"github.com/projectdiscovery/gologger"
 	"go.uber.org/zap"
 )
 
@@ -42,10 +42,12 @@ func HandleWildcardCertificates(domain, email string, store *Provider) (*tls.Con
 	if syncerr := cfg.ObtainCertSync(context.Background(), domain); syncerr != nil {
 		return nil, syncerr
 	}
-	syncerr := cfg.ManageAsync(context.Background(), []string{domain, originalDomain})
-	if syncerr != nil {
-		return nil, errors.Wrap(syncerr, "could not get certificates")
-	}
+	go func() {
+		syncerr := cfg.ManageAsync(context.Background(), []string{domain, originalDomain})
+		if syncerr != nil {
+			gologger.Error().Msgf("Could not manageasync certmagic certs: %s", err)
+		}
+	}()
 
 	config := cfg.TLSConfig()
 	config.ServerName = originalDomain

@@ -116,7 +116,7 @@ func main() {
 	if err != nil {
 		gologger.Fatal().Msgf("Could not create DNS server")
 	}
-	dnsAlive := make(chan bool, 2)
+	dnsAlive := make(chan bool, 1)
 	go dnsServer.ListenAndServe(dnsAlive)
 
 	trimmedDomain := strings.TrimSuffix(options.Domain, ".")
