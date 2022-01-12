@@ -62,7 +62,7 @@ type Options struct {
 
 // DefaultOptions is the default options for the interact client
 var DefaultOptions = &Options{
-	ServerURL: "interact.sh,interactsh.com",
+	ServerURL: "oast.pro,oast.live,oast.site,oast.online,oast.fun,oast.me",
 }
 
 // New creates a new client instance based on provided options
