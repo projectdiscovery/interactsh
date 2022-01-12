@@ -61,7 +61,7 @@ interactsh-client
         projectdiscovery.io
 
 [INF] Listing 1 payload for OOB Testing
-[INF] c23b2la0kl1krjcrdj10cndmnioyyyyyn.interact.sh
+[INF] c23b2la0kl1krjcrdj10cndmnioyyyyyn.oast.pro
 
 [c23b2la0kl1krjcrdj10cndmnioyyyyyn] Received DNS interaction (A) from 172.253.226.100 at 2021-26-26 12:26
 [c23b2la0kl1krjcrdj10cndmnioyyyyyn] Received DNS interaction (AAAA) from 32.3.34.129 at 2021-26-26 12:26
@@ -85,7 +85,7 @@ interactsh-client -v -o interactsh-logs.txt
     projectdiscovery.io
 
 [INF] Listing 1 payload for OOB Testing
-[INF] c58bduhe008dovpvhvugcfemp9yyyyyyn.interact.sh
+[INF] c58bduhe008dovpvhvugcfemp9yyyyyyn.oast.pro
 
 [c58bduhe008dovpvhvugcfemp9yyyyyyn] Received HTTP interaction from 103.22.142.211 at 2021-09-26 18:08:07
 ------------
@@ -93,12 +93,12 @@ HTTP Request
 ------------
 
 GET /favicon.ico HTTP/2.0
-Host: c58bduhe008dovpvhvugcfemp9yyyyyyn.interact.sh
+Host: c58bduhe008dovpvhvugcfemp9yyyyyyn.oast.pro
 Accept: image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8
 Accept-Encoding: gzip, deflate, br
 Accept-Language: en-IN,en;q=0.9
 Cookie: _ga=GA1.2.440163205.1619796009; _iub_cs-77854424=%7B%22timestamp%22%3A%222021-04-30T15%3A23%3A23.192Z%22%2C%22version%22%3A%221.30.2%22%2C%22consent%22%3Atrue%2C%22id%22%3A77854424%7D
-Referer: https://c58bduhe008dovpvhvugcfemp9yyyyyyn.interact.sh/
+Referer: https://c58bduhe008dovpvhvugcfemp9yyyyyyn.oast.pro/
 Sec-Ch-Ua: "Google Chrome";v="93", " Not;A Brand";v="99", "Chromium";v="93"
 Sec-Ch-Ua-Mobile: ?0
 Sec-Ch-Ua-Platform: "macOS"
@@ -116,7 +116,7 @@ HTTP Response
 HTTP/1.1 200 OK
 Connection: close
 Content-Type: text/html; charset=utf-8
-Server: interact.sh
+Server: oast.pro
 
 <html><head></head><body>nyyyyyy9pmefcguvhvpvod800ehudb85c</body></html>
 ```
@@ -150,19 +150,19 @@ interactsh-client -h
 
 This will display help for the tool. Here are all the switches it supports.
 
-| Flag          | Description                                       | Example                                             |
-| ------------- | ------------------------------------------------- | --------------------------------------------------- |
-| n             | Interactsh payload count to generate (default 1)  | interactsh-client -n 2                              |
-| poll-interval | Interaction poll interval in seconds (default 5)  | interactsh-client -poll-interval 1                  |
-| server        | Interactsh server to use                          | interactsh-client -server https://INTERACTSH_DOMAIN |
-| dns-only      | Display only DNS interaction in CLI output        | interactsh-client -dns-only                         |
-| http-only     | Display only HTTP interaction in CLI output       | interactsh-client -http-only                        |
-| smtp-only     | Display only SMTP interaction in CLI output       | interactsh-client -smtp-only                        |
-| json          | Write output in JSONL(ines) format                | interactsh-client -json                             |
-| token         | Authentication token to connect interactsh server | interactsh-client -token XXX                        |
-| persist       | Enables persistent interactsh sessions            | interactsh-client -persist                          |
-| o             | Output file to write interaction                  | interactsh-client -o logs.txt                       |
-| v             | Show verbose interaction                          | interactsh-client -v                                |
+| Flag          | Description                                       | Example                                     |
+| ------------- | ------------------------------------------------- | ------------------------------------------- |
+| n             | Interactsh payload count to generate (default 1)  | interactsh-client -n 2                      |
+| poll-interval | Interaction poll interval in seconds (default 5)  | interactsh-client -poll-interval 1          |
+| server        | Interactsh server to use                          | interactsh-client -server INTERACTSH_DOMAIN |
+| dns-only      | Display only DNS interaction in CLI output        | interactsh-client -dns-only                 |
+| http-only     | Display only HTTP interaction in CLI output       | interactsh-client -http-only                |
+| smtp-only     | Display only SMTP interaction in CLI output       | interactsh-client -smtp-only                |
+| json          | Write output in JSONL(ines) format                | interactsh-client -json                     |
+| token         | Authentication token to connect interactsh server | interactsh-client -token XXX                |
+| persist       | Enables persistent interactsh sessions            | interactsh-client -persist                  |
+| o             | Output file to write interaction                  | interactsh-client -o logs.txt               |
+| v             | Show verbose interaction                          | interactsh-client -v                        |
 
 
 ## Interactsh Web Client
@@ -193,7 +193,7 @@ docker run projectdiscovery/interactsh-client:latest
         projectdiscovery.io
 
 [INF] Listing 1 payload for OOB Testing
-[INF] c59e3crp82ke7bcnedq0cfjqdpeyyyyyn.interact.sh
+[INF] c59e3crp82ke7bcnedq0cfjqdpeyyyyyn.oast.pro
 ```
 
 ## Burp Suite Extension
@@ -261,16 +261,10 @@ Install interactsh-server on your **remote VPS**
 go install -v github.com/projectdiscovery/interactsh/cmd/interactsh-server@latest
 ```
 
-Considering **domain name setup is completed**, run the below command to run interactsh server
+Considering domain name setup is **completed**, run the below command to run interactsh server
 
 ```bash
 interactsh-server -domain INTERACTSH_DOMAIN
-```
-
-**Alternatively**, you can utilize ready to run [docker image](https://hub.docker.com/r/projectdiscovery/interactsh-server) of interactsh-server on your **remote machine** with
-
-```sh
-docker run projectdiscovery/interactsh-server:latest -domain INTERACTSH_DOMAIN
 ```
 
 Following is an example of a successful installation and operation of a self-hosted server:
@@ -278,9 +272,9 @@ Following is an example of a successful installation and operation of a self-hos
 ![interactsh-server](https://user-images.githubusercontent.com/8293321/134819391-51137c77-61d5-4ae8-9504-947dd444d863.png)
 
 
-A number of needed flags are configured automatically to run interactsh server with default settings. For example, the `hostmaster` flag with a valid email address such as `admin@INTERACTSH_DOMAIN` and the `ip` and `listen-ip` flags with the public IP address of the VPS.
+A number of needed flags are configured automatically to run interactsh server with default settings. For example, `ip` and `listen-ip` flags with the public IP address of the VPS.
 
-A hosted instance of **interactsh-server** which is used as default with interactsh-client is available at https://interact.sh
+We maintain a list of default interactsh servers to use with interactsh-client (`oast.pro,oast.live,oast.site,oast.online,oast.fun,oast.me`) that is subject to change/rotate/down at any time, thus we recommend using a self-hosted interactsh server if you are experiencing issues with the default server.
 
 </td>
 </table>
@@ -308,7 +302,7 @@ This will display help for the tool. Here are all the switches it supports.
 | smb        | Start a smb agent - impacket and python 3 must be installed  | interactsh-server -smb                                  |
 | debug      | Run interactsh in debug mode                                 | interactsh-server -debug                                |
 
-There are more useful capabilities supported by Interactsh server that are not enabled by default and are intended to be used only by self-hosted servers. These feature are **not** available with hosted server at https://interact.sh
+There are more useful capabilities supported by Interactsh server that are not enabled by default and are intended to be used only by self-hosted servers, for example:
 
 `root-tld` flag enables global / wildcard (`*.INTERACTSH_DOMAIN`) interaction support for your self-hosted domain and includes implicit authentication protection via the `auth` flag if the `token` flag is omitted.
 
