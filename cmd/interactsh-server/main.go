@@ -30,7 +30,7 @@ func main() {
 	flag.BoolVar(&debug, "debug", false, "Run interactsh in debug mode")
 	flag.StringVar(&options.Domain, "domain", "", "Domain to use for interactsh server")
 	flag.StringVar(&options.IPAddress, "ip", "", "Public IP Address to use for interactsh server")
-	flag.StringVar(&options.ListenIP, "listen-ip", "0.0.0.0", "Public IP Address to listen on")
+	flag.StringVar(&options.ListenIP, "listen-ip", "", "IP Address to listen on")
 	flag.StringVar(&options.Hostmaster, "hostmaster", "", "Hostmaster email to use for interactsh server")
 	flag.IntVar(&eviction, "eviction", 30, "Number of days to persist interactions for")
 	flag.BoolVar(&responder, "responder", false, "Start a responder agent - docker must be installed")
@@ -41,10 +41,9 @@ func main() {
 	flag.BoolVar(&options.RootTLD, "root-tld", false, "Enable wildcard/global interaction for *.domain.com")
 	flag.Parse()
 
-	if options.IPAddress == "" && options.ListenIP == "0.0.0.0" {
+	if options.IPAddress == "" {
 		ip := getPublicIP()
 		options.IPAddress = ip
-		options.ListenIP = ip
 	}
 	if options.Hostmaster == "" {
 		options.Hostmaster = fmt.Sprintf("admin@%s", options.Domain)
