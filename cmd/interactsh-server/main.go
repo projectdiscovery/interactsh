@@ -97,15 +97,15 @@ func main() {
 		_ = store.SetID(options.Domain)
 	}
 
-	dnsServer, err := server.NewDNSServer(options)
-	if err != nil {
-		gologger.Fatal().Msgf("Could not create DNS server")
-	}
-	go dnsServer.ListenAndServe()
+	TCPDNSServer := server.NewDNSServer("tcp", options)
+	UDPDNSServer := server.NewDNSServer("udp", options)
+	go TCPDNSServer.ListenAndServe()
+	go UDPDNSServer.ListenAndServe()
 
 	trimmedDomain := strings.TrimSuffix(options.Domain, ".")
 	autoTLS, err := acme.NewAutomaticTLS(options.Hostmaster, fmt.Sprintf("*.%s,%s", trimmedDomain, trimmedDomain), func(txt string) {
-		dnsServer.TxtRecord = txt
+		TCPDNSServer.TxtRecord = txt
+		UDPDNSServer.TxtRecord = txt
 	})
 	if err != nil {
 		gologger.Warning().Msgf("An error occurred while applying for an certificate, error: %v", err)

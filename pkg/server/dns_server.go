@@ -25,7 +25,7 @@ type DNSServer struct {
 }
 
 // NewDNSServer returns a new DNS server.
-func NewDNSServer(options *Options) (*DNSServer, error) {
+func NewDNSServer(network string, options *Options) (*DNSServer) {
 	dotdomain := dns.Fqdn(options.Domain)
 	server := &DNSServer{
 		options:    options,
@@ -38,16 +38,16 @@ func NewDNSServer(options *Options) (*DNSServer, error) {
 	}
 	server.server = &dns.Server{
 		Addr:    options.ListenIP + ":53",
-		Net:     "udp",
+		Net:     network,
 		Handler: server,
 	}
-	return server, nil
+	return server
 }
 
 // ListenAndServe listens on dns ports for the server.
 func (h *DNSServer) ListenAndServe() {
 	if err := h.server.ListenAndServe(); err != nil {
-		gologger.Error().Msgf("Could not serve dns on port 53: %s\n", err)
+		gologger.Fatal().Msgf("Could not listen for %s DNS on %s (%s)\n", h.server.Net, h.server.Addr, err)
 	}
 }
 
