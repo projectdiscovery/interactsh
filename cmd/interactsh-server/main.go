@@ -31,7 +31,7 @@ func main() {
 	flag.StringVar(&options.Domain, "domain", "", "Domain to use for interactsh server")
 	flag.IntVar(&options.DnsPort, "dns-port", 53, "Port to use by DNS server for interactsh server")
 	flag.StringVar(&options.IPAddress, "ip", "", "Public IP Address to use for interactsh server")
-	flag.StringVar(&options.ListenIP, "listen-ip", "0.0.0.0", "Public IP Address to listen on")
+	flag.StringVar(&options.ListenIP, "listen-ip", "", "IP Address to listen on")
 	flag.IntVar(&options.HttpPort, "http-port", 80, "HTTP port to listen on")
 	flag.IntVar(&options.HttpsPort, "https-port", 443, "HTTPS port to listen on")
 	flag.StringVar(&options.Hostmaster, "hostmaster", "", "Hostmaster email to use for interactsh server")
@@ -55,10 +55,14 @@ func main() {
 	flag.BoolVar(&options.AppCnameDNSRecord, "app-cname", false, "Enable DNS CNAME record (eg. app.interactsh.domain) for web app")
 	flag.Parse()
 
-	if options.IPAddress == "" && options.ListenIP == "0.0.0.0" {
+	// if an IPv6 literal is passed as the listen IP ensure it is wrapped with []
+	if strings.Contains(options.ListenIP, ":") && !(strings.HasPrefix(options.ListenIP, "[") && strings.HasSuffix(options.ListenIP, "]")) {
+		options.ListenIP = "[" + options.ListenIP + "]"
+	}
+
+	if options.IPAddress == "" {
 		ip := getPublicIP()
 		options.IPAddress = ip
-		options.ListenIP = ip
 	}
 	if options.Hostmaster == "" {
 		options.Hostmaster = fmt.Sprintf("admin@%s", options.Domain)
