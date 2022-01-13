@@ -3,14 +3,15 @@ package main
 import (
 	"bytes"
 	jsonpkg "encoding/json"
-	"flag"
 	"fmt"
 	"os"
 	"os/signal"
 	"time"
 
+	"github.com/projectdiscovery/goflags"
 	"github.com/projectdiscovery/gologger"
 	"github.com/projectdiscovery/interactsh/pkg/client"
+	"github.com/projectdiscovery/interactsh/pkg/options"
 	"github.com/projectdiscovery/interactsh/pkg/server"
 )
 
@@ -32,77 +33,87 @@ func showBanner() {
 
 func main() {
 	defaultOpts := client.DefaultOptions
+	cliOptions := &options.CLIClientOptions{}
 
-	flag.CommandLine = flag.NewFlagSet(os.Args[0], flag.ExitOnError)
-	serverURL := flag.String("server", defaultOpts.ServerURL, "Interactsh server(s) to use")
-	n := flag.Int("n", 1, "Interactsh payload count to generate")
-	output := flag.String("o", "", "Output file to write interaction")
-	json := flag.Bool("json", false, "Write output in JSONL(ines) format")
-	verbose := flag.Bool("v", false, "Display verbose interaction")
-	pollInterval := flag.Int("poll-interval", 5, "Interaction poll interval in seconds")
-	persistent := flag.Bool("persist", false, "Enables persistent interactsh sessions")
-	dnsOnly := flag.Bool("dns-only", false, "Display only dns interaction in CLI output")
-	httpOnly := flag.Bool("http-only", false, "Display only http interaction in CLI output")
-	smtpOnly := flag.Bool("smtp-only", false, "Display only smtp interactions in CLI output")
-	token := flag.String("token", "", "Authentication token to connect interactsh server")
-	disableHttpFallback := flag.Bool("no-http-fallback", false, "Disable http fallback")
+	flagSet := goflags.NewFlagSet()
+	flagSet.SetDescription(`Interactsh Client.`)
 
-	flag.Parse()
+	options.CreateGroup(flagSet, "server", "Server",
+		flagSet.StringVar(&cliOptions.ServerURL, "server", defaultOpts.ServerURL, "Interactsh server(s) to use"),
+		flagSet.IntVar(&cliOptions.NumberOfPayloads, "n", 1, "Interactsh payload count to generate"),
+		flagSet.IntVar(&cliOptions.PollInterval, "poll-interval", 5, "Interaction poll interval in seconds"),
+		flagSet.BoolVar(&cliOptions.Persistent, "persist", false, "Enables persistent interactsh sessions"),
+		flagSet.StringVar(&cliOptions.Token, "token", "", "Authentication token to connect interactsh server"),
+		flagSet.BoolVar(&cliOptions.DisableHTTPFallback, "no-http-fallback", false, "Disable http fallback"),
+	)
+
+	options.CreateGroup(flagSet, "output", "Output",
+		flagSet.StringVar(&cliOptions.Output, "o", "", "Output file to write interaction"),
+		flagSet.BoolVar(&cliOptions.JSON, "json", false, "Write output in JSONL(ines) format"),
+		flagSet.BoolVar(&cliOptions.Verbose, "v", false, "Display verbose interaction"),
+		flagSet.BoolVar(&cliOptions.DNSOnly, "dns-only", false, "Display only dns interaction in CLI output"),
+		flagSet.BoolVar(&cliOptions.HTTPOnly, "http-only", false, "Display only http interaction in CLI output"),
+		flagSet.BoolVar(&cliOptions.SmtpOnly, "smtp-only", false, "Display only smtp interactions in CLI output"),
+	)
+
+	if err := flagSet.Parse(); err != nil {
+		gologger.Fatal().Msgf("Could not parse options: %s\n", err)
+	}
 
 	showBanner()
 
 	var outputFile *os.File
 	var err error
-	if *output != "" {
-		if outputFile, err = os.Create(*output); err != nil {
+	if cliOptions.Output != "" {
+		if outputFile, err = os.Create(cliOptions.Output); err != nil {
 			gologger.Fatal().Msgf("Could not create output file: %s\n", err)
 		}
 		defer outputFile.Close()
 	}
 
 	client, err := client.New(&client.Options{
-		ServerURL:           *serverURL,
-		PersistentSession:   *persistent,
-		Token:               *token,
-		DisableHTTPFallback: *disableHttpFallback,
+		ServerURL:           cliOptions.ServerURL,
+		PersistentSession:   cliOptions.Persistent,
+		Token:               cliOptions.Token,
+		DisableHTTPFallback: cliOptions.DisableHTTPFallback,
 	})
 	if err != nil {
 		gologger.Fatal().Msgf("Could not create client: %s\n", err)
 	}
 
-	gologger.Info().Msgf("Listing %d payload for OOB Testing\n", *n)
-	for i := 0; i < *n; i++ {
+	gologger.Info().Msgf("Listing %d payload for OOB Testing\n", cliOptions.NumberOfPayloads)
+	for i := 0; i < cliOptions.NumberOfPayloads; i++ {
 		gologger.Info().Msgf("%s\n", client.URL())
 	}
 
 	// show all interactions
-	noFilter := !*dnsOnly && !*httpOnly && !*smtpOnly
+	noFilter := !cliOptions.DNSOnly && !cliOptions.HTTPOnly && !cliOptions.SmtpOnly
 
-	client.StartPolling(time.Duration(*pollInterval)*time.Second, func(interaction *server.Interaction) {
-		if !*json {
+	client.StartPolling(time.Duration(cliOptions.PollInterval)*time.Second, func(interaction *server.Interaction) {
+		if !cliOptions.JSON {
 			builder := &bytes.Buffer{}
 
 			switch interaction.Protocol {
 			case "dns":
-				if noFilter || *dnsOnly {
+				if noFilter || cliOptions.DNSOnly {
 					builder.WriteString(fmt.Sprintf("[%s] Received DNS interaction (%s) from %s at %s", interaction.FullId, interaction.QType, interaction.RemoteAddress, interaction.Timestamp.Format("2006-01-02 15:04:05")))
-					if *verbose {
+					if cliOptions.Verbose {
 						builder.WriteString(fmt.Sprintf("\n-----------\nDNS Request\n-----------\n\n%s\n\n------------\nDNS Response\n------------\n\n%s\n\n", interaction.RawRequest, interaction.RawResponse))
 					}
 					writeOutput(outputFile, builder)
 				}
 			case "http":
-				if noFilter || *httpOnly {
+				if noFilter || cliOptions.HTTPOnly {
 					builder.WriteString(fmt.Sprintf("[%s] Received HTTP interaction from %s at %s", interaction.FullId, interaction.RemoteAddress, interaction.Timestamp.Format("2006-01-02 15:04:05")))
-					if *verbose {
+					if cliOptions.Verbose {
 						builder.WriteString(fmt.Sprintf("\n------------\nHTTP Request\n------------\n\n%s\n\n-------------\nHTTP Response\n-------------\n\n%s\n\n", interaction.RawRequest, interaction.RawResponse))
 					}
 					writeOutput(outputFile, builder)
 				}
 			case "smtp":
-				if noFilter || *smtpOnly {
+				if noFilter || cliOptions.SmtpOnly {
 					builder.WriteString(fmt.Sprintf("[%s] Received SMTP interaction from %s at %s", interaction.FullId, interaction.RemoteAddress, interaction.Timestamp.Format("2006-01-02 15:04:05")))
-					if *verbose {
+					if cliOptions.Verbose {
 						builder.WriteString(fmt.Sprintf("\n------------\nSMTP Interaction\n------------\n\n%s\n\n", interaction.RawRequest))
 					}
 					writeOutput(outputFile, builder)
@@ -110,7 +121,7 @@ func main() {
 			case "ftp":
 				if noFilter {
 					builder.WriteString(fmt.Sprintf("Received FTP interaction from %s at %s", interaction.RemoteAddress, interaction.Timestamp.Format("2006-01-02 15:04:05")))
-					if *verbose {
+					if cliOptions.Verbose {
 						builder.WriteString(fmt.Sprintf("\n------------\nFTP Interaction\n------------\n\n%s\n\n", interaction.RawRequest))
 					}
 					writeOutput(outputFile, builder)
@@ -118,7 +129,7 @@ func main() {
 			case "responder", "smb":
 				if noFilter {
 					builder.WriteString(fmt.Sprintf("Received Responder/Smb interaction at %s", interaction.Timestamp.Format("2006-01-02 15:04:05")))
-					if *verbose {
+					if cliOptions.Verbose {
 						builder.WriteString(fmt.Sprintf("\n------------\nResponder/SMB Interaction\n------------\n\n%s\n\n", interaction.RawRequest))
 					}
 					writeOutput(outputFile, builder)
@@ -126,7 +137,7 @@ func main() {
 			case "ldap":
 				if noFilter {
 					builder.WriteString(fmt.Sprintf("[%s] Received LDAP interaction from %s at %s", interaction.FullId, interaction.RemoteAddress, interaction.Timestamp.Format("2006-01-02 15:04:05")))
-					if *verbose {
+					if cliOptions.Verbose {
 						builder.WriteString(fmt.Sprintf("\n------------\nLDAP Interaction\n------------\n\n%s\n\n", interaction.RawRequest))
 					}
 					writeOutput(outputFile, builder)
