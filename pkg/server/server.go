@@ -1,6 +1,7 @@
 package server
 
 import (
+	"net"
 	"strings"
 	"time"
 
@@ -34,8 +35,8 @@ type Interaction struct {
 type Options struct {
 	// Domain is the domain for the instance.
 	Domain string
-	// IPAddress is the IP address of the current server.
-	IPAddress string
+	// IPAddresses is a slice of net.IPs that should be returned in DNS (IPv4 and IPv6) responses. Generally one of each.
+	IPAddresses []net.IP
 	// ListenIP is the IP address to listen servers on
 	ListenIP string
 	// DomainPort is the port to listen DNS servers on

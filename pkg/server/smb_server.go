@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"fmt"
 	"io/ioutil"
-	"net"
 	"os"
 	"os/exec"
 	"strings"
@@ -26,17 +25,13 @@ var smbMonitorList map[string]string = map[string]string{
 type SMBServer struct {
 	options   *Options
 	LogFile   string
-	ipAddress net.IP
 	cmd       *exec.Cmd
 	tmpFile   string
 }
 
 // NewSMBServer returns a new SMB server.
 func NewSMBServer(options *Options) (*SMBServer, error) {
-	server := &SMBServer{
-		options:   options,
-		ipAddress: net.ParseIP(options.IPAddress),
-	}
+	server := &SMBServer{options: options}
 	return server, nil
 }
 

@@ -15,28 +15,28 @@ import (
 
 // DNSServer is a DNS server instance that listens on port 53.
 type DNSServer struct {
-	options    *Options
-	mxDomain   string
-	ns1Domain  string
-	ns2Domain  string
-	dotDomain  string
-	ipAddress  net.IP
-	timeToLive uint32
-	server     *dns.Server
-	TxtRecord  string // used for ACME verification
+	options     *Options
+	mxDomain    string
+	ns1Domain   string
+	ns2Domain   string
+	dotDomain   string
+	ipAddresses []net.IP
+	timeToLive  uint32
+	server      *dns.Server
+	TxtRecord   string // used for ACME verification
 }
 
 // NewDNSServer returns a new DNS server.
 func NewDNSServer(options *Options) (*DNSServer, error) {
 	dotdomain := dns.Fqdn(options.Domain)
 	server := &DNSServer{
-		options:    options,
-		ipAddress:  net.ParseIP(options.IPAddress),
-		mxDomain:   "mail." + dotdomain,
-		ns1Domain:  "ns1." + dotdomain,
-		ns2Domain:  "ns2." + dotdomain,
-		dotDomain:  "." + dotdomain,
-		timeToLive: 3600,
+		options:        options,
+		ipAddresses:    options.IPAddresses,
+		mxDomain:       "mail." + dotdomain,
+		ns1Domain:      "ns1." + dotdomain,
+		ns2Domain:      "ns2." + dotdomain,
+		dotDomain:      "." + dotdomain,
+		timeToLive:     5,
 	}
 	server.server = &dns.Server{
 		Addr:    options.ListenIP + fmt.Sprintf(":%d", options.DnsPort),
@@ -92,13 +92,13 @@ func (h *DNSServer) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 			case dns.TypeNS:
 				h.handleNS(domain, m)
 			case dns.TypeA, dns.TypeAAAA:
-				h.handleACNAMEANY(domain, m)
+				h.handleACNAMEANY(question.Qtype, domain, m)
 			}
 			fmt.Printf("got acme dns response: \n%s\n", m.String())
 		} else {
 			switch question.Qtype {
 			case dns.TypeA, dns.TypeAAAA, dns.TypeCNAME, dns.TypeANY:
-				h.handleACNAMEANY(domain, m)
+				h.handleACNAMEANY(question.Qtype, domain, m)
 			case dns.TypeMX:
 				h.handleMX(domain, m)
 			case dns.TypeNS:
@@ -136,41 +136,47 @@ func (h *DNSServer) handleACMETXTChallenge(zone string, m *dns.Msg) error {
 	return nil
 }
 
-// handleACNAMEANY handles A, CNAME or ANY queries for DNS server
-func (h *DNSServer) handleACNAMEANY(zone string, m *dns.Msg) {
-	nsHeader := dns.RR_Header{Name: zone, Rrtype: dns.TypeNS, Class: dns.ClassINET, Ttl: h.timeToLive}
-
-	resultFunction := func(ipAddress net.IP) {
-		m.Answer = append(m.Answer, &dns.A{Hdr: dns.RR_Header{Name: zone, Rrtype: dns.TypeA, Class: dns.ClassINET, Ttl: h.timeToLive}, A: ipAddress})
-
-		m.Ns = append(m.Ns, &dns.NS{Hdr: nsHeader, Ns: h.ns1Domain})
-		m.Ns = append(m.Ns, &dns.NS{Hdr: nsHeader, Ns: h.ns2Domain})
-		m.Extra = append(m.Extra, &dns.A{Hdr: dns.RR_Header{Name: h.ns1Domain, Rrtype: dns.TypeA, Class: dns.ClassINET, Ttl: h.timeToLive}, A: h.ipAddress})
-		m.Extra = append(m.Extra, &dns.A{Hdr: dns.RR_Header{Name: h.ns2Domain, Rrtype: dns.TypeA, Class: dns.ClassINET, Ttl: h.timeToLive}, A: h.ipAddress})
-	}
-
-	handleAppWithCname := func(cname string, ips ...net.IP) {
-		fqdnCname := dns.Fqdn(cname)
-		m.Answer = append(m.Answer, &dns.CNAME{Hdr: dns.RR_Header{Name: zone, Rrtype: dns.TypeCNAME, Class: dns.ClassINET, Ttl: h.timeToLive}, Target: fqdnCname})
-		for _, ip := range ips {
-			m.Answer = append(m.Answer, &dns.A{Hdr: dns.RR_Header{Name: fqdnCname, Rrtype: dns.TypeA, Class: dns.ClassINET, Ttl: h.timeToLive}, A: ip})
-		}
-
-		m.Ns = append(m.Ns, &dns.NS{Hdr: nsHeader, Ns: h.ns1Domain})
-		m.Ns = append(m.Ns, &dns.NS{Hdr: nsHeader, Ns: h.ns2Domain})
-		m.Extra = append(m.Extra, &dns.A{Hdr: dns.RR_Header{Name: h.ns1Domain, Rrtype: dns.TypeA, Class: dns.ClassINET, Ttl: h.timeToLive}, A: h.ipAddress})
-		m.Extra = append(m.Extra, &dns.A{Hdr: dns.RR_Header{Name: h.ns2Domain, Rrtype: dns.TypeA, Class: dns.ClassINET, Ttl: h.timeToLive}, A: h.ipAddress})
-	}
+// handleACNAMEANY handles A, AAAA, CNAME or ANY queries for DNS server
+func (h *DNSServer) handleACNAMEANY(qType uint16, zone string, m *dns.Msg) {
+	nsHeader := dns.RR_Header{Name: dns.Fqdn(h.options.Domain), Rrtype: dns.TypeNS, Class: dns.ClassINET, Ttl: h.timeToLive}
+	responseAddresses := make([]net.IP, 0)
+	responseCnameFqdn := ""
 
 	switch {
-	case strings.EqualFold(zone, "aws"+h.dotDomain):
-		resultFunction(net.ParseIP("169.254.169.254"))
-	case strings.EqualFold(zone, "alibaba"+h.dotDomain):
-		resultFunction(net.ParseIP("100.100.100.200"))
-	case h.options.AppCnameDNSRecord && strings.EqualFold(zone, "app"+h.dotDomain):
-		handleAppWithCname("projectdiscovery.github.io", net.ParseIP("185.199.108.153"), net.ParseIP("185.199.110.153"), net.ParseIP("185.199.111.153"), net.ParseIP("185.199.108.153"))
-	default:
-		resultFunction(h.ipAddress)
+		case strings.EqualFold(zone, "aws"+h.dotDomain):
+			responseAddresses = append(responseAddresses, net.ParseIP("169.254.169.254"))
+		case strings.EqualFold(zone, "alibaba"+h.dotDomain):
+			responseAddresses = append(responseAddresses, net.ParseIP("100.100.100.200"))
+		case h.options.AppCnameDNSRecord && strings.EqualFold(zone, "app"+h.dotDomain):
+			responseCnameFqdn = dns.Fqdn("projectdiscovery.github.io")
+		default:
+			responseAddresses = h.ipAddresses
+	}
+
+	m.Ns = append(m.Ns, &dns.NS{Hdr: nsHeader, Ns: h.ns1Domain})
+	m.Ns = append(m.Ns, &dns.NS{Hdr: nsHeader, Ns: h.ns2Domain})
+	for _, ip := range h.ipAddresses {
+		switch {
+			case ip.To4() != nil: // IPv4
+				m.Extra = append(m.Extra, &dns.A{Hdr: dns.RR_Header{Name: h.ns1Domain, Rrtype: dns.TypeA, Class: dns.ClassINET, Ttl: h.timeToLive}, A: ip})
+				m.Extra = append(m.Extra, &dns.A{Hdr: dns.RR_Header{Name: h.ns2Domain, Rrtype: dns.TypeA, Class: dns.ClassINET, Ttl: h.timeToLive}, A: ip})
+			case ip.To4() == nil: // IPv6
+				m.Extra = append(m.Extra, &dns.AAAA{Hdr: dns.RR_Header{Name: h.ns1Domain, Rrtype: dns.TypeAAAA, Class: dns.ClassINET, Ttl: h.timeToLive}, AAAA: ip})
+				m.Extra = append(m.Extra, &dns.AAAA{Hdr: dns.RR_Header{Name: h.ns2Domain, Rrtype: dns.TypeAAAA, Class: dns.ClassINET, Ttl: h.timeToLive}, AAAA: ip})
+		}
+	}
+
+	for _, ip := range responseAddresses {
+		switch {
+			case ip.To4() != nil && (qType == dns.TypeA || qType == dns.TypeANY): // IPv4
+				m.Answer = append(m.Answer, &dns.A{Hdr: dns.RR_Header{Name: zone, Rrtype: dns.TypeA, Class: dns.ClassINET, Ttl: h.timeToLive}, A: ip})
+			case ip.To4() == nil && (qType == dns.TypeAAAA || qType == dns.TypeANY): // IPv6
+				m.Answer = append(m.Answer, &dns.AAAA{Hdr: dns.RR_Header{Name: zone, Rrtype: dns.TypeAAAA, Class: dns.ClassINET, Ttl: h.timeToLive}, AAAA: ip})
+		}
+	}
+
+	if responseCnameFqdn != "" {
+		m.Answer = append(m.Answer, &dns.CNAME{Hdr: dns.RR_Header{Name: zone, Rrtype: dns.TypeCNAME, Class: dns.ClassINET, Ttl: h.timeToLive}, Target: responseCnameFqdn})
 	}
 }
 
@@ -180,13 +186,13 @@ func (h *DNSServer) handleMX(zone string, m *dns.Msg) {
 }
 
 func (h *DNSServer) handleNS(zone string, m *dns.Msg) {
-	nsHeader := dns.RR_Header{Name: zone, Rrtype: dns.TypeNS, Class: dns.ClassINET, Ttl: h.timeToLive}
+	nsHeader := dns.RR_Header{Name: dns.Fqdn(h.options.Domain), Rrtype: dns.TypeNS, Class: dns.ClassINET, Ttl: h.timeToLive}
 	m.Answer = append(m.Answer, &dns.NS{Hdr: nsHeader, Ns: h.ns1Domain})
 	m.Answer = append(m.Answer, &dns.NS{Hdr: nsHeader, Ns: h.ns2Domain})
 }
 
 func (h *DNSServer) handleSOA(zone string, m *dns.Msg) {
-	nsHdr := dns.RR_Header{Name: zone, Rrtype: dns.TypeSOA, Class: dns.ClassINET}
+	nsHdr := dns.RR_Header{Name: dns.Fqdn(h.options.Domain), Rrtype: dns.TypeSOA, Class: dns.ClassINET}
 	m.Answer = append(m.Answer, &dns.SOA{Hdr: nsHdr, Ns: h.ns1Domain, Mbox: certificateAuthority, Serial: 1, Expire: 60, Minttl: 60})
 }
 

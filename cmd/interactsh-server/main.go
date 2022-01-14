@@ -5,9 +5,11 @@ import (
 	"crypto/rand"
 	"crypto/tls"
 	"encoding/hex"
+	"errors"
 	"flag"
 	"fmt"
 	"io/ioutil"
+	"net"
 	"net/http"
 	"os"
 	"os/signal"
@@ -21,16 +23,39 @@ import (
 	"github.com/projectdiscovery/interactsh/pkg/storage"
 )
 
+
+// create a slice type for net.IPs to be filled by -ip flags
+type ipslice []net.IP
+
+func (i *ipslice) String() string {
+	repr := ""
+	for _, ip := range *i {
+		repr += ip.String()
+	}
+	return repr
+}
+
+func (i *ipslice) Set(value string) error {
+	ip := net.ParseIP(value)
+	if ip != nil {
+		*i = append(*i, ip)
+	} else {
+		return errors.New("unable to parse IP address")
+	}
+	return nil
+}
+
 func main() {
 	var eviction int
 	var debug, smb, responder, ftp, skipacme, ldapWithFullLogger bool
+	var IPAddresses ipslice
 
 	options := &server.Options{}
 	flag.CommandLine = flag.NewFlagSet(os.Args[0], flag.ExitOnError)
 	flag.BoolVar(&debug, "debug", false, "Run interactsh in debug mode")
 	flag.StringVar(&options.Domain, "domain", "", "Domain to use for interactsh server")
 	flag.IntVar(&options.DnsPort, "dns-port", 53, "Port to use by DNS server for interactsh server")
-	flag.StringVar(&options.IPAddress, "ip", "", "Public IP Address to use for interactsh server")
+	flag.Var(&IPAddresses, "ip", "Public IP address to return in DNS responses. Specify multiple times to add multiple IPv4 and IPv6 addresses")
 	flag.StringVar(&options.ListenIP, "listen-ip", "0.0.0.0", "Public IP Address to listen on")
 	flag.IntVar(&options.HttpPort, "http-port", 80, "HTTP port to listen on")
 	flag.IntVar(&options.HttpsPort, "https-port", 443, "HTTPS port to listen on")
@@ -55,13 +80,19 @@ func main() {
 	flag.BoolVar(&options.AppCnameDNSRecord, "app-cname", false, "Enable DNS CNAME record (eg. app.interactsh.domain) for web app")
 	flag.Parse()
 
-	if options.IPAddress == "" && options.ListenIP == "0.0.0.0" {
-		ip := getPublicIP()
-		options.IPAddress = ip
-		options.ListenIP = ip
+	if options.Domain == "" {
+		gologger.Fatal().Msgf("No domain name specified\n")
 	}
+
+	options.IPAddresses = IPAddresses
+	if len(options.IPAddresses) == 0 {
+		ip := getPublicIP()
+		options.IPAddresses = append(options.IPAddresses, ip)
+		gologger.Info().Msgf("Using auto-detected public IP address: %s", ip.String())
+	}
+
 	if options.Hostmaster == "" {
-		options.Hostmaster = fmt.Sprintf("admin@%s", options.Domain)
+		options.Hostmaster = fmt.Sprintf("hostmaster@%s", options.Domain)
 	}
 
 	if debug {
@@ -239,22 +270,22 @@ func main() {
 	}
 }
 
-func getPublicIP() string {
+func getPublicIP() net.IP {
 	url := "https://api.ipify.org?format=text" // we are using a pulib IP API, we're using ipify here, below are some others
 
 	req, err := http.NewRequestWithContext(context.Background(), "GET", url, nil)
 	if err != nil {
-		return ""
+		return nil
 	}
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
-		return ""
+		return nil
 	}
 	defer resp.Body.Close()
 
 	ip, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		return ""
+		return nil
 	}
-	return string(ip)
+	return net.ParseIP(string(ip))
 }

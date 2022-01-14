@@ -3,7 +3,6 @@ package server
 import (
 	"bytes"
 	"io/ioutil"
-	"net"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -26,17 +25,13 @@ var responderMonitorList map[string]string = map[string]string{
 type ResponderServer struct {
 	options   *Options
 	LogFile   string
-	ipAddress net.IP
 	cmd       *exec.Cmd
 	tmpFolder string
 }
 
 // NewResponderServer returns a new SMB server.
 func NewResponderServer(options *Options) (*ResponderServer, error) {
-	server := &ResponderServer{
-		options:   options,
-		ipAddress: net.ParseIP(options.IPAddress),
-	}
+	server := &ResponderServer{options: options}
 	return server, nil
 }
 
