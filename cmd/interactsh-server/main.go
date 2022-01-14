@@ -119,12 +119,12 @@ func main() {
 	acmeStore := acme.NewProvider()
 	serverOptions.ACMEStore = acmeStore
 
-	dnsServer, err := server.NewDNSServer(serverOptions)
-	if err != nil {
-		gologger.Fatal().Msgf("Could not create DNS server")
-	}
-	dnsAlive := make(chan bool, 1)
-	go dnsServer.ListenAndServe(dnsAlive)
+	dnsTcpServer := server.NewDNSServer("tcp", serverOptions)
+	dnsUdpServer := server.NewDNSServer("udp", serverOptions)
+	dnsTcpAlive := make(chan bool, 1)
+	dnsUdpAlive := make(chan bool, 1)
+	go dnsTcpServer.ListenAndServe(dnsTcpAlive)
+	go dnsUdpServer.ListenAndServe(dnsUdpAlive)
 
 	trimmedDomain := strings.TrimSuffix(serverOptions.Domain, ".")
 
@@ -132,7 +132,7 @@ func main() {
 	if !cliOptions.SkipAcme {
 		acmeManagerTLS, acmeErr := acme.HandleWildcardCertificates(fmt.Sprintf("*.%s", trimmedDomain), serverOptions.Hostmaster, acmeStore)
 		if acmeErr != nil {
-			gologger.Warning().Msgf("An error occurred while applying for an certificate, error: %v", err)
+			gologger.Warning().Msgf("An error occurred while applying for an certificate, error: %v", acmeErr)
 			gologger.Warning().Msgf("Could not generate certs for auto TLS, https will be disabled")
 		}
 		tlsConfig = acmeManagerTLS
@@ -195,46 +195,60 @@ func main() {
 	go func() {
 		for {
 			service := ""
+			network := ""
 			port := 0
 			status := true
 			fatal := false
 			select {
-			case status = <-dnsAlive:
+			case status = <-dnsUdpAlive:
 				service = "DNS"
+				network = "UDP"
 				port = serverOptions.DnsPort
 				fatal = true
+			case status = <-dnsTcpAlive:
+				service = "DNS"
+				network = "TCP"
+				port = serverOptions.DnsPort
 			case status = <-httpAlive:
 				service = "HTTP"
+				network = "TCP"
 				port = serverOptions.HttpPort
 				fatal = true
 			case status = <-httpsAlive:
 				service = "HTTPS"
+				network = "TCP"
 				port = serverOptions.HttpsPort
 			case status = <-smtpAlive:
 				service = "SMTP"
+				network = "TCP"
 				port = serverOptions.SmtpPort
 			case status = <-smtpsAlive:
 				service = "SMTPS"
+				network = "TCP"
 				port = serverOptions.SmtpsPort
 			case status = <-ftpAlive:
 				service = "FTP"
+				network = "TCP"
 				port = serverOptions.FtpPort
 			case status = <-responderAlive:
 				service = "Responder"
+				network = "TCP"
 				port = 445
 			case status = <-smbAlive:
 				service = "SMB"
+				network = "TCP"
 				port = serverOptions.SmbPort
 			case status = <-ldapAlive:
 				service = "LDAP"
+				network = "TCP"
 				port = serverOptions.LdapPort
 			}
 			if status {
-				gologger.Silent().Msgf("[%s] Listening on %s:%d", service, serverOptions.ListenIP, port)
+				gologger.Silent().Msgf("[%s] Listening on %s %s:%d", service, network, serverOptions.ListenIP, port)
 			} else if fatal {
-				gologger.Fatal().Msgf("The %s service has unexpectedly stopped", service)
+				gologger.Fatal().Msgf("The %s %s service has unexpectedly stopped", network, service)
 			} else {
-				gologger.Warning().Msgf("The %s service has unexpectedly stopped", service)
+				gologger.Warning().Msgf("The %s %s service has unexpectedly stopped", network, service)
 			}
 		}
 	}()
