@@ -36,7 +36,6 @@ func main() {
 		flagSet.StringVarP(&cliOptions.Token, "token", "t", "", "enable authentication to server using given token"),
 		flagSet.StringVar(&cliOptions.OriginURL, "acao-url", "https://app.interactsh.com", "origin url to send in acao header (required to use web-client)"),
 		flagSet.BoolVarP(&cliOptions.SkipAcme, "skip-acme", "sa", false, "skip acme registration (certificate checks/handshake + TLS protocols will be disabled)"),
-		flagSet.BoolVar(&cliOptions.AppCnameDNSRecord, "app-cname", false, "enable cname record (eg. app.interactsh.domain) for web app"),
 	)
 	options.CreateGroup(flagSet, "services", "Services",
 		flagSet.IntVar(&cliOptions.DnsPort, "dns-port", 53, "port to use for dns service"),

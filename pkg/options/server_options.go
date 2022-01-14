@@ -28,29 +28,27 @@ type CLIServerOptions struct {
 	RootTLD            bool
 	FTPDirectory       string
 	SkipAcme           bool
-	AppCnameDNSRecord  bool
 }
 
 func (cliServerOptions *CLIServerOptions) AsServerOptions() *server.Options {
 	return &server.Options{
-		Domain:            cliServerOptions.Domain,
-		DnsPort:           cliServerOptions.DnsPort,
-		IPAddress:         cliServerOptions.ListenIP,
-		ListenIP:          cliServerOptions.ListenIP,
-		HttpPort:          cliServerOptions.HttpPort,
-		HttpsPort:         cliServerOptions.HttpsPort,
-		Hostmaster:        cliServerOptions.Hostmaster,
-		SmbPort:           cliServerOptions.SmbPort,
-		SmtpPort:          cliServerOptions.SmtpPort,
-		SmtpsPort:         cliServerOptions.SmtpsPort,
-		SmtpAutoTLSPort:   cliServerOptions.SmtpAutoTLSPort,
-		FtpPort:           cliServerOptions.FtpPort,
-		LdapPort:          cliServerOptions.LdapPort,
-		Auth:              cliServerOptions.Auth,
-		Token:             cliServerOptions.Token,
-		OriginURL:         cliServerOptions.OriginURL,
-		RootTLD:           cliServerOptions.RootTLD,
-		FTPDirectory:      cliServerOptions.FTPDirectory,
-		AppCnameDNSRecord: cliServerOptions.AppCnameDNSRecord,
+		Domain:          cliServerOptions.Domain,
+		DnsPort:         cliServerOptions.DnsPort,
+		IPAddress:       cliServerOptions.ListenIP,
+		ListenIP:        cliServerOptions.ListenIP,
+		HttpPort:        cliServerOptions.HttpPort,
+		HttpsPort:       cliServerOptions.HttpsPort,
+		Hostmaster:      cliServerOptions.Hostmaster,
+		SmbPort:         cliServerOptions.SmbPort,
+		SmtpPort:        cliServerOptions.SmtpPort,
+		SmtpsPort:       cliServerOptions.SmtpsPort,
+		SmtpAutoTLSPort: cliServerOptions.SmtpAutoTLSPort,
+		FtpPort:         cliServerOptions.FtpPort,
+		LdapPort:        cliServerOptions.LdapPort,
+		Auth:            cliServerOptions.Auth,
+		Token:           cliServerOptions.Token,
+		OriginURL:       cliServerOptions.OriginURL,
+		RootTLD:         cliServerOptions.RootTLD,
+		FTPDirectory:    cliServerOptions.FTPDirectory,
 	}
 }
