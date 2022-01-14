@@ -63,6 +63,8 @@ func main() {
 		gologger.Fatal().Msgf("Could not parse options: %s\n", err)
 	}
 
+	options.ShowBanner()
+
 	serverOptions := cliOptions.AsServerOptions()
 	serverOptions.Hostmaster = fmt.Sprintf("admin@%s", serverOptions.Domain)
 

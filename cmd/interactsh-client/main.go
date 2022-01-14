@@ -15,22 +15,6 @@ import (
 	"github.com/projectdiscovery/interactsh/pkg/server"
 )
 
-const banner = `
-    _       __                       __       __  
-   (_)___  / /____  _________ ______/ /______/ /_ 
-  / / __ \/ __/ _ \/ ___/ __ '/ ___/ __/ ___/ __ \
- / / / / / /_/  __/ /  / /_/ / /__/ /_(__  ) / / /
-/_/_/ /_/\__/\___/_/   \__,_/\___/\__/____/_/ /_/ v0.0.8-dev
-`
-
-func showBanner() {
-	gologger.Print().Msgf("%s\n", banner)
-	gologger.Print().Msgf("\t\tprojectdiscovery.io\n\n")
-
-	gologger.Warning().Msgf("Use with caution. You are responsible for your actions\n")
-	gologger.Warning().Msgf("Developers assume no liability and are not responsible for any misuse or damage.\n")
-}
-
 func main() {
 	defaultOpts := client.DefaultOptions
 	cliOptions := &options.CLIClientOptions{}
@@ -66,7 +50,7 @@ func main() {
 		gologger.Fatal().Msgf("Could not parse options: %s\n", err)
 	}
 
-	showBanner()
+	options.ShowBanner()
 
 	var outputFile *os.File
 	var err error
