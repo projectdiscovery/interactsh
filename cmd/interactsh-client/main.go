@@ -36,24 +36,30 @@ func main() {
 	cliOptions := &options.CLIClientOptions{}
 
 	flagSet := goflags.NewFlagSet()
-	flagSet.SetDescription(`Interactsh Client.`)
+	flagSet.SetDescription(`Interactsh client - Go client to generate interactsh payloads and display interaction data.`)
 
-	options.CreateGroup(flagSet, "server", "Server",
-		flagSet.StringVar(&cliOptions.ServerURL, "server", defaultOpts.ServerURL, "Interactsh server(s) to use"),
-		flagSet.IntVar(&cliOptions.NumberOfPayloads, "n", 1, "Interactsh payload count to generate"),
-		flagSet.IntVar(&cliOptions.PollInterval, "poll-interval", 5, "Interaction poll interval in seconds"),
-		flagSet.BoolVar(&cliOptions.Persistent, "persist", false, "Enables persistent interactsh sessions"),
-		flagSet.StringVar(&cliOptions.Token, "token", "", "Authentication token to connect interactsh server"),
-		flagSet.BoolVar(&cliOptions.DisableHTTPFallback, "no-http-fallback", false, "Disable http fallback"),
+	options.CreateGroup(flagSet, "input", "Input",
+		flagSet.StringVarP(&cliOptions.ServerURL, "server", "s", defaultOpts.ServerURL, "interactsh server(s) to use"),
+	)
+
+	options.CreateGroup(flagSet, "config", "config",
+		flagSet.IntVarP(&cliOptions.NumberOfPayloads, "number", "n", 1, "number of interactsh payload to generate"),
+		flagSet.StringVarP(&cliOptions.Token, "token", "t", "", "authentication token to connect protected interactsh server"),
+		flagSet.IntVarP(&cliOptions.PollInterval, "poll-interval", "pi", 5, "poll interval in seconds to pull interaction data"),
+		flagSet.BoolVarP(&cliOptions.DisableHTTPFallback, "no-http-fallback", "nf", false, "disable http fallback registration"),
+		flagSet.BoolVar(&cliOptions.Persistent, "persist", false, "enables persistent interactsh sessions"),
+	)
+
+	options.CreateGroup(flagSet, "filter", "Filter",
+		flagSet.BoolVar(&cliOptions.DNSOnly, "dns-only", false, "display only dns interaction in CLI output"),
+		flagSet.BoolVar(&cliOptions.HTTPOnly, "http-only", false, "display only http interaction in CLI output"),
+		flagSet.BoolVar(&cliOptions.SmtpOnly, "smtp-only", false, "display only smtp interactions in CLI output"),
 	)
 
 	options.CreateGroup(flagSet, "output", "Output",
-		flagSet.StringVar(&cliOptions.Output, "o", "", "Output file to write interaction"),
-		flagSet.BoolVar(&cliOptions.JSON, "json", false, "Write output in JSONL(ines) format"),
-		flagSet.BoolVar(&cliOptions.Verbose, "v", false, "Display verbose interaction"),
-		flagSet.BoolVar(&cliOptions.DNSOnly, "dns-only", false, "Display only dns interaction in CLI output"),
-		flagSet.BoolVar(&cliOptions.HTTPOnly, "http-only", false, "Display only http interaction in CLI output"),
-		flagSet.BoolVar(&cliOptions.SmtpOnly, "smtp-only", false, "Display only smtp interactions in CLI output"),
+		flagSet.StringVar(&cliOptions.Output, "o", "", "output file to write interaction data"),
+		flagSet.BoolVar(&cliOptions.JSON, "json", false, "write output in JSONL(ines) format"),
+		flagSet.BoolVar(&cliOptions.Verbose, "v", false, "display verbose interaction"),
 	)
 
 	if err := flagSet.Parse(); err != nil {

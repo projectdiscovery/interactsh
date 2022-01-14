@@ -25,39 +25,38 @@ import (
 func main() {
 	cliOptions := &options.CLIServerOptions{}
 	flagSet := goflags.NewFlagSet()
-	flagSet.SetDescription(`Interactsh Server.`)
+	flagSet.SetDescription(`Interactsh server - Go client to configure and host interactsh server.`)
 
-	options.CreateGroup(flagSet, "server", "Server",
-		flagSet.StringVar(&cliOptions.Domain, "domain", "", "Domain to use for interactsh server"),
-		flagSet.StringVar(&cliOptions.IPAddress, "ip", "", "Public IP Address to use for interactsh server"),
-		flagSet.StringVar(&cliOptions.ListenIP, "listen-ip", "0.0.0.0", "Public IP Address to listen on"),
-		flagSet.StringVar(&cliOptions.Hostmaster, "hostmaster", "", "Hostmaster email to use for interactsh server"),
-		flagSet.IntVar(&cliOptions.Eviction, "eviction", 30, "Number of days to persist interactions for"),
-		flagSet.BoolVar(&cliOptions.Auth, "auth", false, "Enable authentication to server using random generated token"),
-		flagSet.StringVar(&cliOptions.Token, "token", "", "Enable authentication to server using given token"),
-		flagSet.StringVar(&cliOptions.OriginURL, "origin-url", "https://app.interactsh.com", "Origin URL to send in ACAO Header"),
-		flagSet.BoolVar(&cliOptions.SkipAcme, "skip-acme", false, "Skip acme registration (certificate checks/handshake + TLS protocols will be disabled)"),
-		flagSet.BoolVar(&cliOptions.AppCnameDNSRecord, "app-cname", false, "Enable DNS CNAME record (eg. app.interactsh.domain) for web app"),
+	options.CreateGroup(flagSet, "input", "Input",
+		flagSet.StringVarP(&cliOptions.Domain, "domain", "d", "", "configured domain to use with interactsh server"),
+		flagSet.StringVar(&cliOptions.IPAddress, "ip", "", "public ip address to use for interactsh server"),
+		flagSet.StringVarP(&cliOptions.ListenIP, "listen-ip", "lip", "0.0.0.0", "public ip address to listen on"),
+		flagSet.IntVarP(&cliOptions.Eviction, "eviction", "e", 30, "number of days to persist interaction data in memory"),
+		flagSet.BoolVarP(&cliOptions.Auth, "auth", "a", false, "enable authentication to server using random generated token"),
+		flagSet.StringVarP(&cliOptions.Token, "token", "t", "", "enable authentication to server using given token"),
+		flagSet.StringVar(&cliOptions.OriginURL, "acao-url", "https://app.interactsh.com", "origin url to send in acao header (required to use web-client)"),
+		flagSet.BoolVarP(&cliOptions.SkipAcme, "skip-acme", "sa", false, "skip acme registration (certificate checks/handshake + TLS protocols will be disabled)"),
+		flagSet.BoolVar(&cliOptions.AppCnameDNSRecord, "app-cname", false, "enable cname record (eg. app.interactsh.domain) for web app"),
 	)
 	options.CreateGroup(flagSet, "services", "Services",
-		flagSet.IntVar(&cliOptions.DnsPort, "dns-port", 53, "Port to use by DNS server for interactsh server"),
-		flagSet.IntVar(&cliOptions.HttpPort, "http-port", 80, "HTTP port to listen on"),
-		flagSet.IntVar(&cliOptions.HttpsPort, "https-port", 443, "HTTPS port to listen on"),
-		flagSet.BoolVar(&cliOptions.LdapWithFullLogger, "ldap", false, "Enable full logging LDAP server - if false only ldap search query with correlation will be enabled"),
-		flagSet.BoolVar(&cliOptions.Responder, "responder", false, "Start a responder agent - docker must be installed"),
-		flagSet.BoolVar(&cliOptions.Smb, "smb", false, "Start a smb agent - impacket and python 3 must be installed"),
-		flagSet.IntVar(&cliOptions.SmbPort, "smb-port", 445, "SMB port to listen on"),
-		flagSet.IntVar(&cliOptions.SmtpPort, "smtp-port", 25, "SMTP port to listen on"),
-		flagSet.IntVar(&cliOptions.SmtpsPort, "smtps-port", 587, "SMTPS port to listen on"),
-		flagSet.IntVar(&cliOptions.SmtpAutoTLSPort, "smtp-autotls-port", 465, "SMTP autoTLS port to listen on"),
-		flagSet.IntVar(&cliOptions.FtpPort, "ftp-port", 21, "FTP port to listen on"),
-		flagSet.IntVar(&cliOptions.LdapPort, "ldap-port", 389, "LDAP port to listen on"),
-		flagSet.BoolVar(&cliOptions.Ftp, "ftp", false, "Start a ftp agent"),
-		flagSet.BoolVar(&cliOptions.RootTLD, "root-tld", false, "Enable wildcard/global interaction for *.domain.com"),
-		flagSet.StringVar(&cliOptions.FTPDirectory, "ftp-dir", "", "Ftp directory - temporary if not specified"),
+		flagSet.IntVar(&cliOptions.DnsPort, "dns-port", 53, "port to use for dns service"),
+		flagSet.IntVar(&cliOptions.HttpPort, "http-port", 80, "port to use for http service"),
+		flagSet.IntVar(&cliOptions.HttpsPort, "https-port", 443, "port to use for https service"),
+		flagSet.IntVar(&cliOptions.SmtpPort, "smtp-port", 25, "port to use for smtp service"),
+		flagSet.IntVar(&cliOptions.SmtpsPort, "smtps-port", 587, "port to use for smtps service"),
+		flagSet.IntVar(&cliOptions.SmtpAutoTLSPort, "smtp-autotls-port", 465, "port to use for smtps autotls service"),
+		flagSet.IntVar(&cliOptions.LdapPort, "ldap-port", 389, "port to use for ldap service"),
+		flagSet.BoolVar(&cliOptions.LdapWithFullLogger, "ldap", false, "enable ldap server with full logging (authenticated)"),
+		flagSet.BoolVarP(&cliOptions.RootTLD, "wildcard", "wc", false, "enable wildcard interaction for interactsh domain (authenticated)"),
+		flagSet.BoolVar(&cliOptions.Smb, "smb", false, "start smb agent - impacket and python 3 must be installed (authenticated)"),
+		flagSet.BoolVar(&cliOptions.Responder, "responder", false, "start responder agent - docker must be installed (authenticated)"),
+		flagSet.BoolVar(&cliOptions.Ftp, "ftp", false, "start ftp agent (authenticated)"),
+		flagSet.IntVar(&cliOptions.SmbPort, "smb-port", 445, "port to use for smb service"),
+		flagSet.IntVar(&cliOptions.FtpPort, "ftp-port", 21, "port to use for ftp service"),
+		flagSet.StringVar(&cliOptions.FTPDirectory, "ftp-dir", "", "ftp directory - temporary if not specified"),
 	)
-	options.CreateGroup(flagSet, "output", "Output",
-		flagSet.BoolVar(&cliOptions.Debug, "debug", false, "Run interactsh in debug mode"),
+	options.CreateGroup(flagSet, "debug", "Debug",
+		flagSet.BoolVar(&cliOptions.Debug, "debug", false, "start interactsh server in debug mode"),
 	)
 
 	if err := flagSet.Parse(); err != nil {
@@ -74,7 +73,6 @@ func main() {
 	if serverOptions.Hostmaster == "" {
 		serverOptions.Hostmaster = fmt.Sprintf("admin@%s", serverOptions.Domain)
 	}
-
 	if cliOptions.Debug {
 		gologger.DefaultLogger.SetMaxLevel(levels.LevelDebug)
 	}
