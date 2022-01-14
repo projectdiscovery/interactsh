@@ -64,14 +64,12 @@ func main() {
 	}
 
 	serverOptions := cliOptions.AsServerOptions()
+	serverOptions.Hostmaster = fmt.Sprintf("admin@%s", serverOptions.Domain)
 
 	if serverOptions.IPAddress == "" && serverOptions.ListenIP == "0.0.0.0" {
 		ip := getPublicIP()
 		serverOptions.IPAddress = ip
 		serverOptions.ListenIP = ip
-	}
-	if serverOptions.Hostmaster == "" {
-		serverOptions.Hostmaster = fmt.Sprintf("admin@%s", serverOptions.Domain)
 	}
 	if cliOptions.Debug {
 		gologger.DefaultLogger.SetMaxLevel(levels.LevelDebug)
