@@ -10,7 +10,7 @@ require (
 	github.com/google/uuid v1.3.0
 	github.com/json-iterator/go v1.1.12
 	github.com/karlseguin/ccache/v2 v2.0.8
-	github.com/klauspost/compress v1.13.6
+	github.com/klauspost/compress v1.14.1
 	github.com/kr/pretty v0.3.0 // indirect
 	github.com/libdns/libdns v0.2.1
 	github.com/miekg/dns v1.1.45
