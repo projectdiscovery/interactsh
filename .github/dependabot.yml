@@ -28,7 +28,16 @@ updates:
 
   # Maintain dependencies for docker
   - package-ecosystem: "docker"
-    directory: "/"
+    directory: ".github/docker/client/"
+    schedule:
+      interval: "weekly"
+    target-branch: "dev"
+    commit-message:
+      prefix: "chore"
+      include: "scope"
+
+  - package-ecosystem: "docker"
+    directory: ".github/docker/server/"
     schedule:
       interval: "weekly"
     target-branch: "dev"
