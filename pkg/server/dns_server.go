@@ -27,7 +27,7 @@ type DNSServer struct {
 }
 
 // NewDNSServer returns a new DNS server.
-func NewDNSServer(network string, options *Options) (*DNSServer) {
+func NewDNSServer(network string, options *Options) *DNSServer {
 	dotdomain := dns.Fqdn(options.Domain)
 	server := &DNSServer{
 		options:    options,
@@ -149,26 +149,11 @@ func (h *DNSServer) handleACNAMEANY(zone string, m *dns.Msg) {
 		m.Extra = append(m.Extra, &dns.A{Hdr: dns.RR_Header{Name: h.ns2Domain, Rrtype: dns.TypeA, Class: dns.ClassINET, Ttl: h.timeToLive}, A: h.ipAddress})
 	}
 
-	handleAppWithCname := func(cname string, ips ...net.IP) {
-		fqdnCname := dns.Fqdn(cname)
-		m.Answer = append(m.Answer, &dns.CNAME{Hdr: dns.RR_Header{Name: zone, Rrtype: dns.TypeCNAME, Class: dns.ClassINET, Ttl: h.timeToLive}, Target: fqdnCname})
-		for _, ip := range ips {
-			m.Answer = append(m.Answer, &dns.A{Hdr: dns.RR_Header{Name: fqdnCname, Rrtype: dns.TypeA, Class: dns.ClassINET, Ttl: h.timeToLive}, A: ip})
-		}
-
-		m.Ns = append(m.Ns, &dns.NS{Hdr: nsHeader, Ns: h.ns1Domain})
-		m.Ns = append(m.Ns, &dns.NS{Hdr: nsHeader, Ns: h.ns2Domain})
-		m.Extra = append(m.Extra, &dns.A{Hdr: dns.RR_Header{Name: h.ns1Domain, Rrtype: dns.TypeA, Class: dns.ClassINET, Ttl: h.timeToLive}, A: h.ipAddress})
-		m.Extra = append(m.Extra, &dns.A{Hdr: dns.RR_Header{Name: h.ns2Domain, Rrtype: dns.TypeA, Class: dns.ClassINET, Ttl: h.timeToLive}, A: h.ipAddress})
-	}
-
 	switch {
 	case strings.EqualFold(zone, "aws"+h.dotDomain):
 		resultFunction(net.ParseIP("169.254.169.254"))
 	case strings.EqualFold(zone, "alibaba"+h.dotDomain):
 		resultFunction(net.ParseIP("100.100.100.200"))
-	case h.options.AppCnameDNSRecord && strings.EqualFold(zone, "app"+h.dotDomain):
-		handleAppWithCname("projectdiscovery.github.io", net.ParseIP("185.199.108.153"), net.ParseIP("185.199.110.153"), net.ParseIP("185.199.111.153"), net.ParseIP("185.199.108.153"))
 	default:
 		resultFunction(h.ipAddress)
 	}

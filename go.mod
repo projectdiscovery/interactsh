@@ -16,6 +16,7 @@ require (
 	github.com/miekg/dns v1.1.45
 	github.com/pkg/errors v0.9.1
 	github.com/projectdiscovery/fileutil v0.0.0-20210804142714-ebba15fa53ca
+	github.com/projectdiscovery/goflags v0.0.7
 	github.com/projectdiscovery/gologger v1.1.4
 	github.com/projectdiscovery/retryabledns v1.0.12
 	github.com/projectdiscovery/retryablehttp-go v1.0.2
@@ -30,5 +31,4 @@ require (
 	golang.org/x/sys v0.0.0-20211210111614-af8b64212486 // indirect
 	golang.org/x/text v0.3.7 // indirect
 	gopkg.in/corvus-ch/zbase32.v1 v1.0.0
-	gopkg.in/yaml.v2 v2.4.0 // indirect
 )
