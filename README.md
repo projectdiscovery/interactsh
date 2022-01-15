@@ -367,7 +367,7 @@ There are more useful capabilities supported by `interactsh-server` that are not
 
 ## Wildcard Interaction
 
-to enables `wildcard` interaction for configured Interactsh domain `wildcard` flag can be used with implicit authentication protection via the `auth` flag if the `token` flag is omitted.
+To enable `wildcard` interaction for configured Interactsh domain `wildcard` flag can be used with implicit authentication protection via the `auth` flag if the `token` flag is omitted.
 
 ```console
 interactsh-server -domain hackwithautomation.com -wildcard
