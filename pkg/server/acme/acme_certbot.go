@@ -12,7 +12,7 @@ import (
 
 // HandleWildcardCertificates handles ACME wildcard cert generation with DNS
 // challenge using certmagic library from caddyserver.
-func HandleWildcardCertificates(domain, email string, store *Provider) (*tls.Config, error) {
+func HandleWildcardCertificates(domain, email string, store *Provider, debug bool) (*tls.Config, error) {
 	logger, err := zap.NewProduction()
 	if err != nil {
 		return nil, err
@@ -31,12 +31,16 @@ func HandleWildcardCertificates(domain, email string, store *Provider) (*tls.Con
 	originalDomain := strings.TrimPrefix(domain, "*.")
 
 	certmagic.DefaultACME.CA = certmagic.LetsEncryptProductionCA
-	certmagic.DefaultACME.Logger = logger
+	if debug {
+		certmagic.DefaultACME.Logger = logger
+	}
 	certmagic.DefaultACME.DisableHTTPChallenge = true
 	certmagic.DefaultACME.DisableTLSALPNChallenge = true
 
 	cfg := certmagic.NewDefault()
-	cfg.Logger = logger
+	if debug {
+		cfg.Logger = logger
+	}
 
 	// this obtains certificates or renews them if necessary
 	if syncerr := cfg.ObtainCertSync(context.Background(), domain); syncerr != nil {

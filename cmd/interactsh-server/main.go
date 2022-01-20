@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -130,13 +131,17 @@ func main() {
 	trimmedDomain := strings.TrimSuffix(serverOptions.Domain, ".")
 
 	var tlsConfig *tls.Config
-	if !cliOptions.SkipAcme {
-		acmeManagerTLS, acmeErr := acme.HandleWildcardCertificates(fmt.Sprintf("*.%s", trimmedDomain), serverOptions.Hostmaster, acmeStore)
+	if !cliOptions.SkipAcme && cliOptions.Domain != "" {
+		gologger.Info().Msgf("Requesting SSL Certificate for:  [*.%s %s]", trimmedDomain, trimmedDomain)
+		acmeManagerTLS, acmeErr := acme.HandleWildcardCertificates(fmt.Sprintf("*.%s", trimmedDomain), serverOptions.Hostmaster, acmeStore, cliOptions.Debug)
 		if acmeErr != nil {
-			gologger.Warning().Msgf("An error occurred while applying for an certificate, error: %v", acmeErr)
-			gologger.Warning().Msgf("Could not generate certs for auto TLS, https will be disabled")
+			gologger.Error().Msgf("An error occurred while applying for an certificate, error: %v", acmeErr)
+			gologger.Error().Msgf("Could not generate certs for auto TLS, https will be disabled")
+		} else {
+			tlsConfig = acmeManagerTLS
+			home, _ := os.UserHomeDir()
+			gologger.Info().Msgf("Successfully Created SSL Certificate at: %s", filepath.Join(filepath.Join(home, ".local", "share"), "certmagic"))
 		}
-		tlsConfig = acmeManagerTLS
 	}
 
 	httpServer, err := server.NewHTTPServer(serverOptions)

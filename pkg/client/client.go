@@ -150,6 +150,7 @@ func (c *Client) parseServerURLs(serverURL string, payload []byte) error {
 		if err != nil {
 			return errors.Wrap(err, "could not parse server URL")
 		}
+		parsed.Scheme = "https" // by default prefer https
 	makeReq:
 		if err := c.performRegistration(parsed.String(), payload); err != nil {
 			if !c.disableHTTPFallback && parsed.Scheme == "https" {
