@@ -3,6 +3,8 @@ package acme
 import (
 	"context"
 	"crypto/tls"
+	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/caddyserver/certmagic"
@@ -42,6 +44,20 @@ func HandleWildcardCertificates(domain, email string, store *Provider, debug boo
 		cfg.Logger = logger
 	}
 
+	var creating bool
+	if !certAlreadyExists(cfg, &certmagic.DefaultACME, domain) {
+		creating = true
+		gologger.Info().Msgf("Requesting SSL Certificate for:  [%s, %s]", domain, strings.TrimPrefix(domain, "*."))
+	} else {
+		gologger.Info().Msgf("Loading existing SSL Certificate for:  [%s, %s]", domain, strings.TrimPrefix(domain, "*."))
+	}
+
+	if creating {
+		defer func() {
+			home, _ := os.UserHomeDir()
+			gologger.Info().Msgf("Successfully Created SSL Certificate at: %s", filepath.Join(filepath.Join(home, ".local", "share"), "certmagic"))
+		}()
+	}
 	// this obtains certificates or renews them if necessary
 	if syncerr := cfg.ObtainCertSync(context.Background(), domain); syncerr != nil {
 		return nil, syncerr
@@ -57,4 +73,15 @@ func HandleWildcardCertificates(domain, email string, store *Provider, debug boo
 	config.ServerName = originalDomain
 	config.NextProtos = []string{"h2", "http/1.1"}
 	return config, nil
+}
+
+// certAlreadyExists returns true if a cert already exists
+func certAlreadyExists(cfg *certmagic.Config, issuer certmagic.Issuer, domain string) bool {
+	issuerKey := issuer.IssuerKey()
+	certKey := certmagic.StorageKeys.SiteCert(issuerKey, domain)
+	keyKey := certmagic.StorageKeys.SitePrivateKey(issuerKey, domain)
+	metaKey := certmagic.StorageKeys.SiteMeta(issuerKey, domain)
+	return cfg.Storage.Exists(certKey) &&
+		cfg.Storage.Exists(keyKey) &&
+		cfg.Storage.Exists(metaKey)
 }
