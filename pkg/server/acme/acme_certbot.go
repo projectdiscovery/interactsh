@@ -52,12 +52,13 @@ func HandleWildcardCertificates(domain, email string, store *Provider, debug boo
 		gologger.Info().Msgf("Loading existing SSL Certificate for:  [%s, %s]", domain, strings.TrimPrefix(domain, "*."))
 	}
 
-	if creating {
-		defer func() {
+	defer func() {
+		if creating {
 			home, _ := os.UserHomeDir()
 			gologger.Info().Msgf("Successfully Created SSL Certificate at: %s", filepath.Join(filepath.Join(home, ".local", "share"), "certmagic"))
-		}()
-	}
+		}
+	}()
+
 	// this obtains certificates or renews them if necessary
 	if syncerr := cfg.ObtainCertSync(context.Background(), domain); syncerr != nil {
 		return nil, syncerr
