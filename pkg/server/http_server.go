@@ -14,8 +14,6 @@ import (
 
 	jsoniter "github.com/json-iterator/go"
 	"github.com/projectdiscovery/gologger"
-	"github.com/projectdiscovery/gologger/levels"
-	"github.com/projectdiscovery/interactsh/pkg/server/acme"
 )
 
 // HTTPServer is a http server instance that listens both
@@ -36,8 +34,6 @@ func (l *noopLogger) Write(p []byte) (n int, err error) {
 
 // NewHTTPServer returns a new TLS & Non-TLS HTTP server.
 func NewHTTPServer(options *Options) (*HTTPServer, error) {
-	gologger.DefaultLogger.SetMaxLevel(levels.LevelDebug)
-
 	server := &HTTPServer{options: options, domain: strings.TrimSuffix(options.Domain, ".")}
 
 	router := &http.ServeMux{}
@@ -46,26 +42,29 @@ func NewHTTPServer(options *Options) (*HTTPServer, error) {
 	router.Handle("/deregister", server.corsMiddleware(server.authMiddleware(http.HandlerFunc(server.deregisterHandler))))
 	router.Handle("/poll", server.corsMiddleware(server.authMiddleware(http.HandlerFunc(server.pollHandler))))
 	router.Handle("/metrics", server.corsMiddleware(server.authMiddleware(http.HandlerFunc(server.metricsHandler))))
-	server.tlsserver = http.Server{Addr: options.ListenIP + ":443", Handler: router, ErrorLog: log.New(&noopLogger{}, "", 0)}
-	server.nontlsserver = http.Server{Addr: options.ListenIP + ":80", Handler: router, ErrorLog: log.New(&noopLogger{}, "", 0)}
+	server.tlsserver = http.Server{Addr: options.ListenIP + fmt.Sprintf(":%d", options.HttpsPort), Handler: router, ErrorLog: log.New(&noopLogger{}, "", 0)}
+	server.nontlsserver = http.Server{Addr: options.ListenIP + fmt.Sprintf(":%d", options.HttpPort), Handler: router, ErrorLog: log.New(&noopLogger{}, "", 0)}
 	return server, nil
 }
 
 // ListenAndServe listens on http and/or https ports for the server.
-func (h *HTTPServer) ListenAndServe(autoTLS *acme.AutoTLS) {
+func (h *HTTPServer) ListenAndServe(tlsConfig *tls.Config, httpAlive, httpsAlive chan bool) {
 	go func() {
-		if autoTLS == nil {
+		if tlsConfig == nil {
 			return
 		}
-		h.tlsserver.TLSConfig = &tls.Config{}
-		h.tlsserver.TLSConfig.GetCertificate = autoTLS.GetCertificateFunc()
+		h.tlsserver.TLSConfig = tlsConfig
 
+		httpsAlive <- true
 		if err := h.tlsserver.ListenAndServeTLS("", ""); err != nil {
 			gologger.Error().Msgf("Could not serve http on tls: %s\n", err)
+			httpsAlive <- false
 		}
 	}()
 
+	httpAlive <- true
 	if err := h.nontlsserver.ListenAndServe(); err != nil {
+		httpAlive <- false
 		gologger.Error().Msgf("Could not serve http: %s\n", err)
 	}
 }
@@ -143,6 +142,7 @@ func (h *HTTPServer) logger(handler http.Handler) http.HandlerFunc {
 				gologger.Warning().Msgf("Could not encode http interaction: %s\n", err)
 			} else {
 				gologger.Debug().Msgf("HTTP Interaction: \n%s\n", buffer.String())
+
 				if err := h.options.Storage.AddInteraction(correlationID, buffer.Bytes()); err != nil {
 					gologger.Warning().Msgf("Could not store http interaction: %s\n", err)
 				}
@@ -153,11 +153,11 @@ func (h *HTTPServer) logger(handler http.Handler) http.HandlerFunc {
 
 const banner = `<h1> Interactsh Server </h1>
 
-<a href='https://github.com/projectdiscovery/interactsh'>Interactsh</a> is an <b>open-source solution</b> for out-of-band data extraction. It is a tool designed to detect bugs that cause external interactions. These bugs include, Blind SQLi, Blind CMDi, SSRF, etc. <br><br>
+<a href='https://github.com/projectdiscovery/interactsh'><b>Interactsh</b></a> is an open-source tool for detecting out-of-band interactions. It is a tool designed to detect vulnerabilities that cause external interactions.<br><br>
 
-If you find communications or exchanges with the <b>%s</b> server in your logs, it is possible that someone has been testing your applications.<br><br>
+If you notice any interactions from <b>*.%s</b> percent s in your logs, it's possible that someone (internal security engineers, pen-testers, bug-bounty hunters) has been testing your application.<br><br>
 
-You should review the time when these interactions were initiated to identify the person responsible for this testing.
+You should investigate the sites where these interactions were generated from, and if a vulnerability exists, examine the root cause and take the necessary steps to mitigate the issue.
 `
 
 // defaultHandler is a handler for default collaborator requests
@@ -198,6 +198,7 @@ func (h *HTTPServer) registerHandler(w http.ResponseWriter, req *http.Request) {
 		jsonError(w, fmt.Sprintf("could not decode json body: %s", err), http.StatusBadRequest)
 		return
 	}
+
 	if err := h.options.Storage.SetIDPublicKey(r.CorrelationID, r.SecretKey, r.PublicKey); err != nil {
 		gologger.Warning().Msgf("Could not set id and public key for %s: %s\n", r.CorrelationID, err)
 		jsonError(w, fmt.Sprintf("could not set id and public key: %s", err), http.StatusBadRequest)
@@ -223,6 +224,7 @@ func (h *HTTPServer) deregisterHandler(w http.ResponseWriter, req *http.Request)
 		jsonError(w, fmt.Sprintf("could not decode json body: %s", err), http.StatusBadRequest)
 		return
 	}
+
 	if err := h.options.Storage.RemoveID(r.CorrelationID, r.SecretKey); err != nil {
 		gologger.Warning().Msgf("Could not remove id for %s: %s\n", r.CorrelationID, err)
 		jsonError(w, fmt.Sprintf("could not remove id: %s", err), http.StatusBadRequest)
@@ -261,10 +263,10 @@ func (h *HTTPServer) pollHandler(w http.ResponseWriter, req *http.Request) {
 	}
 
 	// At this point the client is authenticated, so we return also the data related to the auth token
-	extradata, _ := h.options.Storage.GetInteractionsWithId(h.options.Token)
-	var tlddata []string
+	var tlddata, extradata []string
 	if h.options.RootTLD {
 		tlddata, _ = h.options.Storage.GetInteractionsWithId(h.options.Domain)
+		extradata, _ = h.options.Storage.GetInteractionsWithId(h.options.Token)
 	}
 	response := &PollResponse{Data: data, AESKey: aesKey, TLDData: tlddata, Extra: extradata}
 

@@ -21,21 +21,54 @@
 
 ---
 
-**Interactsh** is an Open-Source Solution for Out of band Data Extraction, A tool designed to detect bugs that cause external interactions, For example - Blind SQLi, Blind CMDi, SSRF, etc.
-
+**Interactsh** is an open-source tool for detecting out-of-band interactions. It is a tool designed to detect vulnerabilities that cause external interactions.
 
 # Features
 
-- DNS/HTTP/HTTPS/SMTP Interaction support
-- NTLM/SMB Listener support (self-hosted)
-- Wildcard Interaction support (self-hosted)
+- DNS/HTTP(S)/SMTP(S)/LDAP Interaction support
+- NTLM/SMB/FTP/RESPONDER Listener support **(self-hosted)**
+- Wildcard Interaction support **(self-hosted)**
 - CLI / Web / Burp / ZAP / Docker client support
+- Self hosted Interactsh server support
 - AES encryption with zero logging
-- SELF Hosted Interactsh server support
 - Automatic ACME based Wildcard TLS w/ Auto Renewal
 - DNS Entries for Cloud Metadata service
 
 # Interactsh Client
+
+## Usage
+
+```sh
+interactsh-client -h
+```
+
+This will display help for the tool. Here are all the switches it supports.
+
+```yaml
+Usage:
+  ./interactsh-client [flags]
+
+Flags:
+INPUT:
+   -s, -server string  interactsh server(s) to use (default "oast.pro,oast.live,oast.site,oast.online,oast.fun,oast.me")
+
+CONFIG:
+   -n, -number int          number of interactsh payload to generate (default 1)
+   -t, -token string        authentication token to connect protected interactsh server
+   -pi, -poll-interval int  poll interval in seconds to pull interaction data (default 5)
+   -nf, -no-http-fallback   disable http fallback registration
+   -persist                 enables persistent interactsh sessions
+
+FILTER:
+   -dns-only   display only dns interaction in CLI output
+   -http-only  display only http interaction in CLI output
+   -smtp-only  display only smtp interactions in CLI output
+
+OUTPUT:
+   -o string  output file to write interaction data
+   -json      write output in JSONL(ines) format
+   -v         display verbose interaction
+```
 
 ## Interactsh CLI Client
 
@@ -45,7 +78,7 @@ Interactsh Cli client requires **go1.17+** to install successfully. Run the foll
 go install -v github.com/projectdiscovery/interactsh/cmd/interactsh-client@latest
 ```
 
-### Running Interactsh CLI Client
+### Default Run
 
 This will generate a unique payload that can be used for OOB testing with minimal interaction information in the ouput.
 
@@ -61,7 +94,7 @@ interactsh-client
         projectdiscovery.io
 
 [INF] Listing 1 payload for OOB Testing
-[INF] c23b2la0kl1krjcrdj10cndmnioyyyyyn.interact.sh
+[INF] c23b2la0kl1krjcrdj10cndmnioyyyyyn.oast.pro
 
 [c23b2la0kl1krjcrdj10cndmnioyyyyyn] Received DNS interaction (A) from 172.253.226.100 at 2021-26-26 12:26
 [c23b2la0kl1krjcrdj10cndmnioyyyyyn] Received DNS interaction (AAAA) from 32.3.34.129 at 2021-26-26 12:26
@@ -71,7 +104,10 @@ interactsh-client
 [c23b2la0kl1krjcrdj10cndmnioyyyyyn] Received SMTP interaction from 32.85.166.50 at 2021-26-26 12:26
 ```
 
-Running the Interactsh client in **verbose mode** (v) to see the whole request and response, along with an output file to analyze afterwards.
+### Verbose Mode
+
+
+Running the `interactsh-client` in **verbose mode** (v) to see the whole request and response, along with an output file to analyze afterwards.
 
 ```console
 interactsh-client -v -o interactsh-logs.txt
@@ -80,12 +116,12 @@ interactsh-client -v -o interactsh-logs.txt
    (_)___  / /____  _________ ______/ /______/ /_ 
   / / __ \/ __/ _ \/ ___/ __ '/ ___/ __/ ___/ __ \
  / / / / / /_/  __/ /  / /_/ / /__/ /_(__  ) / / /
-/_/_/ /_/\__/\___/_/   \__,_/\___/\__/____/_/ /_/ v0.0.5
+/_/_/ /_/\__/\___/_/   \__,_/\___/\__/____/_/ /_/ v1.0.0
 
     projectdiscovery.io
 
 [INF] Listing 1 payload for OOB Testing
-[INF] c58bduhe008dovpvhvugcfemp9yyyyyyn.interact.sh
+[INF] c58bduhe008dovpvhvugcfemp9yyyyyyn.oast.pro
 
 [c58bduhe008dovpvhvugcfemp9yyyyyyn] Received HTTP interaction from 103.22.142.211 at 2021-09-26 18:08:07
 ------------
@@ -93,20 +129,9 @@ HTTP Request
 ------------
 
 GET /favicon.ico HTTP/2.0
-Host: c58bduhe008dovpvhvugcfemp9yyyyyyn.interact.sh
-Accept: image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8
-Accept-Encoding: gzip, deflate, br
-Accept-Language: en-IN,en;q=0.9
-Cookie: _ga=GA1.2.440163205.1619796009; _iub_cs-77854424=%7B%22timestamp%22%3A%222021-04-30T15%3A23%3A23.192Z%22%2C%22version%22%3A%221.30.2%22%2C%22consent%22%3Atrue%2C%22id%22%3A77854424%7D
-Referer: https://c58bduhe008dovpvhvugcfemp9yyyyyyn.interact.sh/
-Sec-Ch-Ua: "Google Chrome";v="93", " Not;A Brand";v="99", "Chromium";v="93"
-Sec-Ch-Ua-Mobile: ?0
-Sec-Ch-Ua-Platform: "macOS"
-Sec-Fetch-Dest: image
-Sec-Fetch-Mode: no-cors
-Sec-Fetch-Site: same-origin
+Host: c58bduhe008dovpvhvugcfemp9yyyyyyn.oast.pro
+Referer: https://c58bduhe008dovpvhvugcfemp9yyyyyyn.oast.pro
 User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/93.0.4577.82 Safari/537.36
-
 
 
 -------------
@@ -116,22 +141,39 @@ HTTP Response
 HTTP/1.1 200 OK
 Connection: close
 Content-Type: text/html; charset=utf-8
-Server: interact.sh
+Server: oast.pro
 
 <html><head></head><body>nyyyyyy9pmefcguvhvpvod800ehudb85c</body></html>
 ```
 
-Using the `server` flag, Interactsh client can be configured to connect with a self-hosted interactsh server.
+### Using Self-Hosted server
+
+Using the `server` flag, `interactsh-client` can be configured to connect with a self-hosted Interactsh server, this flag accepts single or multiple server separated by comma.
 
 ```sh
 interactsh-client -server hackwithautomation.com
 ```
 
-Using the `token` flag, Interactsh client can connect to a self-hosted interactsh server that is protected with authentication.
+We maintain a list of default Interactsh servers to use with `interactsh-client`:
+
+- oast.pro
+- oast.live
+- oast.site
+- oast.online
+- oast.fun
+- oast.me
+
+Default servers are subject to change/rotate/down at any time, thus we recommend using a self-hosted interactsh server if you are experiencing issues with the default server.
+
+### Using Protected Self-Hosted server
+
+Using the `token` flag, `interactsh-client` can connect to a self-hosted Interactsh server that is protected with authentication.
 
 ```sh
 interactsh-client -server hackwithautomation.com -token XXX
 ```
+
+### Using with Notify
 
 If you are away from your terminal, you may use [notify](https://github.com/projectdiscovery/notify) to send a real-time interaction notification to any supported platform.
 
@@ -142,32 +184,9 @@ interactsh-client | notify
 ![image](https://user-images.githubusercontent.com/8293321/116283535-9bcac180-a7a9-11eb-94d5-0313d4812fef.png)
 
 
-# Usage
-
-```sh
-interactsh-client -h
-```
-
-This will display help for the tool. Here are all the switches it supports.
-
-| Flag          | Description                                       | Example                                      |
-| ------------- | ------------------------------------------------- | -------------------------------------------- |
-| n             | Interactsh payload count to generate (default 1)  | interactsh-client -n 2                       |
-| poll-interval | Interaction poll interval in seconds (default 5)  | interactsh-client -poll-interval 1           |
-| server        | Interactsh server to use                          | interactsh-client -server https://domain.com |
-| dns-only      | Display only DNS interaction in CLI output        | interactsh-client -dns-only                  |
-| http-only     | Display only HTTP interaction in CLI output       | interactsh-client -http-only                 |
-| smtp-only     | Display only SMTP interaction in CLI output       | interactsh-client -smtp-only                 |
-| json          | Write output in JSONL(ines) format                | interactsh-client -json                      |
-| token         | Authentication token to connect interactsh server | interactsh-client -token XXX                 |
-| persist       | Enables persistent interactsh sessions            | interactsh-client -persist                   |
-| o             | Output file to write interaction                  | interactsh-client -o logs.txt                |
-| v             | Show verbose interaction                          | interactsh-client -v                         |
-
-
 ## Interactsh Web Client
 
-[Interactsh-web](https://github.com/projectdiscovery/interactsh-web) is a free and open-source web client that displays Interactsh interactions in a well-managed dashboard in your browser. It uses the browser's local storage to store and display all incoming interactions. By default, the web client is configured to use - **interachsh.com**, a cloud-hosted interactsh server, and supports other self-hosted public/authencaited interactsh servers as well.
+[Interactsh-web](https://github.com/projectdiscovery/interactsh-web) is a free and open-source web client that displays Interactsh interactions in a well-managed dashboard in your browser. It uses the browser's local storage to store and display all incoming interactions. By default, the web client is configured to use **interact.sh** as default interactsh server, and supports other self-hosted public/authencaited interactsh servers as well.
 
 A hosted instance of **interactsh-web** client is available at https://app.interactsh.com
 
@@ -188,12 +207,12 @@ docker run projectdiscovery/interactsh-client:latest
    (_)___  / /____  _________ ______/ /______/ /_ 
   / / __ \/ __/ _ \/ ___/ __ '/ ___/ __/ ___/ __ \
  / / / / / /_/  __/ /  / /_/ / /__/ /_(__  ) / / /
-/_/_/ /_/\__/\___/_/   \__,_/\___/\__/____/_/ /_/ v0.0.5
+/_/_/ /_/\__/\___/_/   \__,_/\___/\__/____/_/ /_/ v1.0.0
 
         projectdiscovery.io
 
 [INF] Listing 1 payload for OOB Testing
-[INF] c59e3crp82ke7bcnedq0cfjqdpeyyyyyn.interact.sh
+[INF] c59e3crp82ke7bcnedq0cfjqdpeyyyyyn.oast.pro
 ```
 
 ## Burp Suite Extension
@@ -227,7 +246,51 @@ Interactsh can be used with OWASP ZAP via the [OAST add-on for ZAP](https://www.
 Interactsh server runs multiple services and captures all the incoming requests. To host an instance of interactsh-server, you are required to have the follow requirements:
 
 1. Domain name with custom **host names** and **nameservers**.
-2. Basic VPS running 24/7 in the background.
+2. Basic droplet running 24/7 in the background.
+
+# Usage
+
+```sh
+interactsh-server -h
+```
+
+This will display help for the tool. Here are all the switches it supports.
+
+```yaml
+Usage:
+  ./interactsh-server [flags]
+
+Flags:
+INPUT:
+   -d, -domain string       configured domain to use with interactsh server
+   -ip string               public ip address to use for interactsh server
+   -lip, -listen-ip string  public ip address to listen on (default "0.0.0.0")
+   -e, -eviction int        number of days to persist interaction data in memory (default 30)
+   -a, -auth                enable authentication to server using random generated token
+   -t, -token string        enable authentication to server using given token
+   -acao-url string         origin url to send in acao header (required to use web-client) (default "https://app.interactsh.com")
+   -sa, -skip-acme          skip acme registration (certificate checks/handshake + TLS protocols will be disabled)
+
+SERVICES:
+   -dns-port int           port to use for dns service (default 53)
+   -http-port int          port to use for http service (default 80)
+   -https-port int         port to use for https service (default 443)
+   -smtp-port int          port to use for smtp service (default 25)
+   -smtps-port int         port to use for smtps service (default 587)
+   -smtp-autotls-port int  port to use for smtps autotls service (default 465)
+   -ldap-port int          port to use for ldap service (default 389)
+   -ldap                   enable ldap server with full logging (authenticated)
+   -wc, -wildcard          enable wildcard interaction for interactsh domain (authenticated)
+   -smb                    start smb agent - impacket and python 3 must be installed (authenticated)
+   -responder              start responder agent - docker must be installed (authenticated)
+   -ftp                    start ftp agent (authenticated)
+   -smb-port int           port to use for smb service (default 445)
+   -ftp-port int           port to use for ftp service (default 21)
+   -ftp-dir string         ftp directory - temporary if not specified
+
+DEBUG:
+   -debug  start interactsh server in debug mode
+```
 
 We are using GoDaddy for domain name and DigitalOcean droplet for the server, a basic $5 droplet should be sufficient to run self-hosted Interactsh server. If you are not using GoDaddy, follow your registrar's process for creating / updating DNS entries.
 
@@ -236,13 +299,13 @@ We are using GoDaddy for domain name and DigitalOcean droplet for the server, a 
 
 ## Configuring Interactsh domain
 
-- Navigate to `https://dcc.godaddy.com/manage/{{domain}}/dns`
-- Advanced Features &rarr; Host names &rarr; Add &rarr; Submit `ns1`, `ns2` with `VPS IP` as value
+- Navigate to `https://dcc.godaddy.com/manage/{{domain}}/dns/hosts`
+- Advanced Features &rarr; Host names &rarr; Add &rarr; Submit `ns1`, `ns2` with your `SERVER_IP` as value
 
 <img width="1288" alt="gdd-hostname" src="https://user-images.githubusercontent.com/8293321/135175512-135259fb-0490-4038-845a-0b62b1b8f549.png">
 
 - Navigate to `https://dns.godaddy.com/{{domain}}/nameservers`
-- I'll use my own nameservers &rarr; Submit `ns1.{{domain}}`, `ns2.{{domain}}`
+- I'll use my own nameservers &rarr; Submit `ns1.INTERACTSH_DOMAIN`, `ns2.INTERACTSH_DOMAIN`
 
 <img width="1288" alt="gdd-ns" src="https://user-images.githubusercontent.com/8293321/135175627-ea9639fd-353d-441b-a9a4-dae7f540d0ae.png">
 
@@ -254,80 +317,109 @@ We are using GoDaddy for domain name and DigitalOcean droplet for the server, a 
 
 ## Configuring Interactsh server
 
-
-Install interactsh-server on your **remote VPS**
+Install `interactsh-server` on your **VPS**
 
 ```bash
 go install -v github.com/projectdiscovery/interactsh/cmd/interactsh-server@latest
 ```
 
-Considering **domain name setup is completed**, run the below command to run interactsh server
+Considering domain name setup is **completed**, run the below command to run `interactsh-server`
 
 ```bash
-interactsh-server -domain domain.com
-```
-
-**Alternatively**, you can utilize ready to run [docker image](https://hub.docker.com/r/projectdiscovery/interactsh-server) of interactsh-server on your **remote machine** with
-
-```sh
-docker run projectdiscovery/interactsh-server:latest -domain domain.com
+interactsh-server -domain INTERACTSH_DOMAIN
 ```
 
 Following is an example of a successful installation and operation of a self-hosted server:
 
-![interactsh-server](https://user-images.githubusercontent.com/8293321/134819391-51137c77-61d5-4ae8-9504-947dd444d863.png)
+![interactsh-server](https://user-images.githubusercontent.com/8293321/150676089-b5638c19-33a3-426a-987c-3ac6fa227012.png)
 
-
-A number of needed flags are configured automatically to run interactsh server with default settings. For example, the `hostmaster` flag with a valid email address such as `admin@domain.com` and the `ip` and `listen-ip` flags with the public IP address of the VPS.
-
-A hosted instance of **interactsh-server** which is used as default with interactsh-client is available at https://interact.sh
+A number of needed flags are configured automatically to run `interactsh-server` with default settings. For example, `ip` and `listen-ip` flags set with the Public IP address of the system when possible.
 
 </td>
 </table>
 
-# Usage
+## Running Interactsh Server
 
-```sh
-interactsh-server -h
+```console
+interactsh-server -domain interact.sh
+
+    _       __                       __       __  
+   (_)___  / /____  _________ ______/ /______/ /_ 
+  / / __ \/ __/ _ \/ ___/ __ '/ ___/ __/ ___/ __ \
+ / / / / / /_/  __/ /  / /_/ / /__/ /_(__  ) / / /
+/_/_/ /_/\__/\___/_/   \__,_/\___/\__/____/_/ /_/ v1.0.0
+
+                projectdiscovery.io
+
+[INF] Listening with the following services:
+[HTTPS] Listening on TCP 46.101.25.250:443
+[HTTP] Listening on TCP 46.101.25.250:80
+[SMTPS] Listening on TCP 46.101.25.250:587
+[LDAP] Listening on TCP 46.101.25.250:389
+[SMTP] Listening on TCP 46.101.25.250:25
+[DNS] Listening on TCP 46.101.25.250:53
+[DNS] Listening on UDP 46.101.25.250:53
 ```
 
-This will display help for the tool. Here are all the switches it supports.
+There are more useful capabilities supported by `interactsh-server` that are not enabled by default and are intended to be used only by **self-hosted** servers.
 
-| Flag       | Description                                                  | Example                                           |
-| ---------- | ------------------------------------------------------------ | ------------------------------------------------- |
-| auth       | Enable authentication to server using random generated token | interactsh-server -auth                           |
-| token      | Enable authentication to server using given token            | interactsh-server -token MY_TOKEN                 |
-| domain     | Domain to use for interactsh server                          | interactsh-server -domain domain.com              |
-| eviction   | Number of days to persist interactions for (default 30)      | interactsh-server -eviction 30                    |
-| hostmaster | Hostmaster email to use for interactsh server                | interactsh-server -hostmaster admin@domain.com    |
-| ip         | Public IP Address to use for interactsh server               | interactsh-server -ip XX.XX.XX.XX                 |
-| listen-ip  | Public IP Address to listen on                               | interactsh-server -listen-ip XX.XX.XX.XX          |
-| root-tld   | Enable wildcard/global interaction for *.domain.com          | interactsh-server -root-tld                       |
-| origin-url | Origin URL to send in ACAO Header                            | interactsh-server -origin-url https://domain.com  |
-| responder  | Start a responder agent - docker must be installed           | interactsh-server -responder                      |
-| smb        | Start a smb agent - impacket and python 3 must be installed  | interactsh-server -smb                            |
-| debug      | Run interactsh in debug mode                                 | interactsh-server -debug                          |
+## Wildcard Interaction
 
+To enable `wildcard` interaction for configured Interactsh domain `wildcard` flag can be used with implicit authentication protection via the `auth` flag if the `token` flag is omitted.
 
-There are more useful capabilities supported by Interactsh server that are not enabled by default and are intended to be used only by self-hosted servers. These feature are **not** available with hosted server at https://interact.sh
+```console
+interactsh-server -domain hackwithautomation.com -wildcard
 
-`root-tld` flag enables wildcard (`*.domain.com`) interaction support with your self-hosted server and includes implicit authentication protection via the `auth` flag if the `token` flag is omitted.
+    _       __                       __       __  
+   (_)___  / /____  _________ ______/ /______/ /_ 
+  / / __ \/ __/ _ \/ ___/ __ '/ ___/ __/ ___/ __ \
+ / / / / / /_/  __/ /  / /_/ / /__/ /_(__  ) / / /
+/_/_/ /_/\__/\___/_/   \__,_/\___/\__/____/_/ /_/ v1.0.0
 
-```bash
-interactsh-server -domain domain.com -root-tld
+        projectdiscovery.io
 
-2021/09/28 12:18:24 Client Token: 4c17895a460123ea439abbad64e0e02c2c7be660464d75299f76e1a972ac4e56
-2021/09/28 12:18:24 TLS certificates are not expiring, continue!
-2021/09/28 12:18:24 Listening on DNS, SMTP and HTTP ports
+[INF] Client Token: 699c55544ce1604c63edb769e51190acaad1f239589a35671ccabd664385cfc7
+[INF] Listening with the following services:
+[HTTPS] Listening on TCP 157.230.223.165:443
+[HTTP] Listening on TCP 157.230.223.165:80
+[SMTPS] Listening on TCP 157.230.223.165:587
+[LDAP] Listening on TCP 157.230.223.165:389
+[SMTP] Listening on TCP 157.230.223.165:25
+[DNS] Listening on TCP 157.230.223.165:53
+[DNS] Listening on UDP 157.230.223.165:53
+```
+
+## LDAP Interaction
+
+As default, Interactsh server support LDAP interaction for the payload included in [search query](https://ldapwiki.com/wiki/LDAP%20Query%20Examples), additionally `ldap` flag can be used for complete logging.
+
+```console
+interactsh-server -domain hackwithautomation.com -sa -ldap
+
+    _       __                       __       __  
+   (_)___  / /____  _________ ______/ /______/ /_ 
+  / / __ \/ __/ _ \/ ___/ __ '/ ___/ __/ ___/ __ \
+ / / / / / /_/  __/ /  / /_/ / /__/ /_(__  ) / / /
+/_/_/ /_/\__/\___/_/   \__,_/\___/\__/____/_/ /_/ v1.0.0
+
+        projectdiscovery.io
+
+[INF] Client Token: deb58fc151e6f0e53d448be3eb14cd7a11590d8950d142b9cd1abac3c2e3e7bc
+[INF] Listening with the following services:
+[DNS] Listening on UDP 157.230.223.165:53
+[LDAP] Listening on TCP 157.230.223.165:389
+[HTTP] Listening on TCP 157.230.223.165:80
+[SMTP] Listening on TCP 157.230.223.165:25
+[DNS] Listening on TCP 157.230.223.165:53
 ```
 
 # Interactsh Integration
 
-### Nuclei - OOB Scan
+### Nuclei - OAST
 
-[Nuclei](https://github.com/projectdiscovery/nuclei) vulnerability scanner can also utilize **Interactsh** for automated payload generation and detection of Out of band based security vulnerabilities.
+[Nuclei](https://github.com/projectdiscovery/nuclei) vulnerability scanner utilize **Interactsh** for automated payload generation and detection of out of band based security vulnerabilities.
 
-See [Nuclei + Interactsh](https://blog.projectdiscovery.io/nuclei-interactsh-integration/) Integration blog and [guide document](https://nuclei.projectdiscovery.io/templating-guide/interactsh/) for more info.
+See [Nuclei + Interactsh](https://blog.projectdiscovery.io/nuclei-interactsh-integration/) Integration blog and [guide document](https://nuclei.projectdiscovery.io/templating-guide/interactsh/) for more information.
 
 # Cloud Metadata
 
@@ -340,13 +432,8 @@ Currently supported metadata services:
 
 Example:
 
-aws.`{interactsh-server}` points to **169.254.169.254**
-
-**aws.interact.sh** points to 169.254.169.254
-
-alibaba.`{interactsh-server}` points to **100.100.100.200**
-
-**alibaba.interact.sh** points to 100.100.100.200
+* **aws.interact.sh** points to 169.254.169.254
+* **alibaba.interact.sh** points to 100.100.100.200
 
 -----
 

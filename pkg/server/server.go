@@ -4,6 +4,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/projectdiscovery/interactsh/pkg/server/acme"
 	"github.com/projectdiscovery/interactsh/pkg/storage"
 )
 
@@ -37,6 +38,24 @@ type Options struct {
 	IPAddress string
 	// ListenIP is the IP address to listen servers on
 	ListenIP string
+	// DomainPort is the port to listen DNS servers on
+	DnsPort int
+	// HttpPort is the port to listen HTTP server on
+	HttpPort int
+	// HttpsPort is the port to listen HTTPS server on
+	HttpsPort int
+	// SmbPort is the port to listen Smb server on
+	SmbPort int
+	// SmtpPort is the port to listen Smtp server on
+	SmtpPort int
+	// SmtpsPort is the port to listen Smtps server on
+	SmtpsPort int
+	// SmtpAutoTLSPort is the port to listen Smtp autoTLS server on
+	SmtpAutoTLSPort int
+	// FtpPort is the port to listen Ftp server on
+	FtpPort int
+	// FtpPort is the port to listen Ftp server on
+	LdapPort int
 	// Hostmaster is the hostmaster email for the server.
 	Hostmaster string
 	// Storage is a storage for interaction data storage
@@ -49,24 +68,33 @@ type Options struct {
 	RootTLD bool
 	// OriginURL for the HTTP Server
 	OriginURL string
+	// FTPDirectory or temporary one
+	FTPDirectory string
+
+	ACMEStore *acme.Provider
 }
 
 // URLReflection returns a reversed part of the URL payload
-// which is checked in theb
+// which is checked in the response.
 func URLReflection(URL string) string {
+	randomID := getURLIDComponent(URL)
+
+	rns := []rune(randomID)
+	for i, j := 0, len(rns)-1; i < j; i, j = i+1, j-1 {
+		rns[i], rns[j] = rns[j], rns[i]
+	}
+	return string(rns)
+}
+
+// getURLIDComponent returns the 33 character interactsh ID
+func getURLIDComponent(URL string) string {
 	parts := strings.Split(URL, ".")
+
 	var randomID string
 	for _, part := range parts {
 		if len(part) == 33 {
 			randomID = part
 		}
 	}
-	if randomID == "" {
-		return ""
-	}
-	rns := []rune(randomID)
-	for i, j := 0, len(rns)-1; i < j; i, j = i+1, j-1 {
-		rns[i], rns[j] = rns[j], rns[i]
-	}
-	return string(rns)
+	return randomID
 }
