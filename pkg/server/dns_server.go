@@ -79,7 +79,8 @@ func (h *DNSServer) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 		if strings.HasPrefix(strings.ToLower(domain), dnsChallengeString) {
 			isDNSChallenge = true
 
-			fmt.Printf("got acme dns request: \n%s\n", r.String())
+			gologger.Debug().Msgf("Got acme dns request: \n%s\n", r.String())
+
 			switch question.Qtype {
 			case dns.TypeSOA:
 				h.handleSOA(domain, m)
@@ -94,7 +95,8 @@ func (h *DNSServer) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 			case dns.TypeA, dns.TypeAAAA:
 				h.handleACNAMEANY(domain, m)
 			}
-			fmt.Printf("got acme dns response: \n%s\n", m.String())
+
+			gologger.Debug().Msgf("Got acme dns response: \n%s\n", m.String())
 		} else {
 			switch question.Qtype {
 			case dns.TypeA, dns.TypeAAAA, dns.TypeCNAME, dns.TypeANY:

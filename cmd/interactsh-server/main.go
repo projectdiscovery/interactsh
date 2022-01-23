@@ -130,13 +130,14 @@ func main() {
 	trimmedDomain := strings.TrimSuffix(serverOptions.Domain, ".")
 
 	var tlsConfig *tls.Config
-	if !cliOptions.SkipAcme {
-		acmeManagerTLS, acmeErr := acme.HandleWildcardCertificates(fmt.Sprintf("*.%s", trimmedDomain), serverOptions.Hostmaster, acmeStore)
+	if !cliOptions.SkipAcme && cliOptions.Domain != "" {
+		acmeManagerTLS, acmeErr := acme.HandleWildcardCertificates(fmt.Sprintf("*.%s", trimmedDomain), serverOptions.Hostmaster, acmeStore, cliOptions.Debug)
 		if acmeErr != nil {
-			gologger.Warning().Msgf("An error occurred while applying for an certificate, error: %v", acmeErr)
-			gologger.Warning().Msgf("Could not generate certs for auto TLS, https will be disabled")
+			gologger.Error().Msgf("An error occurred while applying for an certificate, error: %v", acmeErr)
+			gologger.Error().Msgf("Could not generate certs for auto TLS, https will be disabled")
+		} else {
+			tlsConfig = acmeManagerTLS
 		}
-		tlsConfig = acmeManagerTLS
 	}
 
 	httpServer, err := server.NewHTTPServer(serverOptions)
