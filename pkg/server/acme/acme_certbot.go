@@ -52,23 +52,13 @@ func HandleWildcardCertificates(domain, email string, store *Provider, debug boo
 		gologger.Info().Msgf("Loading existing SSL Certificate for:  [%s, %s]", domain, strings.TrimPrefix(domain, "*."))
 	}
 
-	var finalError error
-	defer func() {
-		if creating && finalError != nil {
-			home, _ := os.UserHomeDir()
-			gologger.Info().Msgf("Successfully Created SSL Certificate at: %s", filepath.Join(filepath.Join(home, ".local", "share"), "certmagic"))
-		}
-	}()
-
 	// this obtains certificates or renews them if necessary
 	if syncerr := cfg.ObtainCertSync(context.Background(), domain); syncerr != nil {
-		finalError = syncerr
 		return nil, syncerr
 	}
 	go func() {
 		syncerr := cfg.ManageAsync(context.Background(), []string{domain, originalDomain})
 		if syncerr != nil {
-			finalError = syncerr
 			gologger.Error().Msgf("Could not manageasync certmagic certs: %s", err)
 		}
 	}()
@@ -76,6 +66,11 @@ func HandleWildcardCertificates(domain, email string, store *Provider, debug boo
 	config := cfg.TLSConfig()
 	config.ServerName = originalDomain
 	config.NextProtos = []string{"h2", "http/1.1"}
+
+	if creating {
+		home, _ := os.UserHomeDir()
+		gologger.Info().Msgf("Successfully Created SSL Certificate at: %s", filepath.Join(filepath.Join(home, ".local", "share"), "certmagic"))
+	}
 	return config, nil
 }
 
