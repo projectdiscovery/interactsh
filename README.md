@@ -332,8 +332,7 @@ interactsh-server -domain INTERACTSH_DOMAIN
 
 Following is an example of a successful installation and operation of a self-hosted server:
 
-![interactsh-server](https://user-images.githubusercontent.com/8293321/134819391-51137c77-61d5-4ae8-9504-947dd444d863.png)
-
+![interactsh-server](https://user-images.githubusercontent.com/8293321/150676089-b5638c19-33a3-426a-987c-3ac6fa227012.png)
 
 A number of needed flags are configured automatically to run `interactsh-server` with default settings. For example, `ip` and `listen-ip` flags set with the Public IP address of the system when possible.
 
