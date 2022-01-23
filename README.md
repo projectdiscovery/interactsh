@@ -21,8 +21,7 @@
 
 ---
 
-**Interactsh** is an open-source tool for detecting out-of-band interactions. It is a tool designed to detect vulnerabilities that cause external interactions. 
-
+**Interactsh** is an open-source tool for detecting out-of-band interactions. It is a tool designed to detect vulnerabilities that cause external interactions.
 
 # Features
 
@@ -187,7 +186,7 @@ interactsh-client | notify
 
 ## Interactsh Web Client
 
-[Interactsh-web](https://github.com/projectdiscovery/interactsh-web) is a free and open-source web client that displays Interactsh interactions in a well-managed dashboard in your browser. It uses the browser's local storage to store and display all incoming interactions. By default, the web client is configured to use - **interachsh.com**, a cloud-hosted interactsh server, and supports other self-hosted public/authencaited interactsh servers as well.
+[Interactsh-web](https://github.com/projectdiscovery/interactsh-web) is a free and open-source web client that displays Interactsh interactions in a well-managed dashboard in your browser. It uses the browser's local storage to store and display all incoming interactions. By default, the web client is configured to use **interact.sh** as default interactsh server, and supports other self-hosted public/authencaited interactsh servers as well.
 
 A hosted instance of **interactsh-web** client is available at https://app.interactsh.com
 
@@ -388,6 +387,30 @@ interactsh-server -domain hackwithautomation.com -wildcard
 [SMTP] Listening on TCP 157.230.223.165:25
 [DNS] Listening on TCP 157.230.223.165:53
 [DNS] Listening on UDP 157.230.223.165:53
+```
+
+## LDAP Interaction
+
+As default, Interactsh server support LDAP interaction for the payload included in [search query](https://ldapwiki.com/wiki/LDAP%20Query%20Examples), additionally `ldap` flag can be used for complete logging.
+
+```console
+interactsh-server -domain hackwithautomation.com -sa -ldap
+
+    _       __                       __       __  
+   (_)___  / /____  _________ ______/ /______/ /_ 
+  / / __ \/ __/ _ \/ ___/ __ '/ ___/ __/ ___/ __ \
+ / / / / / /_/  __/ /  / /_/ / /__/ /_(__  ) / / /
+/_/_/ /_/\__/\___/_/   \__,_/\___/\__/____/_/ /_/ v1.0.0
+
+        projectdiscovery.io
+
+[INF] Client Token: deb58fc151e6f0e53d448be3eb14cd7a11590d8950d142b9cd1abac3c2e3e7bc
+[INF] Listening with the following services:
+[DNS] Listening on UDP 157.230.223.165:53
+[LDAP] Listening on TCP 157.230.223.165:389
+[HTTP] Listening on TCP 157.230.223.165:80
+[SMTP] Listening on TCP 157.230.223.165:25
+[DNS] Listening on TCP 157.230.223.165:53
 ```
 
 # Interactsh Integration
