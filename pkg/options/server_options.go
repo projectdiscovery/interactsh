@@ -34,7 +34,7 @@ func (cliServerOptions *CLIServerOptions) AsServerOptions() *server.Options {
 	return &server.Options{
 		Domain:          cliServerOptions.Domain,
 		DnsPort:         cliServerOptions.DnsPort,
-		IPAddress:       cliServerOptions.ListenIP,
+		IPAddress:       cliServerOptions.IPAddress,
 		ListenIP:        cliServerOptions.ListenIP,
 		HttpPort:        cliServerOptions.HttpPort,
 		HttpsPort:       cliServerOptions.HttpsPort,
