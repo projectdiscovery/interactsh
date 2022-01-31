@@ -27,6 +27,7 @@ import (
 	"github.com/projectdiscovery/gologger"
 	"github.com/projectdiscovery/interactsh/pkg/server"
 	"github.com/projectdiscovery/retryablehttp-go"
+	"github.com/projectdiscovery/stringsutil"
 	"github.com/rs/xid"
 	"gopkg.in/corvus-ch/zbase32.v1"
 )
@@ -143,14 +144,13 @@ func (c *Client) parseServerURLs(serverURL string, payload []byte) error {
 	gotValue := values[firstIdx]
 
 	registerFunc := func(got string) error {
-		if !strings.HasPrefix(got, "http") {
-			got = "https://" + got
+		if !stringsutil.HasPrefixAny(got, "http://", "https://") {
+			got = fmt.Sprintf("https://%s", got)
 		}
 		parsed, err := url.Parse(got)
 		if err != nil {
 			return errors.Wrap(err, "could not parse server URL")
 		}
-		parsed.Scheme = "https" // by default prefer https
 	makeReq:
 		if err := c.performRegistration(parsed.String(), payload); err != nil {
 			if !c.disableHTTPFallback && parsed.Scheme == "https" {
