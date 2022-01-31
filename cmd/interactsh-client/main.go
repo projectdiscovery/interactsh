@@ -13,6 +13,7 @@ import (
 	"github.com/projectdiscovery/interactsh/pkg/client"
 	"github.com/projectdiscovery/interactsh/pkg/options"
 	"github.com/projectdiscovery/interactsh/pkg/server"
+	"github.com/projectdiscovery/interactsh/pkg/settings"
 )
 
 func main() {
@@ -32,8 +33,8 @@ func main() {
 		flagSet.IntVarP(&cliOptions.PollInterval, "poll-interval", "pi", 5, "poll interval in seconds to pull interaction data"),
 		flagSet.BoolVarP(&cliOptions.DisableHTTPFallback, "no-http-fallback", "nf", false, "disable http fallback registration"),
 		flagSet.BoolVar(&cliOptions.Persistent, "persist", false, "enables persistent interactsh sessions"),
-		flagSet.IntVarP(&cliOptions.CorrelationIdLength, "correlation-id-length", "cidl", options.CorrelationIdLengthDefault, "Length of the correlation id preamble"),
-		flagSet.IntVarP(&cliOptions.CorrelationIdNonceLength, "correlation-id-nonce-length", "cidn", options.CorrelationIdNonceLengthLengthDefault, "Length of the correlation id nonce"),
+		flagSet.IntVarP(&cliOptions.CorrelationIdLength, "correlation-id-length", "cidl", settings.CorrelationIdLengthDefault, "Length of the correlation id preamble"),
+		flagSet.IntVarP(&cliOptions.CorrelationIdNonceLength, "correlation-id-nonce-length", "cidn", settings.CorrelationIdNonceLengthLengthDefault, "Length of the correlation id nonce"),
 	)
 
 	options.CreateGroup(flagSet, "filter", "Filter",

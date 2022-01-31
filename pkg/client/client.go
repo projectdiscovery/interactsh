@@ -23,8 +23,8 @@ import (
 	jsoniter "github.com/json-iterator/go"
 	"github.com/pkg/errors"
 	"github.com/projectdiscovery/gologger"
-	"github.com/projectdiscovery/interactsh/pkg/options"
 	"github.com/projectdiscovery/interactsh/pkg/server"
+	"github.com/projectdiscovery/interactsh/pkg/settings"
 	"github.com/projectdiscovery/retryablehttp-go"
 	"github.com/rs/xid"
 	"gopkg.in/corvus-ch/zbase32.v1"
@@ -66,8 +66,8 @@ type Options struct {
 // DefaultOptions is the default options for the interact client
 var DefaultOptions = &Options{
 	ServerURL:                "oast.pro,oast.live,oast.site,oast.online,oast.fun,oast.me",
-	CorrelationIdLength:      options.CorrelationIdLengthDefault,
-	CorrelationIdNonceLength: options.CorrelationIdLengthDefault,
+	CorrelationIdLength:      settings.CorrelationIdLengthDefault,
+	CorrelationIdNonceLength: settings.CorrelationIdLengthDefault,
 }
 
 // New creates a new client instance based on provided options
@@ -396,7 +396,7 @@ func (c *Client) performRegistration(serverURL string, payload []byte) error {
 // URL returns a new URL that can be used for external interaction requests.
 func (c *Client) URL() string {
 	data := make([]byte, c.CorrelationIdNonceLength)
-	rand.Read(data)
+	_, _ = rand.Read(data)
 	randomData := zbase32.StdEncoding.EncodeToString(data)
 	if len(randomData) > c.CorrelationIdNonceLength {
 		randomData = randomData[:c.CorrelationIdNonceLength]

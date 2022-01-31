@@ -1,4 +1,4 @@
-package options
+package settings
 
 const (
 	CorrelationIdLengthDefault            = 20
