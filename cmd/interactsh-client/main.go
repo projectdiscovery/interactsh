@@ -32,6 +32,8 @@ func main() {
 		flagSet.IntVarP(&cliOptions.PollInterval, "poll-interval", "pi", 5, "poll interval in seconds to pull interaction data"),
 		flagSet.BoolVarP(&cliOptions.DisableHTTPFallback, "no-http-fallback", "nf", false, "disable http fallback registration"),
 		flagSet.BoolVar(&cliOptions.Persistent, "persist", false, "enables persistent interactsh sessions"),
+		flagSet.IntVarP(&cliOptions.CorrelationIdLength, "correlation-id-length", "cidl", options.CorrelationIdLengthDefault, "Length of the correlation id preamble"),
+		flagSet.IntVarP(&cliOptions.CorrelationIdNonceLength, "correlation-id-nonce-length", "cidn", options.CorrelationIdNonceLengthLengthDefault, "Length of the correlation id nonce"),
 	)
 
 	options.CreateGroup(flagSet, "filter", "Filter",
@@ -62,10 +64,12 @@ func main() {
 	}
 
 	client, err := client.New(&client.Options{
-		ServerURL:           cliOptions.ServerURL,
-		PersistentSession:   cliOptions.Persistent,
-		Token:               cliOptions.Token,
-		DisableHTTPFallback: cliOptions.DisableHTTPFallback,
+		ServerURL:                cliOptions.ServerURL,
+		PersistentSession:        cliOptions.Persistent,
+		Token:                    cliOptions.Token,
+		DisableHTTPFallback:      cliOptions.DisableHTTPFallback,
+		CorrelationIdLength:      cliOptions.CorrelationIdLength,
+		CorrelationIdNonceLength: cliOptions.CorrelationIdNonceLength,
 	})
 	if err != nil {
 		gologger.Fatal().Msgf("Could not create client: %s\n", err)

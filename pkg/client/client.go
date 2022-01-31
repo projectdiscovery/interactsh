@@ -9,7 +9,6 @@ import (
 	"crypto/sha256"
 	"crypto/x509"
 	"encoding/base64"
-	"encoding/binary"
 	"encoding/pem"
 	"fmt"
 	"io"
@@ -18,13 +17,13 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
-	"sync/atomic"
 	"time"
 
 	"github.com/google/uuid"
 	jsoniter "github.com/json-iterator/go"
 	"github.com/pkg/errors"
 	"github.com/projectdiscovery/gologger"
+	"github.com/projectdiscovery/interactsh/pkg/options"
 	"github.com/projectdiscovery/interactsh/pkg/server"
 	"github.com/projectdiscovery/retryablehttp-go"
 	"github.com/rs/xid"
@@ -33,19 +32,19 @@ import (
 
 var authError = errors.New("couldn't authenticate to the server")
 
-var objectIDCounter = uint32(0)
-
 // Client is a client for communicating with interactsh server instance.
 type Client struct {
-	correlationID       string
-	secretKey           string
-	serverURL           *url.URL
-	httpClient          *retryablehttp.Client
-	privKey             *rsa.PrivateKey
-	quitChan            chan struct{}
-	persistentSession   bool
-	disableHTTPFallback bool
-	token               string
+	correlationID            string
+	secretKey                string
+	serverURL                *url.URL
+	httpClient               *retryablehttp.Client
+	privKey                  *rsa.PrivateKey
+	quitChan                 chan struct{}
+	persistentSession        bool
+	disableHTTPFallback      bool
+	token                    string
+	correlationIdLength      int
+	CorrelationIdNonceLength int
 }
 
 // Options contains configuration options for interactsh client
@@ -58,28 +57,48 @@ type Options struct {
 	Token string
 	// DisableHTTPFallback determines if failed requests over https should not be retried over http
 	DisableHTTPFallback bool
+	// CorrelationIdLength of the preamble
+	CorrelationIdLength int
+	// CorrelationIdNonceLengthLength of the nonce
+	CorrelationIdNonceLength int
 }
 
 // DefaultOptions is the default options for the interact client
 var DefaultOptions = &Options{
-	ServerURL: "oast.pro,oast.live,oast.site,oast.online,oast.fun,oast.me",
+	ServerURL:                "oast.pro,oast.live,oast.site,oast.online,oast.fun,oast.me",
+	CorrelationIdLength:      options.CorrelationIdLengthDefault,
+	CorrelationIdNonceLength: options.CorrelationIdLengthDefault,
 }
 
 // New creates a new client instance based on provided options
 func New(options *Options) (*Client, error) {
 	mathrand.Seed(time.Now().UnixNano())
 
+	// if correlation id lengths and nonce are not specified fallback to default:
+	if options.CorrelationIdLength == 0 {
+		options.CorrelationIdLength = DefaultOptions.CorrelationIdLength
+	}
+	if options.CorrelationIdNonceLength == 0 {
+		options.CorrelationIdNonceLength = DefaultOptions.CorrelationIdNonceLength
+	}
+
 	opts := retryablehttp.DefaultOptionsSingle
 	opts.Timeout = 10 * time.Second
-
 	// Generate a random ksuid which will be used as server secret.
+	correlationID := xid.New().String()
+	if len(correlationID) > options.CorrelationIdLength {
+		correlationID = correlationID[:options.CorrelationIdLength]
+	}
+
 	client := &Client{
-		secretKey:           uuid.New().String(), // uuid as more secure
-		correlationID:       xid.New().String(),
-		persistentSession:   options.PersistentSession,
-		httpClient:          retryablehttp.NewClient(opts),
-		token:               options.Token,
-		disableHTTPFallback: options.DisableHTTPFallback,
+		secretKey:                uuid.New().String(), // uuid as more secure
+		correlationID:            correlationID,
+		persistentSession:        options.PersistentSession,
+		httpClient:               retryablehttp.NewClient(opts),
+		token:                    options.Token,
+		disableHTTPFallback:      options.DisableHTTPFallback,
+		correlationIdLength:      options.CorrelationIdLength,
+		CorrelationIdNonceLength: options.CorrelationIdNonceLength,
 	}
 	payload, err := client.initializeRSAKeys()
 	if err != nil {
@@ -150,7 +169,6 @@ func (c *Client) parseServerURLs(serverURL string, payload []byte) error {
 		if err != nil {
 			return errors.Wrap(err, "could not parse server URL")
 		}
-		parsed.Scheme = "https" // by default prefer https
 	makeReq:
 		if err := c.performRegistration(parsed.String(), payload); err != nil {
 			if !c.disableHTTPFallback && parsed.Scheme == "https" {
@@ -377,11 +395,12 @@ func (c *Client) performRegistration(serverURL string, payload []byte) error {
 
 // URL returns a new URL that can be used for external interaction requests.
 func (c *Client) URL() string {
-	random := make([]byte, 8)
-	i := atomic.AddUint32(&objectIDCounter, 1)
-	binary.BigEndian.PutUint32(random[0:4], uint32(time.Now().Unix()))
-	binary.BigEndian.PutUint32(random[4:8], i)
-	randomData := zbase32.StdEncoding.EncodeToString(random)
+	data := make([]byte, c.CorrelationIdNonceLength)
+	rand.Read(data)
+	randomData := zbase32.StdEncoding.EncodeToString(data)
+	if len(randomData) > c.CorrelationIdNonceLength {
+		randomData = randomData[:c.CorrelationIdNonceLength]
+	}
 
 	builder := &strings.Builder{}
 	builder.Grow(len(c.correlationID) + len(randomData) + len(c.serverURL.Host) + 1)

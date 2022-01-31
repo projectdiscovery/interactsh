@@ -240,7 +240,7 @@ func (h *DNSServer) handleInteraction(domain string, w dns.ResponseWriter, r *dn
 	if strings.HasSuffix(domain, h.dotDomain) {
 		parts := strings.Split(domain, ".")
 		for i, part := range parts {
-			if len(part) == 33 {
+			if len(part) == h.options.GetIdLength() {
 				uniqueID = part
 				fullID = part
 				if i+1 <= len(parts) {
@@ -252,7 +252,7 @@ func (h *DNSServer) handleInteraction(domain string, w dns.ResponseWriter, r *dn
 	uniqueID = strings.ToLower(uniqueID)
 
 	if uniqueID != "" {
-		correlationID := uniqueID[:20]
+		correlationID := uniqueID[:h.options.CorrelationIdLength]
 		host, _, _ := net.SplitHostPort(w.RemoteAddr().String())
 		interaction := &Interaction{
 			Protocol:      "dns",
