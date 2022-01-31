@@ -118,7 +118,7 @@ func (h *SMTPServer) defaultHandler(remoteAddr net.Addr, from string, to []strin
 		if len(addr) > 33 && strings.Contains(addr, "@") {
 			parts := strings.Split(addr[strings.Index(addr, "@")+1:], ".")
 			for i, part := range parts {
-				if len(part) == 33 {
+				if isCorrelationID(part) {
 					uniqueID = part
 					fullID = part
 					if i+1 <= len(parts) {

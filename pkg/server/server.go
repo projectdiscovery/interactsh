@@ -70,6 +70,8 @@ type Options struct {
 	OriginURL string
 	// FTPDirectory or temporary one
 	FTPDirectory string
+	// ScanEverywhere for potential correlation id
+	ScanEverywhere bool
 
 	ACMEStore *acme.Provider
 }
@@ -92,7 +94,7 @@ func getURLIDComponent(URL string) string {
 
 	var randomID string
 	for _, part := range parts {
-		if len(part) == 33 {
+		if isCorrelationID(part) {
 			randomID = part
 		}
 	}

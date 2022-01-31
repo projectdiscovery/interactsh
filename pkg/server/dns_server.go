@@ -240,7 +240,7 @@ func (h *DNSServer) handleInteraction(domain string, w dns.ResponseWriter, r *dn
 	if strings.HasSuffix(domain, h.dotDomain) {
 		parts := strings.Split(domain, ".")
 		for i, part := range parts {
-			if len(part) == 33 {
+			if isCorrelationID(part) {
 				uniqueID = part
 				fullID = part
 				if i+1 <= len(parts) {

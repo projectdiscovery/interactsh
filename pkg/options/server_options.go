@@ -28,6 +28,7 @@ type CLIServerOptions struct {
 	RootTLD            bool
 	FTPDirectory       string
 	SkipAcme           bool
+	ScanEverywhere     bool
 }
 
 func (cliServerOptions *CLIServerOptions) AsServerOptions() *server.Options {
@@ -50,5 +51,6 @@ func (cliServerOptions *CLIServerOptions) AsServerOptions() *server.Options {
 		OriginURL:       cliServerOptions.OriginURL,
 		RootTLD:         cliServerOptions.RootTLD,
 		FTPDirectory:    cliServerOptions.FTPDirectory,
+		ScanEverywhere:  cliServerOptions.ScanEverywhere,
 	}
 }
