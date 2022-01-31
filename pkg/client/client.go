@@ -145,7 +145,7 @@ func (c *Client) parseServerURLs(serverURL string, payload []byte) error {
 
 	registerFunc := func(got string) error {
 		if !stringsutil.HasPrefixAny(got, "http", "https") {
-			got = fmt.Sprintf("http://%s", got)
+			got = fmt.Sprintf("https://%s", got)
 		}
 		parsed, err := url.Parse(got)
 		if err != nil {
