@@ -115,9 +115,12 @@ func (h *HTTPServer) logger(handler http.Handler) http.HandlerFunc {
 		}
 
 		if h.options.ScanEverywhere {
-			for part := range stringsutil.SlideWithLength(reqString, 33) {
-				if isCorrelationID(part) {
-					h.handleInteraction(part, part, reqString, respString, r.RemoteAddr)
+			chunks := stringsutil.SplitAny(reqString, ".\n\t\"'")
+			for _, chunk := range chunks {
+				for part := range stringsutil.SlideWithLength(chunk, 33) {
+					if isCorrelationID(part) {
+						h.handleInteraction(part, part, reqString, respString, r.RemoteAddr)
+					}
 				}
 			}
 		} else {
