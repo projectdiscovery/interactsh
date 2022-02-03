@@ -5,9 +5,9 @@ import (
 	"github.com/rs/xid"
 )
 
-func isCorrelationID(s string) bool {
-	if len(s) == 33 && govalidator.IsAlphanumeric(s) {
-		if _, err := xid.FromString(s[:20]); err == nil {
+func (options *Options) isCorrelationID(s string) bool {
+	if len(s) == options.GetIdLength() && govalidator.IsAlphanumeric(s) {
+		if _, err := xid.FromString(s[:options.CorrelationIdLength]); err == nil {
 			return true
 		}
 	}
