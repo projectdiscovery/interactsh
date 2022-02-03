@@ -120,7 +120,7 @@ func (ldapServer *LDAPServer) handleSearch(w ldap.ResponseWriter, m *ldap.Messag
 		partChunks := strings.Split(part, ".")
 		if len(partChunks) > 0 {
 			for i, partChunk := range partChunks {
-				if len(partChunk) == 33 {
+				if len(partChunk) == ldapServer.options.GetIdLength() {
 					uniqueID = partChunk
 					fullID = partChunk
 					if i+1 <= len(partChunks) {
@@ -132,7 +132,7 @@ func (ldapServer *LDAPServer) handleSearch(w ldap.ResponseWriter, m *ldap.Messag
 	}
 
 	if uniqueID != "" {
-		correlationID := uniqueID[:20]
+		correlationID := uniqueID[:ldapServer.options.CorrelationIdLength]
 		interaction := &Interaction{
 			Protocol:      "ldap",
 			UniqueID:      uniqueID,
