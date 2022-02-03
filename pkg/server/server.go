@@ -72,14 +72,22 @@ type Options struct {
 	FTPDirectory string
 	// ScanEverywhere for potential correlation id
 	ScanEverywhere bool
+	// CorrelationIdLength of preamble
+	CorrelationIdLength int
+	// CorrelationIdNonceLength of the unique identifier
+	CorrelationIdNonceLength int
 
 	ACMEStore *acme.Provider
 }
 
+func (options *Options) GetIdLength() int {
+	return options.CorrelationIdLength + options.CorrelationIdNonceLength
+}
+
 // URLReflection returns a reversed part of the URL payload
 // which is checked in the response.
-func URLReflection(URL string) string {
-	randomID := getURLIDComponent(URL)
+func (options *Options) URLReflection(URL string) string {
+	randomID := options.getURLIDComponent(URL)
 
 	rns := []rune(randomID)
 	for i, j := 0, len(rns)-1; i < j; i, j = i+1, j-1 {
@@ -88,13 +96,13 @@ func URLReflection(URL string) string {
 	return string(rns)
 }
 
-// getURLIDComponent returns the 33 character interactsh ID
-func getURLIDComponent(URL string) string {
+// getURLIDComponent returns the interactsh ID
+func (options *Options) getURLIDComponent(URL string) string {
 	parts := strings.Split(URL, ".")
 
 	var randomID string
 	for _, part := range parts {
-		if isCorrelationID(part) {
+		if options.isCorrelationID(part) {
 			randomID = part
 		}
 	}

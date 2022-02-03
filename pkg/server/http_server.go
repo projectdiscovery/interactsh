@@ -118,7 +118,7 @@ func (h *HTTPServer) logger(handler http.Handler) http.HandlerFunc {
 			chunks := stringsutil.SplitAny(reqString, ".\n\t\"'")
 			for _, chunk := range chunks {
 				for part := range stringsutil.SlideWithLength(chunk, 33) {
-					if isCorrelationID(part) {
+					if h.options.isCorrelationID(part) {
 						h.handleInteraction(part, part, reqString, respString, r.RemoteAddr)
 					}
 				}
@@ -126,7 +126,7 @@ func (h *HTTPServer) logger(handler http.Handler) http.HandlerFunc {
 		} else {
 			parts := strings.Split(r.Host, ".")
 			for i, part := range parts {
-				if isCorrelationID(part) {
+				if h.options.isCorrelationID(part) {
 					fullID := part
 					if i+1 <= len(parts) {
 						fullID = strings.Join(parts[:i+1], ".")
@@ -139,7 +139,7 @@ func (h *HTTPServer) logger(handler http.Handler) http.HandlerFunc {
 }
 
 func (h *HTTPServer) handleInteraction(uniqueID, fullID, reqString, respString, hostPort string) {
-	correlationID := uniqueID[:20]
+	correlationID := uniqueID[:h.options.CorrelationIdLength]
 
 	host, _, _ := net.SplitHostPort(hostPort)
 	interaction := &Interaction{
@@ -174,7 +174,7 @@ You should investigate the sites where these interactions were generated from, a
 
 // defaultHandler is a handler for default collaborator requests
 func (h *HTTPServer) defaultHandler(w http.ResponseWriter, req *http.Request) {
-	reflection := URLReflection(req.Host)
+	reflection := h.options.URLReflection(req.Host)
 	w.Header().Set("Server", h.domain)
 
 	if req.URL.Path == "/" && reflection == "" {

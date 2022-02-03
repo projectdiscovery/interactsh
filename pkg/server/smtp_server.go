@@ -115,10 +115,10 @@ func (h *SMTPServer) defaultHandler(remoteAddr net.Addr, from string, to []strin
 	}
 
 	for _, addr := range to {
-		if len(addr) > 33 && strings.Contains(addr, "@") {
+		if len(addr) > h.options.GetIdLength() && strings.Contains(addr, "@") {
 			parts := strings.Split(addr[strings.Index(addr, "@")+1:], ".")
 			for i, part := range parts {
-				if isCorrelationID(part) {
+				if h.options.isCorrelationID(part) {
 					uniqueID = part
 					fullID = part
 					if i+1 <= len(parts) {
@@ -131,7 +131,7 @@ func (h *SMTPServer) defaultHandler(remoteAddr net.Addr, from string, to []strin
 	if uniqueID != "" {
 		host, _, _ := net.SplitHostPort(remoteAddr.String())
 
-		correlationID := uniqueID[:20]
+		correlationID := uniqueID[:h.options.CorrelationIdLength]
 		interaction := &Interaction{
 			Protocol:      "smtp",
 			UniqueID:      uniqueID,
