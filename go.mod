@@ -5,7 +5,7 @@ go 1.15
 require (
 	git.mills.io/prologic/smtpd v0.0.0-20210710122116-a525b76c287a
 	github.com/Mzack9999/ldapserver v1.0.2-0.20211229000134-b44a0d6ad0dd
-	github.com/caddyserver/certmagic v0.15.2
+	github.com/caddyserver/certmagic v0.15.3
 	github.com/goburrow/cache v0.1.4
 	github.com/google/uuid v1.3.0
 	github.com/json-iterator/go v1.1.12
