@@ -30,6 +30,7 @@ type CLIServerOptions struct {
 	SkipAcme                 bool
 	CorrelationIdLength      int
 	CorrelationIdNonceLength int
+	ScanEverywhere           bool
 }
 
 func (cliServerOptions *CLIServerOptions) AsServerOptions() *server.Options {
@@ -54,5 +55,6 @@ func (cliServerOptions *CLIServerOptions) AsServerOptions() *server.Options {
 		FTPDirectory:             cliServerOptions.FTPDirectory,
 		CorrelationIdLength:      cliServerOptions.CorrelationIdLength,
 		CorrelationIdNonceLength: cliServerOptions.CorrelationIdNonceLength,
+		ScanEverywhere:           cliServerOptions.ScanEverywhere,
 	}
 }

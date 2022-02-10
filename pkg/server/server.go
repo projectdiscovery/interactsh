@@ -70,6 +70,8 @@ type Options struct {
 	OriginURL string
 	// FTPDirectory or temporary one
 	FTPDirectory string
+	// ScanEverywhere for potential correlation id
+	ScanEverywhere bool
 	// CorrelationIdLength of preamble
 	CorrelationIdLength int
 	// CorrelationIdNonceLength of the unique identifier
@@ -100,7 +102,7 @@ func (options *Options) getURLIDComponent(URL string) string {
 
 	var randomID string
 	for _, part := range parts {
-		if len(part) == options.GetIdLength() {
+		if options.isCorrelationID(part) {
 			randomID = part
 		}
 	}
