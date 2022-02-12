@@ -1,6 +1,6 @@
 package settings
 
 const (
-	CorrelationIdLengthDefault            = 20
-	CorrelationIdNonceLengthLengthDefault = 13
+	CorrelationIdLengthDefault      = 20
+	CorrelationIdNonceLengthDefault = 13
 )

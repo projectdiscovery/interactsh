@@ -39,7 +39,7 @@ func main() {
 		flagSet.BoolVarP(&cliOptions.SkipAcme, "skip-acme", "sa", false, "skip acme registration (certificate checks/handshake + TLS protocols will be disabled)"),
 		flagSet.BoolVarP(&cliOptions.ScanEverywhere, "scan-everywhere", "se", false, "Scan canary token everywhere"),
 		flagSet.IntVarP(&cliOptions.CorrelationIdLength, "correlation-id-length", "cidl", settings.CorrelationIdLengthDefault, "Length of the correlation id preamble"),
-		flagSet.IntVarP(&cliOptions.CorrelationIdNonceLength, "correlation-id-nonce-length", "cidn", settings.CorrelationIdNonceLengthLengthDefault, "Length of the correlation id nonce"),
+		flagSet.IntVarP(&cliOptions.CorrelationIdNonceLength, "correlation-id-nonce-length", "cidn", settings.CorrelationIdNonceLengthDefault, "Length of the correlation id nonce"),
 	)
 	options.CreateGroup(flagSet, "services", "Services",
 		flagSet.IntVar(&cliOptions.DnsPort, "dns-port", 53, "port to use for dns service"),
