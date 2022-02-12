@@ -68,7 +68,7 @@ type Options struct {
 var DefaultOptions = &Options{
 	ServerURL:                "oast.pro,oast.live,oast.site,oast.online,oast.fun,oast.me",
 	CorrelationIdLength:      settings.CorrelationIdLengthDefault,
-	CorrelationIdNonceLength: settings.CorrelationIdLengthDefault,
+	CorrelationIdNonceLength: settings.CorrelationIdNonceLengthDefault,
 }
 
 // New creates a new client instance based on provided options
