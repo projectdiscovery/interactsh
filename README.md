@@ -417,6 +417,47 @@ interactsh-server -domain hackwithautomation.com -sa -ldap
 
 # Interactsh Integration
 
+### Use as library
+
+The below example uses interactsh client library to get external interactions for a generated URL by making a http request to the URL.
+
+```go
+package main
+
+import (
+	"fmt"
+	"net/http"
+	"time"
+
+	"github.com/projectdiscovery/interactsh/pkg/client"
+	"github.com/projectdiscovery/interactsh/pkg/server"
+)
+
+func main() {
+	client, err := client.New(client.DefaultOptions)
+	if err != nil {
+		panic(err)
+	}
+	defer client.Close()
+
+	client.StartPolling(time.Duration(1*time.Second), func(interaction *server.Interaction) {
+		fmt.Printf("Got Interaction: %v => %v\n", interaction.Protocol, interaction.FullId)
+	})
+	defer client.StopPolling()
+
+	URL := client.URL()
+
+	resp, err := http.Get("https://" + URL)
+	if err != nil {
+		panic(err)
+	}
+	resp.Body.Close()
+
+	fmt.Printf("Got URL: %v => %v\n", URL, resp)
+	time.Sleep(5 * time.Second)
+}
+```
+
 ### Nuclei - OAST
 
 [Nuclei](https://github.com/projectdiscovery/nuclei) vulnerability scanner utilize **Interactsh** for automated payload generation and detection of out of band based security vulnerabilities.
