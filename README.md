@@ -82,7 +82,7 @@ go install -v github.com/projectdiscovery/interactsh/cmd/interactsh-client@lates
 
 ### Default Run
 
-This will generate a unique payload that can be used for OOB testing with minimal interaction information in the ouput.
+This will generate a unique payload that can be used for OOB testing with minimal interaction information in the output.
 
 ```console
 interactsh-client
