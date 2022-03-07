@@ -16,10 +16,10 @@ require (
 	github.com/libdns/libdns v0.2.1
 	github.com/miekg/dns v1.1.46
 	github.com/pkg/errors v0.9.1
-	github.com/projectdiscovery/fileutil v0.0.0-20210804142714-ebba15fa53ca
+	github.com/projectdiscovery/fileutil v0.0.0-20210926202739-6050d0acf73c
 	github.com/projectdiscovery/goflags v0.0.7
 	github.com/projectdiscovery/gologger v1.1.4
-	github.com/projectdiscovery/retryabledns v1.0.12
+	github.com/projectdiscovery/retryabledns v1.0.13
 	github.com/projectdiscovery/retryablehttp-go v1.0.2
 	github.com/projectdiscovery/stringsutil v0.0.0-20220208075244-7c05502ca8e9
 	github.com/remeh/sizedwaitgroup v1.0.0
