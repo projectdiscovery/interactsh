@@ -40,6 +40,8 @@ func main() {
 		flagSet.BoolVarP(&cliOptions.ScanEverywhere, "scan-everywhere", "se", false, "Scan canary token everywhere"),
 		flagSet.IntVarP(&cliOptions.CorrelationIdLength, "correlation-id-length", "cidl", settings.CorrelationIdLengthDefault, "Length of the correlation id preamble"),
 		flagSet.IntVarP(&cliOptions.CorrelationIdNonceLength, "correlation-id-nonce-length", "cidn", settings.CorrelationIdNonceLengthDefault, "Length of the correlation id nonce"),
+		flagSet.StringVar(&cliOptions.CertificatePath, "cert", "", "Custom certificate path"),
+		flagSet.StringVar(&cliOptions.PrivateKeyPath, "privkey", "", "Custom private key path"),
 	)
 	options.CreateGroup(flagSet, "services", "Services",
 		flagSet.IntVar(&cliOptions.DnsPort, "dns-port", 53, "port to use for dns service"),
@@ -134,7 +136,18 @@ func main() {
 	trimmedDomain := strings.TrimSuffix(serverOptions.Domain, ".")
 
 	var tlsConfig *tls.Config
-	if !cliOptions.SkipAcme && cliOptions.Domain != "" {
+	switch {
+	case cliOptions.CertificatePath != "" && cliOptions.PrivateKeyPath != "":
+		cert, err := tls.LoadX509KeyPair(cliOptions.CertificatePath, cliOptions.PrivateKeyPath)
+		if err != nil {
+			gologger.Error().Msgf("Could not load certs and private key for auto TLS, https will be disabled")
+		}
+		tlsConfig = &tls.Config{
+			InsecureSkipVerify: true,
+			Certificates:       []tls.Certificate{cert},
+			ServerName:         cliOptions.Domain,
+		}
+	case !cliOptions.SkipAcme && cliOptions.Domain != "":
 		acmeManagerTLS, acmeErr := acme.HandleWildcardCertificates(fmt.Sprintf("*.%s", trimmedDomain), serverOptions.Hostmaster, acmeStore, cliOptions.Debug)
 		if acmeErr != nil {
 			gologger.Error().Msgf("An error occurred while applying for an certificate, error: %v", acmeErr)

@@ -76,6 +76,10 @@ type Options struct {
 	CorrelationIdLength int
 	// CorrelationIdNonceLength of the unique identifier
 	CorrelationIdNonceLength int
+	// Certificate Path
+	CertificatePath string
+	// Private Key Path
+	PrivateKeyPath string
 
 	ACMEStore *acme.Provider
 }

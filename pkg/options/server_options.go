@@ -31,6 +31,8 @@ type CLIServerOptions struct {
 	CorrelationIdLength      int
 	CorrelationIdNonceLength int
 	ScanEverywhere           bool
+	CertificatePath          string
+	PrivateKeyPath           string
 }
 
 func (cliServerOptions *CLIServerOptions) AsServerOptions() *server.Options {
@@ -56,5 +58,7 @@ func (cliServerOptions *CLIServerOptions) AsServerOptions() *server.Options {
 		CorrelationIdLength:      cliServerOptions.CorrelationIdLength,
 		CorrelationIdNonceLength: cliServerOptions.CorrelationIdNonceLength,
 		ScanEverywhere:           cliServerOptions.ScanEverywhere,
+		CertificatePath:          cliServerOptions.CertificatePath,
+		PrivateKeyPath:           cliServerOptions.PrivateKeyPath,
 	}
 }
