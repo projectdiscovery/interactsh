@@ -119,15 +119,9 @@ func (ldapServer *LDAPServer) handleSearch(w ldap.ResponseWriter, m *ldap.Messag
 	for _, part := range stringsutil.SplitAny(string(baseObject), "=,") {
 		partChunks := strings.Split(part, ".")
 		for i, partChunk := range partChunks {
-			if ldapServer.options.ScanEverywhere {
-				for scanChunk := range stringsutil.SlideWithLength(partChunk, ldapServer.options.CorrelationIdLength) {
-					if ldapServer.options.isCorrelationID(scanChunk) {
-						ldapServer.handleInteraction(scanChunk, scanChunk, message.String(), host)
-					}
-				}
-			} else {
-				if ldapServer.options.isCorrelationID(partChunk) {
-					uniqueID = partChunk
+			for scanChunk := range stringsutil.SlideWithLength(partChunk, ldapServer.options.GetIdLength()) {
+				if ldapServer.options.isCorrelationID(scanChunk) {
+					uniqueID = scanChunk
 					fullID = partChunk
 					if i+1 <= len(partChunks) {
 						fullID = strings.Join(partChunks[:i+1], ".")

@@ -6,6 +6,7 @@ import (
 
 	"github.com/projectdiscovery/interactsh/pkg/server/acme"
 	"github.com/projectdiscovery/interactsh/pkg/storage"
+	"github.com/projectdiscovery/stringsutil"
 )
 
 // Interaction is an interaction received to the server.
@@ -106,9 +107,12 @@ func (options *Options) getURLIDComponent(URL string) string {
 
 	var randomID string
 	for _, part := range parts {
-		if options.isCorrelationID(part) {
-			randomID = part
+		for scanChunk := range stringsutil.SlideWithLength(part, options.GetIdLength()) {
+			if options.isCorrelationID(scanChunk) {
+				randomID = part
+			}
 		}
 	}
+
 	return randomID
 }
