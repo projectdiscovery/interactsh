@@ -62,6 +62,8 @@ type Options struct {
 	CorrelationIdLength int
 	// CorrelationIdNonceLengthLength of the nonce
 	CorrelationIdNonceLength int
+	// HTTPClient use a custom http client
+	HTTPClient *retryablehttp.Client
 }
 
 // DefaultOptions is the default options for the interact client
@@ -83,8 +85,15 @@ func New(options *Options) (*Client, error) {
 		options.CorrelationIdNonceLength = DefaultOptions.CorrelationIdNonceLength
 	}
 
-	opts := retryablehttp.DefaultOptionsSingle
-	opts.Timeout = 10 * time.Second
+	var httpclient *retryablehttp.Client
+	if options.HTTPClient != nil {
+		httpclient = options.HTTPClient
+	} else {
+		opts := retryablehttp.DefaultOptionsSingle
+		opts.Timeout = 10 * time.Second
+		httpclient = retryablehttp.NewClient(opts)
+	}
+
 	// Generate a random ksuid which will be used as server secret.
 	correlationID := xid.New().String()
 	if len(correlationID) > options.CorrelationIdLength {
@@ -95,7 +104,7 @@ func New(options *Options) (*Client, error) {
 		secretKey:                uuid.New().String(), // uuid as more secure
 		correlationID:            correlationID,
 		persistentSession:        options.PersistentSession,
-		httpClient:               retryablehttp.NewClient(opts),
+		httpClient:               httpclient,
 		token:                    options.Token,
 		disableHTTPFallback:      options.DisableHTTPFallback,
 		correlationIdLength:      options.CorrelationIdLength,
