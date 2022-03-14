@@ -14,7 +14,7 @@ require (
 	github.com/klauspost/compress v1.15.0
 	github.com/kr/pretty v0.3.0 // indirect
 	github.com/libdns/libdns v0.2.1
-	github.com/miekg/dns v1.1.46
+	github.com/miekg/dns v1.1.47
 	github.com/pkg/errors v0.9.1
 	github.com/projectdiscovery/fileutil v0.0.0-20210926202739-6050d0acf73c
 	github.com/projectdiscovery/goflags v0.0.7
