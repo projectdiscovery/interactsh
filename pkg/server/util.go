@@ -7,7 +7,10 @@ import (
 
 func (options *Options) isCorrelationID(s string) bool {
 	if len(s) == options.GetIdLength() && govalidator.IsAlphanumeric(s) {
-		if _, err := xid.FromString(s[:options.CorrelationIdLength]); err == nil {
+		// xid should be 12
+		if options.CorrelationIdLength != 12 {
+			return true
+		} else if _, err := xid.FromString(s[:options.CorrelationIdLength]); err == nil {
 			return true
 		}
 	}
