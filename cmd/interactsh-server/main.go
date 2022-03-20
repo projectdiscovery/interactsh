@@ -19,6 +19,7 @@ import (
 	"github.com/projectdiscovery/interactsh/pkg/options"
 	"github.com/projectdiscovery/interactsh/pkg/server"
 	"github.com/projectdiscovery/interactsh/pkg/server/acme"
+	"github.com/projectdiscovery/interactsh/pkg/settings"
 	"github.com/projectdiscovery/interactsh/pkg/storage"
 )
 
@@ -36,6 +37,11 @@ func main() {
 		flagSet.StringVarP(&cliOptions.Token, "token", "t", "", "enable authentication to server using given token"),
 		flagSet.StringVar(&cliOptions.OriginURL, "acao-url", "https://app.interactsh.com", "origin url to send in acao header (required to use web-client)"),
 		flagSet.BoolVarP(&cliOptions.SkipAcme, "skip-acme", "sa", false, "skip acme registration (certificate checks/handshake + TLS protocols will be disabled)"),
+		flagSet.BoolVarP(&cliOptions.ScanEverywhere, "scan-everywhere", "se", false, "scan canary token everywhere"),
+		flagSet.IntVarP(&cliOptions.CorrelationIdLength, "correlation-id-length", "cidl", settings.CorrelationIdLengthDefault, "length of the correlation id preamble"),
+		flagSet.IntVarP(&cliOptions.CorrelationIdNonceLength, "correlation-id-nonce-length", "cidn", settings.CorrelationIdNonceLengthDefault, "length of the correlation id nonce"),
+		flagSet.StringVar(&cliOptions.CertificatePath, "cert", "", "custom certificate path"),
+		flagSet.StringVar(&cliOptions.PrivateKeyPath, "privkey", "", "custom private key path"),
 	)
 	options.CreateGroup(flagSet, "services", "Services",
 		flagSet.IntVar(&cliOptions.DnsPort, "dns-port", 53, "port to use for dns service"),
@@ -130,7 +136,18 @@ func main() {
 	trimmedDomain := strings.TrimSuffix(serverOptions.Domain, ".")
 
 	var tlsConfig *tls.Config
-	if !cliOptions.SkipAcme && cliOptions.Domain != "" {
+	switch {
+	case cliOptions.CertificatePath != "" && cliOptions.PrivateKeyPath != "":
+		cert, err := tls.LoadX509KeyPair(cliOptions.CertificatePath, cliOptions.PrivateKeyPath)
+		if err != nil {
+			gologger.Error().Msgf("Could not load certs and private key for auto TLS, https will be disabled")
+		}
+		tlsConfig = &tls.Config{
+			InsecureSkipVerify: true,
+			Certificates:       []tls.Certificate{cert},
+			ServerName:         cliOptions.Domain,
+		}
+	case !cliOptions.SkipAcme && cliOptions.Domain != "":
 		acmeManagerTLS, acmeErr := acme.HandleWildcardCertificates(fmt.Sprintf("*.%s", trimmedDomain), serverOptions.Hostmaster, acmeStore, cliOptions.Debug)
 		if acmeErr != nil {
 			gologger.Error().Msgf("An error occurred while applying for an certificate, error: %v", acmeErr)

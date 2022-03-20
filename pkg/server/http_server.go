@@ -14,6 +14,7 @@ import (
 
 	jsoniter "github.com/json-iterator/go"
 	"github.com/projectdiscovery/gologger"
+	"github.com/projectdiscovery/stringsutil"
 )
 
 // HTTPServer is a http server instance that listens both
@@ -79,7 +80,7 @@ func (h *HTTPServer) logger(handler http.Handler) http.HandlerFunc {
 		handler.ServeHTTP(rec, r)
 
 		resp, _ := httputil.DumpResponse(rec.Result(), true)
-		resoString := string(resp)
+		respString := string(resp)
 
 		for k, v := range rec.Header() {
 			w.Header()[k] = v
@@ -98,7 +99,7 @@ func (h *HTTPServer) logger(handler http.Handler) http.HandlerFunc {
 				UniqueID:      r.Host,
 				FullId:        r.Host,
 				RawRequest:    reqString,
-				RawResponse:   resoString,
+				RawResponse:   respString,
 				RemoteAddress: host,
 				Timestamp:     time.Now(),
 			}
@@ -113,40 +114,53 @@ func (h *HTTPServer) logger(handler http.Handler) http.HandlerFunc {
 			}
 		}
 
-		var uniqueID, fullID string
-		parts := strings.Split(r.Host, ".")
-		for i, part := range parts {
-			if len(part) == 33 {
-				uniqueID = part
-				fullID = part
-				if i+1 <= len(parts) {
-					fullID = strings.Join(parts[:i+1], ".")
+		if h.options.ScanEverywhere {
+			chunks := stringsutil.SplitAny(reqString, ".\n\t\"'")
+			for _, chunk := range chunks {
+				for part := range stringsutil.SlideWithLength(chunk, h.options.GetIdLength()) {
+					if h.options.isCorrelationID(part) {
+						h.handleInteraction(part, part, reqString, respString, r.RemoteAddr)
+					}
+				}
+			}
+		} else {
+			parts := strings.Split(r.Host, ".")
+			for i, part := range parts {
+				for partChunk := range stringsutil.SlideWithLength(part, h.options.GetIdLength()) {
+					if h.options.isCorrelationID(partChunk) {
+						fullID := part
+						if i+1 <= len(parts) {
+							fullID = strings.Join(parts[:i+1], ".")
+						}
+						h.handleInteraction(partChunk, fullID, reqString, respString, r.RemoteAddr)
+					}
 				}
 			}
 		}
-		if uniqueID != "" {
-			correlationID := uniqueID[:20]
+	}
+}
 
-			host, _, _ := net.SplitHostPort(r.RemoteAddr)
-			interaction := &Interaction{
-				Protocol:      "http",
-				UniqueID:      uniqueID,
-				FullId:        fullID,
-				RawRequest:    reqString,
-				RawResponse:   resoString,
-				RemoteAddress: host,
-				Timestamp:     time.Now(),
-			}
-			buffer := &bytes.Buffer{}
-			if err := jsoniter.NewEncoder(buffer).Encode(interaction); err != nil {
-				gologger.Warning().Msgf("Could not encode http interaction: %s\n", err)
-			} else {
-				gologger.Debug().Msgf("HTTP Interaction: \n%s\n", buffer.String())
+func (h *HTTPServer) handleInteraction(uniqueID, fullID, reqString, respString, hostPort string) {
+	correlationID := uniqueID[:h.options.CorrelationIdLength]
 
-				if err := h.options.Storage.AddInteraction(correlationID, buffer.Bytes()); err != nil {
-					gologger.Warning().Msgf("Could not store http interaction: %s\n", err)
-				}
-			}
+	host, _, _ := net.SplitHostPort(hostPort)
+	interaction := &Interaction{
+		Protocol:      "http",
+		UniqueID:      uniqueID,
+		FullId:        fullID,
+		RawRequest:    reqString,
+		RawResponse:   respString,
+		RemoteAddress: host,
+		Timestamp:     time.Now(),
+	}
+	buffer := &bytes.Buffer{}
+	if err := jsoniter.NewEncoder(buffer).Encode(interaction); err != nil {
+		gologger.Warning().Msgf("Could not encode http interaction: %s\n", err)
+	} else {
+		gologger.Debug().Msgf("HTTP Interaction: \n%s\n", buffer.String())
+
+		if err := h.options.Storage.AddInteraction(correlationID, buffer.Bytes()); err != nil {
+			gologger.Warning().Msgf("Could not store http interaction: %s\n", err)
 		}
 	}
 }
@@ -162,7 +176,7 @@ You should investigate the sites where these interactions were generated from, a
 
 // defaultHandler is a handler for default collaborator requests
 func (h *HTTPServer) defaultHandler(w http.ResponseWriter, req *http.Request) {
-	reflection := URLReflection(req.Host)
+	reflection := h.options.URLReflection(req.Host)
 	w.Header().Set("Server", h.domain)
 
 	if req.URL.Path == "/" && reflection == "" {

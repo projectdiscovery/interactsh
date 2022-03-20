@@ -10,6 +10,7 @@ import (
 	ldap "github.com/Mzack9999/ldapserver"
 	jsoniter "github.com/json-iterator/go"
 	"github.com/projectdiscovery/gologger"
+	"github.com/projectdiscovery/stringsutil"
 )
 
 // Most routes handlers are taken from the example at https://github.com/vjeantet/ldapserver/blob/master/examples/complex/main.go
@@ -115,29 +116,31 @@ func (ldapServer *LDAPServer) handleSearch(w ldap.ResponseWriter, m *ldap.Messag
 	res := ldap.NewSearchResultDoneResponse(ldap.LDAPResultSuccess)
 	w.Write(res)
 
-	parts := ldapServer.splitSearchMsg(string(baseObject))
-	for _, part := range parts {
+	for _, part := range stringsutil.SplitAny(string(baseObject), "=,") {
 		partChunks := strings.Split(part, ".")
-		if len(partChunks) > 0 {
-			for i, partChunk := range partChunks {
-				if len(partChunk) == 33 {
-					uniqueID = partChunk
+		for i, partChunk := range partChunks {
+			for scanChunk := range stringsutil.SlideWithLength(partChunk, ldapServer.options.GetIdLength()) {
+				if ldapServer.options.isCorrelationID(scanChunk) {
+					uniqueID = scanChunk
 					fullID = partChunk
 					if i+1 <= len(partChunks) {
 						fullID = strings.Join(partChunks[:i+1], ".")
 					}
+					ldapServer.handleInteraction(uniqueID, fullID, message.String(), host)
 				}
 			}
 		}
 	}
+}
 
+func (ldapServer *LDAPServer) handleInteraction(uniqueID, fullID, reqString, host string) {
 	if uniqueID != "" {
-		correlationID := uniqueID[:20]
+		correlationID := uniqueID[:ldapServer.options.CorrelationIdLength]
 		interaction := &Interaction{
 			Protocol:      "ldap",
 			UniqueID:      uniqueID,
 			FullId:        fullID,
-			RawRequest:    message.String(),
+			RawRequest:    reqString,
 			RemoteAddress: host,
 			Timestamp:     time.Now(),
 		}
@@ -157,17 +160,9 @@ func (ldapServer *LDAPServer) handleSearch(w ldap.ResponseWriter, m *ldap.Messag
 	if ldapServer.WithLogger {
 		ldapServer.logInteraction(Interaction{
 			RemoteAddress: host,
-			RawRequest:    message.String(),
+			RawRequest:    reqString,
 		})
 	}
-}
-
-func (LDAPServer *LDAPServer) splitSearchMsg(data string) (parts []string) {
-	tokens := strings.Split(data, ",")
-	for _, token := range tokens {
-		parts = append(parts, strings.Split(token, "=")...)
-	}
-	return parts
 }
 
 // handleAbandon is a handler for abandon requests

@@ -27,14 +27,16 @@
 
 # Features
 
-- DNS/HTTP(S)/SMTP(S)/LDAP Interaction support
-- NTLM/SMB/FTP/RESPONDER Listener support **(self-hosted)**
-- Wildcard Interaction support **(self-hosted)**
-- CLI / Web / Burp / ZAP / Docker client support
-- Self hosted Interactsh server support
+- DNS/HTTP(S)/SMTP(S)/LDAP Interaction
+- CLI / Web / Burp / ZAP / Docker client
 - AES encryption with zero logging
 - Automatic ACME based Wildcard TLS w/ Auto Renewal
 - DNS Entries for Cloud Metadata service
+- Self-Hosted Interactsh Server
+- NTLM/SMB/FTP/RESPONDER Listener **(self-hosted)**
+- Wildcard / Protected Interactions **(self-hosted)**
+- Customizable Payload Length **(self-hosted)**
+- Custom SSL Certificate **(self-hosted)**
 
 # Interactsh Client
 
@@ -60,6 +62,8 @@ CONFIG:
    -pi, -poll-interval int  poll interval in seconds to pull interaction data (default 5)
    -nf, -no-http-fallback   disable http fallback registration
    -persist                 enables persistent interactsh sessions
+   -cidl, -correlation-id-length int        length of the correlation id preamble (default 20)
+   -cidn, -correlation-id-nonce-length int  length of the correlation id nonce (default 13)
 
 FILTER:
    -dns-only   display only dns interaction in CLI output
@@ -82,7 +86,7 @@ go install -v github.com/projectdiscovery/interactsh/cmd/interactsh-client@lates
 
 ### Default Run
 
-This will generate a unique payload that can be used for OOB testing with minimal interaction information in the ouput.
+This will generate a unique payload that can be used for OOB testing with minimal interaction information in the output.
 
 ```console
 interactsh-client
@@ -264,14 +268,19 @@ Usage:
 
 Flags:
 INPUT:
-   -d, -domain string       configured domain to use with interactsh server
-   -ip string               public ip address to use for interactsh server
-   -lip, -listen-ip string  public ip address to listen on (default "0.0.0.0")
-   -e, -eviction int        number of days to persist interaction data in memory (default 30)
-   -a, -auth                enable authentication to server using random generated token
-   -t, -token string        enable authentication to server using given token
-   -acao-url string         origin url to send in acao header (required to use web-client) (default "https://app.interactsh.com")
-   -sa, -skip-acme          skip acme registration (certificate checks/handshake + TLS protocols will be disabled)
+   -d, -domain string                       configured domain to use with interactsh server
+   -ip string                               public ip address to use for interactsh server
+   -lip, -listen-ip string                  public ip address to listen on (default "0.0.0.0")
+   -e, -eviction int                        number of days to persist interaction data in memory (default 30)
+   -a, -auth                                enable authentication to server using random generated token
+   -t, -token string                        enable authentication to server using given token
+   -acao-url string                         origin url to send in acao header (required to use web-client)
+   -sa, -skip-acme                          skip acme registration (certificate checks/handshake + TLS protocols will be disabled)
+   -se, -scan-everywhere                    scan canary token everywhere
+   -cidl, -correlation-id-length int        length of the correlation id preamble (default 20)
+   -cidn, -correlation-id-nonce-length int  length of the correlation id nonce (default 13)
+   -cert string                             custom certificate path
+   -privkey string                          custom private key path
 
 SERVICES:
    -dns-port int           port to use for dns service (default 53)
@@ -415,7 +424,120 @@ interactsh-server -domain hackwithautomation.com -sa -ldap
 [DNS] Listening on TCP 157.230.223.165:53
 ```
 
+## Custom Payload Length
+
+The length of the interactsh payload is **33** by default, consisting of **20** (unique correlation-id) + **13** (nonce token), which can be customized using the `cidl` and `cidn` flags to make shorter when required with self-hosted interacsh server.
+
+
+```console
+interactsh-server -d hackwithautomation.com -cidl 4 -cidn 6
+
+    _       __                       __       __  
+   (_)___  / /____  _________ ______/ /______/ /_ 
+  / / __ \/ __/ _ \/ ___/ __ '/ ___/ __/ ___/ __ \
+ / / / / / /_/  __/ /  / /_/ / /__/ /_(__  ) / / /
+/_/_/ /_/\__/\___/_/   \__,_/\___/\__/____/_/ /_/ v1.0.2
+
+        projectdiscovery.io
+
+[INF] Loading existing SSL Certificate for:  [*.hackwithautomation.com, hackwithautomation.com]
+[INF] Listening with the following services:
+[HTTPS] Listening on TCP 157.230.223.165:443
+[SMTPS] Listening on TCP 157.230.223.165:587
+[DNS] Listening on UDP 157.230.223.165:53
+[HTTP] Listening on TCP 157.230.223.165:80
+[LDAP] Listening on TCP 157.230.223.165:389
+[SMTP] Listening on TCP 157.230.223.165:25
+[DNS] Listening on TCP 157.230.223.165:53
+```
+
+**Note:** It is important and required to use same length on both side (**client** and **server**), otherwise co-relation will not work.
+
+```console
+interactsh-client -s hackwithautomation.com -cidl 4 -cidn 6
+
+    _       __                       __       __  
+   (_)___  / /____  _________ ______/ /______/ /_ 
+  / / __ \/ __/ _ \/ ___/ __ '/ ___/ __/ ___/ __ \
+ / / / / / /_/  __/ /  / /_/ / /__/ /_(__  ) / / /
+/_/_/ /_/\__/\___/_/   \__,_/\___/\__/____/_/ /_/ v1.0.2
+
+        projectdiscovery.io
+
+[INF] Listing 1 payload for OOB Testing
+[INF] c8rf4e8xm4.hackwithautomation.com
+```
+
+
+## Custom SSL Certificate
+The [certmagic](https://github.com/caddyserver/certmagic) library is used by default by interactsh server to produce wildcard certificates for requested domain in an automatic way. To use your own SSL certificate with self-hosted interactsh server, `cert` and `privkey` flag can be used to provider required certificate files.
+
+**Note:** To utilize all of the functionality of the SSL protocol, a wildcard certificate is mandatory.
+
+
+```console
+interactsh-server -d hackwithautomation.com -cert hackwithautomation.com.crt -privkey hackwithautomation.com.key
+
+    _       __                       __       __  
+   (_)___  / /____  _________ ______/ /______/ /_ 
+  / / __ \/ __/ _ \/ ___/ __ '/ ___/ __/ ___/ __ \
+ / / / / / /_/  __/ /  / /_/ / /__/ /_(__  ) / / /
+/_/_/ /_/\__/\___/_/   \__,_/\___/\__/____/_/ /_/ v1.0.2
+
+        projectdiscovery.io
+
+[INF] Listening with the following services:
+[HTTPS] Listening on TCP 157.230.223.165:443
+[SMTP] Listening on TCP 157.230.223.165:25
+[HTTP] Listening on TCP 157.230.223.165:80
+[LDAP] Listening on TCP 157.230.223.165:389
+[DNS] Listening on TCP 157.230.223.165:53
+[SMTPS] Listening on TCP 157.230.223.165:587
+[DNS] Listening on UDP 157.230.223.165:53
+```
+
 # Interactsh Integration
+
+### Use as library
+
+The below example uses interactsh client library to get external interactions for a generated URL by making a http request to the URL.
+
+```go
+package main
+
+import (
+	"fmt"
+	"net/http"
+	"time"
+
+	"github.com/projectdiscovery/interactsh/pkg/client"
+	"github.com/projectdiscovery/interactsh/pkg/server"
+)
+
+func main() {
+	client, err := client.New(client.DefaultOptions)
+	if err != nil {
+		panic(err)
+	}
+	defer client.Close()
+
+	client.StartPolling(time.Duration(1*time.Second), func(interaction *server.Interaction) {
+		fmt.Printf("Got Interaction: %v => %v\n", interaction.Protocol, interaction.FullId)
+	})
+	defer client.StopPolling()
+
+	URL := client.URL()
+
+	resp, err := http.Get("https://" + URL)
+	if err != nil {
+		panic(err)
+	}
+	resp.Body.Close()
+
+	fmt.Printf("Got URL: %v => %v\n", URL, resp)
+	time.Sleep(5 * time.Second)
+}
+```
 
 ### Nuclei - OAST
 
