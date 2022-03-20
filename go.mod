@@ -25,7 +25,7 @@ require (
 	github.com/remeh/sizedwaitgroup v1.0.0
 	github.com/rogpeppe/go-internal v1.8.0 // indirect
 	github.com/rs/xid v1.3.0
-	github.com/stretchr/testify v1.7.0
+	github.com/stretchr/testify v1.7.1
 	go.uber.org/zap v1.21.0
 	goftp.io/server/v2 v2.0.0
 	golang.org/x/net v0.0.0-20210825183410-e898025ed96a // indirect
