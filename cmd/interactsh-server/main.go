@@ -138,14 +138,11 @@ func main() {
 	var tlsConfig *tls.Config
 	switch {
 	case cliOptions.CertificatePath != "" && cliOptions.PrivateKeyPath != "":
-		cert, err := tls.LoadX509KeyPair(cliOptions.CertificatePath, cliOptions.PrivateKeyPath)
-		if err != nil {
-			gologger.Error().Msgf("Could not load certs and private key for auto TLS, https will be disabled")
-		}
-		tlsConfig = &tls.Config{
-			InsecureSkipVerify: true,
-			Certificates:       []tls.Certificate{cert},
-			ServerName:         cliOptions.Domain,
+		acmeManagerTLS, acmeErr := acme.BuildTlsConfigWithCertAndKeyPaths(cliOptions.CertificatePath, cliOptions.PrivateKeyPath, cliOptions.Domain)
+		if acmeErr != nil {
+			gologger.Error().Msgf("https will be disabled: %s", acmeErr)
+		} else {
+			tlsConfig = acmeManagerTLS
 		}
 	case !cliOptions.SkipAcme && cliOptions.Domain != "":
 		acmeManagerTLS, acmeErr := acme.HandleWildcardCertificates(fmt.Sprintf("*.%s", trimmedDomain), serverOptions.Hostmaster, acmeStore, cliOptions.Debug)
