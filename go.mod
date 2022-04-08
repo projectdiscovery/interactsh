@@ -16,7 +16,8 @@ require (
 	github.com/libdns/libdns v0.2.1
 	github.com/miekg/dns v1.1.48
 	github.com/pkg/errors v0.9.1
-	github.com/projectdiscovery/fileutil v0.0.0-20210926202739-6050d0acf73c
+	github.com/projectdiscovery/fileutil v0.0.0-20220215113056-ba188a0c8abc
+	github.com/projectdiscovery/folderutil v0.0.0-20220215113126-add60a1e8e08
 	github.com/projectdiscovery/goflags v0.0.7
 	github.com/projectdiscovery/gologger v1.1.4
 	github.com/projectdiscovery/retryabledns v1.0.13

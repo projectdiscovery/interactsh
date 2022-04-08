@@ -6,14 +6,20 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"time"
 
+	"github.com/projectdiscovery/folderutil"
 	"github.com/projectdiscovery/goflags"
 	"github.com/projectdiscovery/gologger"
 	"github.com/projectdiscovery/interactsh/pkg/client"
 	"github.com/projectdiscovery/interactsh/pkg/options"
 	"github.com/projectdiscovery/interactsh/pkg/server"
 	"github.com/projectdiscovery/interactsh/pkg/settings"
+)
+
+var (
+	defaultConfigLocation = filepath.Join(folderutil.HomeDirOrDefault("."), ".config/interactsh-client/config.yaml")
 )
 
 func main() {
@@ -28,6 +34,7 @@ func main() {
 	)
 
 	options.CreateGroup(flagSet, "config", "config",
+		flagSet.StringVar(&cliOptions.Config, "config", defaultConfigLocation, "flag configuration file"),
 		flagSet.IntVarP(&cliOptions.NumberOfPayloads, "number", "n", 1, "number of interactsh payload to generate"),
 		flagSet.StringVarP(&cliOptions.Token, "token", "t", "", "authentication token to connect protected interactsh server"),
 		flagSet.IntVarP(&cliOptions.PollInterval, "poll-interval", "pi", 5, "poll interval in seconds to pull interaction data"),
@@ -47,6 +54,7 @@ func main() {
 		flagSet.StringVar(&cliOptions.Output, "o", "", "output file to write interaction data"),
 		flagSet.BoolVar(&cliOptions.JSON, "json", false, "write output in JSONL(ines) format"),
 		flagSet.BoolVar(&cliOptions.Verbose, "v", false, "display verbose interaction"),
+		flagSet.BoolVar(&cliOptions.Version, "version", false, "show version of the project"),
 	)
 
 	if err := flagSet.Parse(); err != nil {
@@ -54,6 +62,17 @@ func main() {
 	}
 
 	options.ShowBanner()
+
+	if cliOptions.Version {
+		gologger.Info().Msgf("Current Version: %s\n", options.Version)
+		os.Exit(0)
+	}
+
+	if cliOptions.Config != defaultConfigLocation {
+		if err := flagSet.MergeConfigFile(cliOptions.Config); err != nil {
+			gologger.Fatal().Msgf("Could not read config: %s\n", err)
+		}
+	}
 
 	var outputFile *os.File
 	var err error

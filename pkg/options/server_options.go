@@ -3,6 +3,8 @@ package options
 import "github.com/projectdiscovery/interactsh/pkg/server"
 
 type CLIServerOptions struct {
+	Config                   string
+	Version                  bool
 	Debug                    bool
 	Domain                   string
 	DnsPort                  int

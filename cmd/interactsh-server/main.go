@@ -10,9 +10,11 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"strings"
 	"time"
 
+	"github.com/projectdiscovery/folderutil"
 	"github.com/projectdiscovery/goflags"
 	"github.com/projectdiscovery/gologger"
 	"github.com/projectdiscovery/gologger/levels"
@@ -23,10 +25,18 @@ import (
 	"github.com/projectdiscovery/interactsh/pkg/storage"
 )
 
+var (
+	defaultConfigLocation = filepath.Join(folderutil.HomeDirOrDefault("."), ".config/interactsh-server/config.yaml")
+)
+
 func main() {
 	cliOptions := &options.CLIServerOptions{}
 	flagSet := goflags.NewFlagSet()
 	flagSet.SetDescription(`Interactsh server - Go client to configure and host interactsh server.`)
+
+	options.CreateGroup(flagSet, "config", "config",
+		flagSet.StringVar(&cliOptions.Config, "config", defaultConfigLocation, "flag configuration file"),
+	)
 
 	options.CreateGroup(flagSet, "input", "Input",
 		flagSet.StringVarP(&cliOptions.Domain, "domain", "d", "", "configured domain to use with interactsh server"),
@@ -61,6 +71,7 @@ func main() {
 		flagSet.StringVar(&cliOptions.FTPDirectory, "ftp-dir", "", "ftp directory - temporary if not specified"),
 	)
 	options.CreateGroup(flagSet, "debug", "Debug",
+		flagSet.BoolVar(&cliOptions.Version, "version", false, "show version of the project"),
 		flagSet.BoolVar(&cliOptions.Debug, "debug", false, "start interactsh server in debug mode"),
 	)
 
@@ -69,6 +80,17 @@ func main() {
 	}
 
 	options.ShowBanner()
+
+	if cliOptions.Version {
+		gologger.Info().Msgf("Current Version: %s\n", options.Version)
+		os.Exit(0)
+	}
+
+	if cliOptions.Config != defaultConfigLocation {
+		if err := flagSet.MergeConfigFile(cliOptions.Config); err != nil {
+			gologger.Fatal().Msgf("Could not read config: %s\n", err)
+		}
+	}
 
 	if cliOptions.IPAddress == "" && cliOptions.ListenIP == "0.0.0.0" {
 		ip := getPublicIP()
