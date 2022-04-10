@@ -1,6 +1,8 @@
 package options
 
 type CLIClientOptions struct {
+	Config                   string
+	Version                  bool
 	ServerURL                string
 	NumberOfPayloads         int
 	Output                   string
