@@ -93,9 +93,9 @@ func certAlreadyExists(cfg *certmagic.Config, issuer certmagic.Issuer, domain st
 	certKey := certmagic.StorageKeys.SiteCert(issuerKey, domain)
 	keyKey := certmagic.StorageKeys.SitePrivateKey(issuerKey, domain)
 	metaKey := certmagic.StorageKeys.SiteMeta(issuerKey, domain)
-	return cfg.Storage.Exists(certKey) &&
-		cfg.Storage.Exists(keyKey) &&
-		cfg.Storage.Exists(metaKey)
+	return cfg.Storage.Exists(context.Background(), certKey) &&
+		cfg.Storage.Exists(context.Background(), keyKey) &&
+		cfg.Storage.Exists(context.Background(), metaKey)
 }
 
 // extractCaddyPaths attempts to extract cert and private key through the layers of abstractions from the domain name

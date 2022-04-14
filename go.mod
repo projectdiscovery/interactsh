@@ -6,7 +6,7 @@ require (
 	git.mills.io/prologic/smtpd v0.0.0-20210710122116-a525b76c287a
 	github.com/Mzack9999/ldapserver v1.0.2-0.20211229000134-b44a0d6ad0dd
 	github.com/asaskevich/govalidator v0.0.0-20210307081110-f21760c49a8d
-	github.com/caddyserver/certmagic v0.15.4
+	github.com/caddyserver/certmagic v0.16.0
 	github.com/goburrow/cache v0.1.4
 	github.com/google/uuid v1.3.0
 	github.com/json-iterator/go v1.1.12
@@ -29,8 +29,5 @@ require (
 	github.com/stretchr/testify v1.7.1
 	go.uber.org/zap v1.21.0
 	goftp.io/server/v2 v2.0.0
-	golang.org/x/net v0.0.0-20210825183410-e898025ed96a // indirect
-	golang.org/x/sys v0.0.0-20211210111614-af8b64212486 // indirect
-	golang.org/x/text v0.3.7 // indirect
 	gopkg.in/corvus-ch/zbase32.v1 v1.0.0
 )
