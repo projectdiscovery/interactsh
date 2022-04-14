@@ -34,11 +34,11 @@ func main() {
 	flagSet := goflags.NewFlagSet()
 	flagSet.SetDescription(`Interactsh server - Go client to configure and host interactsh server.`)
 
-	options.CreateGroup(flagSet, "config", "config",
+	flagSet.CreateGroup("config", "config",
 		flagSet.StringVar(&cliOptions.Config, "config", defaultConfigLocation, "flag configuration file"),
 	)
 
-	options.CreateGroup(flagSet, "input", "Input",
+	flagSet.CreateGroup("input", "Input",
 		flagSet.StringVarP(&cliOptions.Domain, "domain", "d", "", "configured domain to use with interactsh server"),
 		flagSet.StringVar(&cliOptions.IPAddress, "ip", "", "public ip address to use for interactsh server"),
 		flagSet.StringVarP(&cliOptions.ListenIP, "listen-ip", "lip", "0.0.0.0", "public ip address to listen on"),
@@ -53,7 +53,7 @@ func main() {
 		flagSet.StringVar(&cliOptions.CertificatePath, "cert", "", "custom certificate path"),
 		flagSet.StringVar(&cliOptions.PrivateKeyPath, "privkey", "", "custom private key path"),
 	)
-	options.CreateGroup(flagSet, "services", "Services",
+	flagSet.CreateGroup("services", "Services",
 		flagSet.IntVar(&cliOptions.DnsPort, "dns-port", 53, "port to use for dns service"),
 		flagSet.IntVar(&cliOptions.HttpPort, "http-port", 80, "port to use for http service"),
 		flagSet.IntVar(&cliOptions.HttpsPort, "https-port", 443, "port to use for https service"),
@@ -70,7 +70,7 @@ func main() {
 		flagSet.IntVar(&cliOptions.FtpPort, "ftp-port", 21, "port to use for ftp service"),
 		flagSet.StringVar(&cliOptions.FTPDirectory, "ftp-dir", "", "ftp directory - temporary if not specified"),
 	)
-	options.CreateGroup(flagSet, "debug", "Debug",
+	flagSet.CreateGroup("debug", "Debug",
 		flagSet.BoolVar(&cliOptions.Version, "version", false, "show version of the project"),
 		flagSet.BoolVar(&cliOptions.Debug, "debug", false, "start interactsh server in debug mode"),
 	)

@@ -17,4 +17,5 @@ type CLIClientOptions struct {
 	DisableHTTPFallback      bool
 	CorrelationIdLength      int
 	CorrelationIdNonceLength int
+	SessionFile              string
 }
