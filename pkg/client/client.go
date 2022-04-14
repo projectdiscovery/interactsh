@@ -287,7 +287,7 @@ func (c *Client) getInteractions(callback InteractionCallback) error {
 	resp, err := c.httpClient.Do(req)
 	defer func() {
 		if resp != nil && resp.Body != nil {
-			resp.Body.Close()
+			_ = resp.Body.Close()
 			_, _ = io.Copy(ioutil.Discard, resp.Body)
 		}
 	}()
@@ -374,7 +374,7 @@ func (c *Client) Close() error {
 		resp, err := c.httpClient.Do(req)
 		defer func() {
 			if resp != nil && resp.Body != nil {
-				resp.Body.Close()
+				_ = resp.Body.Close()
 				_, _ = io.Copy(ioutil.Discard, resp.Body)
 			}
 		}()
@@ -406,7 +406,7 @@ func (c *Client) performRegistration(serverURL string, payload []byte) error {
 	resp, err := c.httpClient.Do(req)
 	defer func() {
 		if resp != nil && resp.Body != nil {
-			resp.Body.Close()
+			_ = resp.Body.Close()
 			_, _ = io.Copy(ioutil.Discard, resp.Body)
 		}
 	}()
