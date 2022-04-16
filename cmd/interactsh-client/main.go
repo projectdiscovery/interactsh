@@ -40,7 +40,6 @@ func main() {
 		flagSet.StringVarP(&cliOptions.Token, "token", "t", "", "authentication token to connect protected interactsh server"),
 		flagSet.IntVarP(&cliOptions.PollInterval, "poll-interval", "pi", 5, "poll interval in seconds to pull interaction data"),
 		flagSet.BoolVarP(&cliOptions.DisableHTTPFallback, "no-http-fallback", "nf", false, "disable http fallback registration"),
-		flagSet.BoolVar(&cliOptions.Persistent, "persist", false, "enables persistent interactsh sessions"),
 		flagSet.IntVarP(&cliOptions.CorrelationIdLength, "correlation-id-length", "cidl", settings.CorrelationIdLengthDefault, "length of the correlation id preamble"),
 		flagSet.IntVarP(&cliOptions.CorrelationIdNonceLength, "correlation-id-nonce-length", "cidn", settings.CorrelationIdNonceLengthDefault, "length of the correlation id nonce"),
 		flagSet.StringVarP(&cliOptions.SessionFile, "session-file", "sf", "", "Save to/Load from session file"),
@@ -93,7 +92,6 @@ func main() {
 
 	client, err := client.New(&client.Options{
 		ServerURL:                cliOptions.ServerURL,
-		PersistentSession:        cliOptions.Persistent,
 		Token:                    cliOptions.Token,
 		DisableHTTPFallback:      cliOptions.DisableHTTPFallback,
 		CorrelationIdLength:      cliOptions.CorrelationIdLength,

@@ -48,7 +48,6 @@ type Client struct {
 	httpClient               *retryablehttp.Client
 	privKey                  *rsa.PrivateKey
 	quitChan                 chan struct{}
-	persistentSession        bool
 	disableHTTPFallback      bool
 	token                    string
 	correlationIdLength      int
@@ -59,8 +58,6 @@ type Client struct {
 type Options struct {
 	// ServerURL is the URL for the interactsh server.
 	ServerURL string
-	// PersistentSession keeps the session open for future requests.
-	PersistentSession bool
 	// Token if the server requires authentication
 	Token string
 	// DisableHTTPFallback determines if failed requests over https should not be retried over http
@@ -120,7 +117,6 @@ func New(options *Options) (*Client, error) {
 	client := &Client{
 		secretKey:                secretKey,
 		correlationID:            correlationID,
-		persistentSession:        options.PersistentSession,
 		httpClient:               httpclient,
 		token:                    token,
 		disableHTTPFallback:      options.DisableHTTPFallback,
@@ -351,40 +347,38 @@ func (c *Client) StopPolling() {
 // Close closes the collaborator client and deregisters from the
 // collaborator server if not explicitly asked by the user.
 func (c *Client) Close() error {
-	if !c.persistentSession {
-		register := server.DeregisterRequest{
-			CorrelationID: c.correlationID,
-			SecretKey:     c.secretKey,
-		}
-		data, err := jsoniter.Marshal(register)
-		if err != nil {
-			return errors.Wrap(err, "could not marshal deregister request")
-		}
-		URL := c.serverURL.String() + "/deregister"
-		req, err := retryablehttp.NewRequest("POST", URL, bytes.NewReader(data))
-		if err != nil {
-			return errors.Wrap(err, "could not create new request")
-		}
-		req.ContentLength = int64(len(data))
+	register := server.DeregisterRequest{
+		CorrelationID: c.correlationID,
+		SecretKey:     c.secretKey,
+	}
+	data, err := jsoniter.Marshal(register)
+	if err != nil {
+		return errors.Wrap(err, "could not marshal deregister request")
+	}
+	URL := c.serverURL.String() + "/deregister"
+	req, err := retryablehttp.NewRequest("POST", URL, bytes.NewReader(data))
+	if err != nil {
+		return errors.Wrap(err, "could not create new request")
+	}
+	req.ContentLength = int64(len(data))
 
-		if c.token != "" {
-			req.Header.Add("Authorization", c.token)
-		}
+	if c.token != "" {
+		req.Header.Add("Authorization", c.token)
+	}
 
-		resp, err := c.httpClient.Do(req)
-		defer func() {
-			if resp != nil && resp.Body != nil {
-				_ = resp.Body.Close()
-				_, _ = io.Copy(ioutil.Discard, resp.Body)
-			}
-		}()
-		if err != nil {
-			return errors.Wrap(err, "could not make deregister request")
+	resp, err := c.httpClient.Do(req)
+	defer func() {
+		if resp != nil && resp.Body != nil {
+			_ = resp.Body.Close()
+			_, _ = io.Copy(ioutil.Discard, resp.Body)
 		}
-		if resp.StatusCode != 200 {
-			data, _ := ioutil.ReadAll(resp.Body)
-			return fmt.Errorf("could not deregister to server: %s", string(data))
-		}
+	}()
+	if err != nil {
+		return errors.Wrap(err, "could not make deregister request")
+	}
+	if resp.StatusCode != 200 {
+		data, _ := ioutil.ReadAll(resp.Body)
+		return fmt.Errorf("could not deregister to server: %s", string(data))
 	}
 	return nil
 }

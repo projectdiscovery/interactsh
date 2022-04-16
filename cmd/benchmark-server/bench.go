@@ -52,9 +52,8 @@ func process() error {
 
 func benchmarkServer() {
 	client, err := client.New(&client.Options{
-		ServerURL:         *serverURL,
-		PersistentSession: false,
-		Token:             *token,
+		ServerURL: *serverURL,
+		Token:     *token,
 	})
 	if err != nil {
 		errors++
