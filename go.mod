@@ -1,6 +1,6 @@
 module github.com/projectdiscovery/interactsh
 
-go 1.15
+go 1.17
 
 require (
 	git.mills.io/prologic/smtpd v0.0.0-20210710122116-a525b76c287a
@@ -12,7 +12,6 @@ require (
 	github.com/json-iterator/go v1.1.12
 	github.com/karlseguin/ccache/v2 v2.0.8
 	github.com/klauspost/compress v1.15.1
-	github.com/kr/pretty v0.3.0 // indirect
 	github.com/libdns/libdns v0.2.1
 	github.com/miekg/dns v1.1.48
 	github.com/pkg/errors v0.9.1
@@ -24,10 +23,38 @@ require (
 	github.com/projectdiscovery/retryablehttp-go v1.0.2
 	github.com/projectdiscovery/stringsutil v0.0.0-20220208075244-7c05502ca8e9
 	github.com/remeh/sizedwaitgroup v1.0.0
-	github.com/rogpeppe/go-internal v1.8.0 // indirect
 	github.com/rs/xid v1.4.0
 	github.com/stretchr/testify v1.7.1
 	go.uber.org/zap v1.21.0
 	goftp.io/server/v2 v2.0.0
 	gopkg.in/corvus-ch/zbase32.v1 v1.0.0
+)
+
+require (
+	github.com/cnf/structhash v0.0.0-20201127153200-e1b16c1ebc08 // indirect
+	github.com/davecgh/go-spew v1.1.1 // indirect
+	github.com/karrick/godirwalk v1.16.1 // indirect
+	github.com/klauspost/cpuid/v2 v2.0.11 // indirect
+	github.com/kr/pretty v0.3.0 // indirect
+	github.com/logrusorgru/aurora v2.0.3+incompatible // indirect
+	github.com/lor00x/goldap v0.0.0-20180618054307-a546dffdd1a3 // indirect
+	github.com/mholt/acmez v1.0.2 // indirect
+	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
+	github.com/modern-go/reflect2 v1.0.2 // indirect
+	github.com/pmezard/go-difflib v1.0.0 // indirect
+	github.com/projectdiscovery/blackrock v0.0.0-20210415162320-b38689ae3a2e // indirect
+	github.com/projectdiscovery/iputil v0.0.0-20210804143329-3a30fcde43f3 // indirect
+	github.com/projectdiscovery/mapcidr v0.0.7 // indirect
+	github.com/rogpeppe/go-internal v1.8.0 // indirect
+	go.uber.org/atomic v1.7.0 // indirect
+	go.uber.org/multierr v1.6.0 // indirect
+	golang.org/x/crypto v0.0.0-20220210151621-f4118a5b28e2 // indirect
+	golang.org/x/mod v0.4.2 // indirect
+	golang.org/x/net v0.0.0-20220127200216-cd36cc0744dd // indirect
+	golang.org/x/sys v0.0.0-20211216021012-1d35b9e2eb4e // indirect
+	golang.org/x/text v0.3.7 // indirect
+	golang.org/x/tools v0.1.6-0.20210726203631-07bc1bf47fb2 // indirect
+	golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1 // indirect
+	gopkg.in/yaml.v2 v2.4.0 // indirect
+	gopkg.in/yaml.v3 v3.0.0-20210107192922-496545a6307b // indirect
 )
