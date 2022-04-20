@@ -9,7 +9,6 @@ type CLIClientOptions struct {
 	JSON                     bool
 	Verbose                  bool
 	PollInterval             int
-	Persistent               bool
 	DNSOnly                  bool
 	HTTPOnly                 bool
 	SmtpOnly                 bool
@@ -17,4 +16,5 @@ type CLIClientOptions struct {
 	DisableHTTPFallback      bool
 	CorrelationIdLength      int
 	CorrelationIdNonceLength int
+	SessionFile              string
 }

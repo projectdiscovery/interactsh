@@ -17,7 +17,7 @@ require (
 	github.com/pkg/errors v0.9.1
 	github.com/projectdiscovery/fileutil v0.0.0-20220215113056-ba188a0c8abc
 	github.com/projectdiscovery/folderutil v0.0.0-20220215113126-add60a1e8e08
-	github.com/projectdiscovery/goflags v0.0.7
+	github.com/projectdiscovery/goflags v0.0.8-0.20220412061559-5119d6086323
 	github.com/projectdiscovery/gologger v1.1.4
 	github.com/projectdiscovery/retryabledns v1.0.13
 	github.com/projectdiscovery/retryablehttp-go v1.0.2
@@ -28,6 +28,7 @@ require (
 	go.uber.org/zap v1.21.0
 	goftp.io/server/v2 v2.0.0
 	gopkg.in/corvus-ch/zbase32.v1 v1.0.0
+	gopkg.in/yaml.v3 v3.0.0-20210107192922-496545a6307b
 )
 
 require (

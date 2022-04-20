@@ -3,7 +3,6 @@ package options
 import (
 	"fmt"
 
-	"github.com/projectdiscovery/goflags"
 	"github.com/projectdiscovery/gologger"
 )
 
@@ -16,13 +15,6 @@ var banner = fmt.Sprintf(`
  / / / / / /_/  __/ /  / /_/ / /__/ /_(__  ) / / /
 /_/_/ /_/\__/\___/_/   \__,_/\___/\__/____/_/ /_/ %s
 `, Version)
-
-func CreateGroup(flagSet *goflags.FlagSet, groupName, description string, flags ...*goflags.FlagData) {
-	flagSet.SetGroup(groupName, description)
-	for _, currentFlag := range flags {
-		currentFlag.Group(groupName)
-	}
-}
 
 func ShowBanner() {
 	gologger.Print().Msgf("%s\n", banner)

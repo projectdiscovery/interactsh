@@ -16,6 +16,7 @@ import (
 	mathrand "math/rand"
 	"net/http"
 	"net/url"
+	"os"
 	"strings"
 	"time"
 
@@ -23,13 +24,19 @@ import (
 	jsoniter "github.com/json-iterator/go"
 	"github.com/pkg/errors"
 	"github.com/projectdiscovery/gologger"
+	"github.com/projectdiscovery/interactsh/pkg/options"
 	"github.com/projectdiscovery/interactsh/pkg/server"
 	"github.com/projectdiscovery/interactsh/pkg/settings"
 	"github.com/projectdiscovery/retryablehttp-go"
 	"github.com/projectdiscovery/stringsutil"
 	"github.com/rs/xid"
 	"gopkg.in/corvus-ch/zbase32.v1"
+	"gopkg.in/yaml.v3"
 )
+
+func init() {
+	mathrand.Seed(time.Now().UnixNano())
+}
 
 var authError = errors.New("couldn't authenticate to the server")
 
@@ -41,7 +48,6 @@ type Client struct {
 	httpClient               *retryablehttp.Client
 	privKey                  *rsa.PrivateKey
 	quitChan                 chan struct{}
-	persistentSession        bool
 	disableHTTPFallback      bool
 	token                    string
 	correlationIdLength      int
@@ -52,8 +58,6 @@ type Client struct {
 type Options struct {
 	// ServerURL is the URL for the interactsh server.
 	ServerURL string
-	// PersistentSession keeps the session open for future requests.
-	PersistentSession bool
 	// Token if the server requires authentication
 	Token string
 	// DisableHTTPFallback determines if failed requests over https should not be retried over http
@@ -64,6 +68,8 @@ type Options struct {
 	CorrelationIdNonceLength int
 	// HTTPClient use a custom http client
 	HTTPClient *retryablehttp.Client
+	// SessionInfo to resume an existing session
+	SessionInfo *options.SessionInfo
 }
 
 // DefaultOptions is the default options for the interact client
@@ -75,8 +81,6 @@ var DefaultOptions = &Options{
 
 // New creates a new client instance based on provided options
 func New(options *Options) (*Client, error) {
-	mathrand.Seed(time.Now().UnixNano())
-
 	// if correlation id lengths and nonce are not specified fallback to default:
 	if options.CorrelationIdLength == 0 {
 		options.CorrelationIdLength = DefaultOptions.CorrelationIdLength
@@ -94,30 +98,50 @@ func New(options *Options) (*Client, error) {
 		httpclient = retryablehttp.NewClient(opts)
 	}
 
-	// Generate a random ksuid which will be used as server secret.
-	correlationID := xid.New().String()
-	if len(correlationID) > options.CorrelationIdLength {
-		correlationID = correlationID[:options.CorrelationIdLength]
+	var correlationID, secretKey, token string
+
+	if options.SessionInfo != nil {
+		correlationID = options.SessionInfo.CorrelationID
+		secretKey = options.SessionInfo.SecretKey
+		token = options.SessionInfo.Token
+	} else {
+		// Generate a random ksuid which will be used as server secret.
+		correlationID = xid.New().String()
+		if len(correlationID) > options.CorrelationIdLength {
+			correlationID = correlationID[:options.CorrelationIdLength]
+		}
+		secretKey = uuid.New().String()
+		token = options.Token
 	}
 
 	client := &Client{
-		secretKey:                uuid.New().String(), // uuid as more secure
+		secretKey:                secretKey,
 		correlationID:            correlationID,
-		persistentSession:        options.PersistentSession,
 		httpClient:               httpclient,
-		token:                    options.Token,
+		token:                    token,
 		disableHTTPFallback:      options.DisableHTTPFallback,
 		correlationIdLength:      options.CorrelationIdLength,
 		CorrelationIdNonceLength: options.CorrelationIdNonceLength,
 	}
-	payload, err := client.initializeRSAKeys()
-	if err != nil {
-		return nil, errors.Wrap(err, "could not initialize rsa keys")
+	if options.SessionInfo != nil {
+		privKey, err := x509.ParsePKCS1PrivateKey([]byte(options.SessionInfo.PrivateKey))
+		if err == nil {
+			client.privKey = privKey
+		}
+		if serverURL, err := url.Parse(options.SessionInfo.ServerURL); err == nil {
+			client.serverURL = serverURL
+		}
+	} else {
+		payload, err := client.initializeRSAKeys()
+		if err != nil {
+			return nil, errors.Wrap(err, "could not initialize rsa keys")
+		}
+
+		if err := client.parseServerURLs(options.ServerURL, payload); err != nil {
+			return nil, errors.Wrap(err, "could not register to servers")
+		}
 	}
 
-	if err := client.parseServerURLs(options.ServerURL, payload); err != nil {
-		return nil, errors.Wrap(err, "could not register to servers")
-	}
 	return client, nil
 }
 
@@ -259,7 +283,7 @@ func (c *Client) getInteractions(callback InteractionCallback) error {
 	resp, err := c.httpClient.Do(req)
 	defer func() {
 		if resp != nil && resp.Body != nil {
-			resp.Body.Close()
+			_ = resp.Body.Close()
 			_, _ = io.Copy(ioutil.Discard, resp.Body)
 		}
 	}()
@@ -323,40 +347,38 @@ func (c *Client) StopPolling() {
 // Close closes the collaborator client and deregisters from the
 // collaborator server if not explicitly asked by the user.
 func (c *Client) Close() error {
-	if !c.persistentSession {
-		register := server.DeregisterRequest{
-			CorrelationID: c.correlationID,
-			SecretKey:     c.secretKey,
-		}
-		data, err := jsoniter.Marshal(register)
-		if err != nil {
-			return errors.Wrap(err, "could not marshal deregister request")
-		}
-		URL := c.serverURL.String() + "/deregister"
-		req, err := retryablehttp.NewRequest("POST", URL, bytes.NewReader(data))
-		if err != nil {
-			return errors.Wrap(err, "could not create new request")
-		}
-		req.ContentLength = int64(len(data))
+	register := server.DeregisterRequest{
+		CorrelationID: c.correlationID,
+		SecretKey:     c.secretKey,
+	}
+	data, err := jsoniter.Marshal(register)
+	if err != nil {
+		return errors.Wrap(err, "could not marshal deregister request")
+	}
+	URL := c.serverURL.String() + "/deregister"
+	req, err := retryablehttp.NewRequest("POST", URL, bytes.NewReader(data))
+	if err != nil {
+		return errors.Wrap(err, "could not create new request")
+	}
+	req.ContentLength = int64(len(data))
 
-		if c.token != "" {
-			req.Header.Add("Authorization", c.token)
-		}
+	if c.token != "" {
+		req.Header.Add("Authorization", c.token)
+	}
 
-		resp, err := c.httpClient.Do(req)
-		defer func() {
-			if resp != nil && resp.Body != nil {
-				resp.Body.Close()
-				_, _ = io.Copy(ioutil.Discard, resp.Body)
-			}
-		}()
-		if err != nil {
-			return errors.Wrap(err, "could not make deregister request")
+	resp, err := c.httpClient.Do(req)
+	defer func() {
+		if resp != nil && resp.Body != nil {
+			_ = resp.Body.Close()
+			_, _ = io.Copy(ioutil.Discard, resp.Body)
 		}
-		if resp.StatusCode != 200 {
-			data, _ := ioutil.ReadAll(resp.Body)
-			return fmt.Errorf("could not deregister to server: %s", string(data))
-		}
+	}()
+	if err != nil {
+		return errors.Wrap(err, "could not make deregister request")
+	}
+	if resp.StatusCode != 200 {
+		data, _ := ioutil.ReadAll(resp.Body)
+		return fmt.Errorf("could not deregister to server: %s", string(data))
 	}
 	return nil
 }
@@ -378,7 +400,7 @@ func (c *Client) performRegistration(serverURL string, payload []byte) error {
 	resp, err := c.httpClient.Do(req)
 	defer func() {
 		if resp != nil && resp.Body != nil {
-			resp.Body.Close()
+			_ = resp.Body.Close()
 			_, _ = io.Copy(ioutil.Discard, resp.Body)
 		}
 	}()
@@ -461,4 +483,20 @@ func (c *Client) decryptMessage(key string, secureMessage string) ([]byte, error
 	decoded := make([]byte, len(cipherText))
 	stream.XORKeyStream(decoded, cipherText)
 	return decoded, nil
+}
+
+func (c *Client) SaveSessionTo(filename string) error {
+	privateKeyData := x509.MarshalPKCS1PrivateKey(c.privKey)
+	sessionInfo := &options.SessionInfo{
+		ServerURL:     c.serverURL.String(),
+		Token:         c.token,
+		PrivateKey:    string(privateKeyData),
+		CorrelationID: c.correlationID,
+		SecretKey:     c.secretKey,
+	}
+	data, err := yaml.Marshal(sessionInfo)
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(filename, data, os.ModePerm)
 }
