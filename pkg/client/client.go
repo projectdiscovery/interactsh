@@ -385,6 +385,9 @@ func (c *Client) performRegistration(serverURL string, payload []byte) error {
 	if err != nil {
 		return errors.Wrap(err, "could not make register request")
 	}
+	if resp.StatusCode == 401 {
+		return errors.New("invalid token provided for interactsh server")
+	}
 	if resp.StatusCode != 200 {
 		data, _ := ioutil.ReadAll(resp.Body)
 		return fmt.Errorf("could not register to server: %s", string(data))
