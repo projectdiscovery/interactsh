@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/caddyserver/certmagic"
+	"github.com/pkg/errors"
 	"github.com/projectdiscovery/gologger"
 	"go.uber.org/zap"
 )
@@ -56,22 +57,34 @@ func HandleWildcardCertificates(domain, email string, store *Provider, debug boo
 	if syncerr := cfg.ObtainCertSync(context.Background(), domain); syncerr != nil {
 		return nil, syncerr
 	}
+	domains := []string{domain, originalDomain}
 	go func() {
-		syncerr := cfg.ManageAsync(context.Background(), []string{domain, originalDomain})
+		syncerr := cfg.ManageAsync(context.Background(), domains)
 		if syncerr != nil {
 			gologger.Error().Msgf("Could not manageasync certmagic certs: %s", err)
 		}
 	}()
 
-	config := cfg.TLSConfig()
-	config.ServerName = originalDomain
-	config.NextProtos = []string{"h2", "http/1.1"}
-
 	if creating {
 		home, _ := os.UserHomeDir()
 		gologger.Info().Msgf("Successfully Created SSL Certificate at: %s", filepath.Join(filepath.Join(home, ".local", "share"), "certmagic"))
 	}
-	return config, nil
+
+	// attempts to extract certificates from caddy
+	var certs []tls.Certificate
+	for _, domain := range domains {
+		certPath, privKeyPath, err := extractCaddyPaths(cfg, &certmagic.DefaultACME, domain)
+		if err != nil {
+			return nil, err
+		}
+		cert, err := tls.LoadX509KeyPair(certPath, privKeyPath)
+		if err != nil {
+			return nil, err
+		}
+		certs = append(certs, cert)
+	}
+
+	return BuildTlsConfigWithCerts(domain, certs...)
 }
 
 // certAlreadyExists returns true if a cert already exists
@@ -80,7 +93,46 @@ func certAlreadyExists(cfg *certmagic.Config, issuer certmagic.Issuer, domain st
 	certKey := certmagic.StorageKeys.SiteCert(issuerKey, domain)
 	keyKey := certmagic.StorageKeys.SitePrivateKey(issuerKey, domain)
 	metaKey := certmagic.StorageKeys.SiteMeta(issuerKey, domain)
-	return cfg.Storage.Exists(certKey) &&
-		cfg.Storage.Exists(keyKey) &&
-		cfg.Storage.Exists(metaKey)
+	return cfg.Storage.Exists(context.Background(), certKey) &&
+		cfg.Storage.Exists(context.Background(), keyKey) &&
+		cfg.Storage.Exists(context.Background(), metaKey)
+}
+
+// extractCaddyPaths attempts to extract cert and private key through the layers of abstractions from the domain name
+func extractCaddyPaths(cfg *certmagic.Config, issuer certmagic.Issuer, domain string) (certPath, privKeyPath string, err error) {
+	issuerKey := issuer.IssuerKey()
+	certId := certmagic.StorageKeys.SiteCert(issuerKey, domain)
+	keyId := certmagic.StorageKeys.SitePrivateKey(issuerKey, domain)
+	// we need to coerce the storage to file system one to be able to obtain access to the typed methods
+	if cfgStorage, ok := cfg.Storage.(*certmagic.FileStorage); ok {
+		certPath = cfgStorage.Filename(certId)
+		privKeyPath = cfgStorage.Filename(keyId)
+	}
+	if certPath != "" && privKeyPath != "" {
+		return
+	}
+	err = errors.New("couldn't extract cert and private key paths")
+	return
+}
+
+// BuildTlsConfig with certificates
+func BuildTlsConfigWithCertAndKeyPaths(certPath, privKeyPath, domain string) (*tls.Config, error) {
+	cert, err := tls.LoadX509KeyPair(certPath, privKeyPath)
+	if err != nil {
+		return nil, errors.New("Could not load certs and private key")
+	}
+	return BuildTlsConfigWithCerts(domain, cert)
+}
+
+// BuildTlsConfigWithExistingConfig with existing certificates
+func BuildTlsConfigWithCerts(domain string, certs ...tls.Certificate) (*tls.Config, error) {
+	tlsConfig := &tls.Config{
+		InsecureSkipVerify: true,
+		Certificates:       certs,
+	}
+	if domain != "" {
+		tlsConfig.ServerName = domain
+	}
+	tlsConfig.NextProtos = []string{"h2", "http/1.1"}
+	return tlsConfig, nil
 }

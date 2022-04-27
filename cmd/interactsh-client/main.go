@@ -6,14 +6,21 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"time"
 
+	"github.com/projectdiscovery/fileutil"
+	"github.com/projectdiscovery/folderutil"
 	"github.com/projectdiscovery/goflags"
 	"github.com/projectdiscovery/gologger"
 	"github.com/projectdiscovery/interactsh/pkg/client"
 	"github.com/projectdiscovery/interactsh/pkg/options"
 	"github.com/projectdiscovery/interactsh/pkg/server"
 	"github.com/projectdiscovery/interactsh/pkg/settings"
+)
+
+var (
+	defaultConfigLocation = filepath.Join(folderutil.HomeDirOrDefault("."), ".config/interactsh-client/config.yaml")
 )
 
 func main() {
@@ -23,30 +30,32 @@ func main() {
 	flagSet := goflags.NewFlagSet()
 	flagSet.SetDescription(`Interactsh client - Go client to generate interactsh payloads and display interaction data.`)
 
-	options.CreateGroup(flagSet, "input", "Input",
+	flagSet.CreateGroup("input", "Input",
 		flagSet.StringVarP(&cliOptions.ServerURL, "server", "s", defaultOpts.ServerURL, "interactsh server(s) to use"),
 	)
 
-	options.CreateGroup(flagSet, "config", "config",
+	flagSet.CreateGroup("config", "config",
+		flagSet.StringVar(&cliOptions.Config, "config", defaultConfigLocation, "flag configuration file"),
 		flagSet.IntVarP(&cliOptions.NumberOfPayloads, "number", "n", 1, "number of interactsh payload to generate"),
 		flagSet.StringVarP(&cliOptions.Token, "token", "t", "", "authentication token to connect protected interactsh server"),
 		flagSet.IntVarP(&cliOptions.PollInterval, "poll-interval", "pi", 5, "poll interval in seconds to pull interaction data"),
 		flagSet.BoolVarP(&cliOptions.DisableHTTPFallback, "no-http-fallback", "nf", false, "disable http fallback registration"),
-		flagSet.BoolVar(&cliOptions.Persistent, "persist", false, "enables persistent interactsh sessions"),
 		flagSet.IntVarP(&cliOptions.CorrelationIdLength, "correlation-id-length", "cidl", settings.CorrelationIdLengthDefault, "length of the correlation id preamble"),
 		flagSet.IntVarP(&cliOptions.CorrelationIdNonceLength, "correlation-id-nonce-length", "cidn", settings.CorrelationIdNonceLengthDefault, "length of the correlation id nonce"),
+		flagSet.StringVarP(&cliOptions.SessionFile, "session-file", "sf", "", "store/read from session file"),
 	)
 
-	options.CreateGroup(flagSet, "filter", "Filter",
+	flagSet.CreateGroup("filter", "Filter",
 		flagSet.BoolVar(&cliOptions.DNSOnly, "dns-only", false, "display only dns interaction in CLI output"),
 		flagSet.BoolVar(&cliOptions.HTTPOnly, "http-only", false, "display only http interaction in CLI output"),
 		flagSet.BoolVar(&cliOptions.SmtpOnly, "smtp-only", false, "display only smtp interactions in CLI output"),
 	)
 
-	options.CreateGroup(flagSet, "output", "Output",
+	flagSet.CreateGroup("output", "Output",
 		flagSet.StringVar(&cliOptions.Output, "o", "", "output file to write interaction data"),
 		flagSet.BoolVar(&cliOptions.JSON, "json", false, "write output in JSONL(ines) format"),
 		flagSet.BoolVar(&cliOptions.Verbose, "v", false, "display verbose interaction"),
+		flagSet.BoolVar(&cliOptions.Version, "version", false, "show version of the project"),
 	)
 
 	if err := flagSet.Parse(); err != nil {
@@ -54,6 +63,17 @@ func main() {
 	}
 
 	options.ShowBanner()
+
+	if cliOptions.Version {
+		gologger.Info().Msgf("Current Version: %s\n", options.Version)
+		os.Exit(0)
+	}
+
+	if cliOptions.Config != defaultConfigLocation {
+		if err := flagSet.MergeConfigFile(cliOptions.Config); err != nil {
+			gologger.Fatal().Msgf("Could not read config: %s\n", err)
+		}
+	}
 
 	var outputFile *os.File
 	var err error
@@ -64,13 +84,19 @@ func main() {
 		defer outputFile.Close()
 	}
 
+	var sessionInfo *options.SessionInfo
+	if fileutil.FileExists(cliOptions.SessionFile) {
+		// attempt to load session info - silently ignore on failure
+		_ = fileutil.Unmarshal(fileutil.YAML, []byte(cliOptions.SessionFile), &sessionInfo)
+	}
+
 	client, err := client.New(&client.Options{
 		ServerURL:                cliOptions.ServerURL,
-		PersistentSession:        cliOptions.Persistent,
 		Token:                    cliOptions.Token,
 		DisableHTTPFallback:      cliOptions.DisableHTTPFallback,
 		CorrelationIdLength:      cliOptions.CorrelationIdLength,
 		CorrelationIdNonceLength: cliOptions.CorrelationIdNonceLength,
+		SessionInfo:              sessionInfo,
 	})
 	if err != nil {
 		gologger.Fatal().Msgf("Could not create client: %s\n", err)
@@ -156,8 +182,14 @@ func main() {
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt)
 	for range c {
+		if cliOptions.SessionFile != "" {
+			_ = client.SaveSessionTo(cliOptions.SessionFile)
+		}
 		client.StopPolling()
-		client.Close()
+		// whether the session is saved/loaded it shouldn't be destroyed {
+		if cliOptions.SessionFile == "" {
+			client.Close()
+		}
 		os.Exit(1)
 	}
 }
