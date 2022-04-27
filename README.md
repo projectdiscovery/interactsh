@@ -57,13 +57,14 @@ INPUT:
    -s, -server string  interactsh server(s) to use (default "oast.pro,oast.live,oast.site,oast.online,oast.fun,oast.me")
 
 CONFIG:
-   -n, -number int          number of interactsh payload to generate (default 1)
-   -t, -token string        authentication token to connect protected interactsh server
-   -pi, -poll-interval int  poll interval in seconds to pull interaction data (default 5)
-   -nf, -no-http-fallback   disable http fallback registration
-   -persist                 enables persistent interactsh sessions
+   -config string                           flag configuration file (default "$HOME/.config/interactsh-client/config.yaml")
+   -n, -number int                          number of interactsh payload to generate (default 1)
+   -t, -token string                        authentication token to connect protected interactsh server
+   -pi, -poll-interval int                  poll interval in seconds to pull interaction data (default 5)
+   -nf, -no-http-fallback                   disable http fallback registration
    -cidl, -correlation-id-length int        length of the correlation id preamble (default 20)
    -cidn, -correlation-id-nonce-length int  length of the correlation id nonce (default 13)
+   -sf, -session-file string                store/read from session file
 
 FILTER:
    -dns-only   display only dns interaction in CLI output
@@ -110,6 +111,32 @@ interactsh-client
 [c23b2la0kl1krjcrdj10cndmnioyyyyyn] Received SMTP interaction from 32.85.166.50 at 2021-26-26 12:26
 ```
 
+### Session File
+
+`interactsh-client` with `-sf, -session-file` flag can be used store/read the current session information from user defined file which is useful to resume the same session to poll the interactions even after the client gets stopped or closed. 
+
+```console
+interactsh-client -sf interact.session
+
+    _       __                       __       __  
+   (_)___  / /____  _________ ______/ /______/ /_ 
+  / / __ \/ __/ _ \/ ___/ __ '/ ___/ __/ ___/ __ \
+ / / / / / /_/  __/ /  / /_/ / /__/ /_(__  ) / / /
+/_/_/ /_/\__/\___/_/   \__,_/\___/\__/____/_/ /_/ 1.0.3
+
+        projectdiscovery.io
+
+[INF] Listing 1 payload for OOB Testing
+[INF] c23b2la0kl1krjcrdj10cndmnioyyyyyn.oast.pro
+
+[c23b2la0kl1krjcrdj10cndmnioyyyyyn] Received DNS interaction (A) from 172.253.226.100 at 2021-26-26 12:26
+[c23b2la0kl1krjcrdj10cndmnioyyyyyn] Received DNS interaction (AAAA) from 32.3.34.129 at 2021-26-26 12:26
+[c23b2la0kl1krjcrdj10cndmnioyyyyyn] Received HTTP interaction from 43.22.22.50 at 2021-26-26 12:26
+[c23b2la0kl1krjcrdj10cndmnioyyyyyn] Received DNS interaction (MX) from 43.3.192.3 at 2021-26-26 12:26
+[c23b2la0kl1krjcrdj10cndmnioyyyyyn] Received DNS interaction (TXT) from 74.32.183.135 at 2021-26-26 12:26
+[c23b2la0kl1krjcrdj10cndmnioyyyyyn] Received SMTP interaction from 32.85.166.50 at 2021-26-26 12:26
+```
+
 ### Verbose Mode
 
 
@@ -122,7 +149,7 @@ interactsh-client -v -o interactsh-logs.txt
    (_)___  / /____  _________ ______/ /______/ /_ 
   / / __ \/ __/ _ \/ ___/ __ '/ ___/ __/ ___/ __ \
  / / / / / /_/  __/ /  / /_/ / /__/ /_(__  ) / / /
-/_/_/ /_/\__/\___/_/   \__,_/\___/\__/____/_/ /_/ v1.0.0
+/_/_/ /_/\__/\___/_/   \__,_/\___/\__/____/_/ /_/ 1.0.3
 
     projectdiscovery.io
 
