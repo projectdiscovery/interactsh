@@ -52,6 +52,7 @@ func main() {
 		flagSet.IntVarP(&cliOptions.CorrelationIdNonceLength, "correlation-id-nonce-length", "cidn", settings.CorrelationIdNonceLengthDefault, "length of the correlation id nonce"),
 		flagSet.StringVar(&cliOptions.CertificatePath, "cert", "", "custom certificate path"),
 		flagSet.StringVar(&cliOptions.PrivateKeyPath, "privkey", "", "custom private key path"),
+		flagSet.StringVar(&cliOptions.RevHeader, "RevHeader", "", "HTTP header with origin IP"),
 	)
 	flagSet.CreateGroup("services", "Services",
 		flagSet.IntVar(&cliOptions.DnsPort, "dns-port", 53, "port to use for dns service"),

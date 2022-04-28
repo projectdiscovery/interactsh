@@ -90,10 +90,18 @@ func (h *HTTPServer) logger(handler http.Handler) http.HandlerFunc {
 		w.WriteHeader(rec.Result().StatusCode)
 		_, _ = w.Write(data)
 
+		var host string
+		forwarded := r.Header.Get(h.options.RevHeader)
+		if forwarded != "" {
+			host = forwarded
+		} else {
+			host, _, _ = net.SplitHostPort(r.RemoteAddr)
+		}
+
 		// if root-tld is enabled stores any interaction towards the main domain
 		if h.options.RootTLD && strings.HasSuffix(r.Host, h.domain) {
 			ID := h.domain
-			host, _, _ := net.SplitHostPort(r.RemoteAddr)
+
 			interaction := &Interaction{
 				Protocol:      "http",
 				UniqueID:      r.Host,
@@ -119,7 +127,8 @@ func (h *HTTPServer) logger(handler http.Handler) http.HandlerFunc {
 			for _, chunk := range chunks {
 				for part := range stringsutil.SlideWithLength(chunk, h.options.GetIdLength()) {
 					if h.options.isCorrelationID(part) {
-						h.handleInteraction(part, part, reqString, respString, r.RemoteAddr)
+						// h.handleInteraction(part, part, reqString, respString, r.RemoteAddr)
+						h.handleInteraction(part, part, reqString, respString, host)
 					}
 				}
 			}
@@ -132,7 +141,8 @@ func (h *HTTPServer) logger(handler http.Handler) http.HandlerFunc {
 						if i+1 <= len(parts) {
 							fullID = strings.Join(parts[:i+1], ".")
 						}
-						h.handleInteraction(partChunk, fullID, reqString, respString, r.RemoteAddr)
+						// h.handleInteraction(partChunk, fullID, reqString, respString, r.RemoteAddr)
+						h.handleInteraction(partChunk, fullID, reqString, respString, host)
 					}
 				}
 			}
@@ -143,14 +153,14 @@ func (h *HTTPServer) logger(handler http.Handler) http.HandlerFunc {
 func (h *HTTPServer) handleInteraction(uniqueID, fullID, reqString, respString, hostPort string) {
 	correlationID := uniqueID[:h.options.CorrelationIdLength]
 
-	host, _, _ := net.SplitHostPort(hostPort)
+	// host, _, _ := net.SplitHostPort(hostPort)
 	interaction := &Interaction{
 		Protocol:      "http",
 		UniqueID:      uniqueID,
 		FullId:        fullID,
 		RawRequest:    reqString,
 		RawResponse:   respString,
-		RemoteAddress: host,
+		RemoteAddress: hostPort,
 		Timestamp:     time.Now(),
 	}
 	buffer := &bytes.Buffer{}
