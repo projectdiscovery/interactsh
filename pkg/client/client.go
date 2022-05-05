@@ -2,6 +2,7 @@ package client
 
 import (
 	"bytes"
+	"context"
 	"crypto/aes"
 	"crypto/cipher"
 	"crypto/rand"
@@ -386,8 +387,11 @@ func (c *Client) Close() error {
 // performRegistration registers the current client with the master server using the
 // provided RSA Public Key as well as Correlation Key.
 func (c *Client) performRegistration(serverURL string, payload []byte) error {
+	// By default we attempt registration once before switching to the next server
+	ctx := context.WithValue(context.Background(), retryablehttp.RETRY_MAX, 0)
+
 	URL := serverURL + "/register"
-	req, err := retryablehttp.NewRequest("POST", URL, bytes.NewReader(payload))
+	req, err := retryablehttp.NewRequestWithContext(ctx, "POST", URL, bytes.NewReader(payload))
 	if err != nil {
 		return errors.Wrap(err, "could not create new request")
 	}
