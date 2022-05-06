@@ -20,7 +20,7 @@ require (
 	github.com/projectdiscovery/goflags v0.0.8-0.20220412061559-5119d6086323
 	github.com/projectdiscovery/gologger v1.1.4
 	github.com/projectdiscovery/retryabledns v1.0.13
-	github.com/projectdiscovery/retryablehttp-go v1.0.3-0.20220506105149-d11055d350a2
+	github.com/projectdiscovery/retryablehttp-go v1.0.3-0.20220506110515-811d938bd26d
 	github.com/projectdiscovery/stringsutil v0.0.0-20220208075244-7c05502ca8e9
 	github.com/remeh/sizedwaitgroup v1.0.0
 	github.com/rs/xid v1.4.0
@@ -32,6 +32,7 @@ require (
 )
 
 require (
+	github.com/Mzack9999/go-http-digest-auth-client v0.6.1-0.20220414142836-eb8883508809 // indirect
 	github.com/cnf/structhash v0.0.0-20201127153200-e1b16c1ebc08 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/karrick/godirwalk v1.16.1 // indirect
