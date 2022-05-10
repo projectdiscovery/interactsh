@@ -15,7 +15,7 @@ import (
 
 // HandleWildcardCertificates handles ACME wildcard cert generation with DNS
 // challenge using certmagic library from caddyserver.
-func HandleWildcardCertificates(domain, email string, store *Provider, debug bool) (*tls.Config, error) {
+func HandleWildcardCertificates(domain, email string, store *Provider, debug bool) ([]tls.Certificate, error) {
 	logger, err := zap.NewProduction()
 	if err != nil {
 		return nil, err
@@ -84,7 +84,7 @@ func HandleWildcardCertificates(domain, email string, store *Provider, debug boo
 		certs = append(certs, cert)
 	}
 
-	return BuildTlsConfigWithCerts(domain, certs...)
+	return certs, nil
 }
 
 // certAlreadyExists returns true if a cert already exists
