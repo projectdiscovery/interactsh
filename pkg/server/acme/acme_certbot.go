@@ -13,6 +13,12 @@ import (
 	"go.uber.org/zap"
 )
 
+// CleanupStorage perform cleanup routines tasks
+func CleanupStorage() {
+	cleanupOptions := certmagic.CleanStorageOptions{OCSPStaples: true}
+	certmagic.CleanStorage(context.Background(), certmagic.Default.Storage, cleanupOptions)
+}
+
 // HandleWildcardCertificates handles ACME wildcard cert generation with DNS
 // challenge using certmagic library from caddyserver.
 func HandleWildcardCertificates(domain, email string, store *Provider, debug bool) (*tls.Config, error) {
