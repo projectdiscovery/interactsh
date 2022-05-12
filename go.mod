@@ -13,7 +13,7 @@ require (
 	github.com/karlseguin/ccache/v2 v2.0.8
 	github.com/klauspost/compress v1.15.3
 	github.com/libdns/libdns v0.2.1
-	github.com/miekg/dns v1.1.48
+	github.com/miekg/dns v1.1.49
 	github.com/pkg/errors v0.9.1
 	github.com/projectdiscovery/fileutil v0.0.0-20220215113056-ba188a0c8abc
 	github.com/projectdiscovery/folderutil v0.0.0-20220215113126-add60a1e8e08
