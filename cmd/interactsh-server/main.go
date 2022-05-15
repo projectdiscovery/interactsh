@@ -45,7 +45,7 @@ func main() {
 		flagSet.IntVarP(&cliOptions.Eviction, "eviction", "e", 30, "number of days to persist interaction data in memory"),
 		flagSet.BoolVarP(&cliOptions.Auth, "auth", "a", false, "enable authentication to server using random generated token"),
 		flagSet.StringVarP(&cliOptions.Token, "token", "t", "", "enable authentication to server using given token"),
-		flagSet.StringVar(&cliOptions.OriginURL, "acao-url", "https://app.interactsh.com", "origin url to send in acao header (required to use web-client)"),
+		flagSet.StringVar(&cliOptions.OriginURL, "acao-url", "*", "origin url to send in acao header to use web-client)"), // cli flag set to deprecate
 		flagSet.BoolVarP(&cliOptions.SkipAcme, "skip-acme", "sa", false, "skip acme registration (certificate checks/handshake + TLS protocols will be disabled)"),
 		flagSet.BoolVarP(&cliOptions.ScanEverywhere, "scan-everywhere", "se", false, "scan canary token everywhere"),
 		flagSet.IntVarP(&cliOptions.CorrelationIdLength, "correlation-id-length", "cidl", settings.CorrelationIdLengthDefault, "length of the correlation id preamble"),
