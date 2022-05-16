@@ -183,7 +183,17 @@ func (h *HTTPServer) defaultHandler(w http.ResponseWriter, req *http.Request) {
 	// use first domain as default (todo: should be extracted from certificate)
 	var domain string
 	if len(h.options.Domains) > 0 {
-		domain = h.options.Domains[0]
+		// attempts to extract the domain name from host header
+		for _, configuredDomain := range h.options.Domains {
+			if stringsutil.HasSuffixI(req.Host, configuredDomain) {
+				domain = configuredDomain
+				break
+			}
+		}
+		// fallback to first domain in case of unknown host header
+		if domain == "" {
+			domain = h.options.Domains[0]
+		}
 	}
 	w.Header().Set("Server", domain)
 

@@ -39,7 +39,7 @@ func main() {
 	)
 
 	flagSet.CreateGroup("input", "Input",
-		flagSet.StringSliceVarP(&cliOptions.Domains, "domain", "d", []string{}, "configured domain to use with interactsh server"),
+		flagSet.CommaSeparatedStringSliceVarP(&cliOptions.Domains, "domain", "d", []string{}, "configured domain to use with interactsh server"),
 		flagSet.StringVar(&cliOptions.IPAddress, "ip", "", "public ip address to use for interactsh server"),
 		flagSet.StringVarP(&cliOptions.ListenIP, "listen-ip", "lip", "0.0.0.0", "public ip address to listen on"),
 		flagSet.IntVarP(&cliOptions.Eviction, "eviction", "e", 30, "number of days to persist interaction data in memory"),
@@ -180,7 +180,7 @@ func main() {
 			hostmaster := serverOptions.Hostmasters[idx]
 			domainCerts, acmeErr := acme.HandleWildcardCertificates(fmt.Sprintf("*.%s", trimmedDomain), hostmaster, acmeStore, cliOptions.Debug)
 			if acmeErr != nil {
-				gologger.Error().Msgf("An error occurred while applying for an certificate, error: %v", acmeErr)
+				gologger.Error().Msgf("An error occurred while applying for a certificate, error: %v", acmeErr)
 				gologger.Error().Msgf("Could not generate certs for auto TLS, https will be disabled")
 			} else {
 				certs = append(certs, domainCerts...)

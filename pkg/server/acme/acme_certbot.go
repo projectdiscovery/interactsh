@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/caddyserver/certmagic"
 	"github.com/pkg/errors"
@@ -67,17 +68,24 @@ func HandleWildcardCertificates(domain, email string, store *Provider, debug boo
 
 	if creating {
 		home, _ := os.UserHomeDir()
-		gologger.Info().Msgf("Successfully Created SSL Certificate at: %s", filepath.Join(filepath.Join(home, ".local", "share"), "certmagic"))
+		gologger.Info().Msgf("Successfully Created SSL Certificate at: %s", filepath.Join(home, ".local", "share", "certmagic"))
 	}
 
 	// attempts to extract certificates from caddy
 	var certs []tls.Certificate
 	for _, domain := range domains {
+		var retried bool
+	retry_cert:
 		certPath, privKeyPath, err := extractCaddyPaths(cfg, &certmagic.DefaultACME, domain)
 		if err != nil {
 			return nil, err
 		}
 		cert, err := tls.LoadX509KeyPair(certPath, privKeyPath)
+		if err != nil && !retried {
+			retried = true
+			time.Sleep(5 * time.Second)
+			goto retry_cert
+		}
 		if err != nil {
 			return nil, err
 		}
