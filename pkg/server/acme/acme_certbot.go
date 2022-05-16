@@ -83,6 +83,7 @@ func HandleWildcardCertificates(domain, email string, store *Provider, debug boo
 		cert, err := tls.LoadX509KeyPair(certPath, privKeyPath)
 		if err != nil && !retried {
 			retried = true
+			// wait I/O to sync
 			time.Sleep(5 * time.Second)
 			goto retry_cert
 		}
