@@ -1,5 +1,5 @@
 # Build
-FROM golang:1.18.1-alpine AS build-env
+FROM golang:1.18.2-alpine AS build-env
 RUN apk add build-base
 RUN go install -v github.com/projectdiscovery/interactsh/cmd/interactsh-client@latest
 
