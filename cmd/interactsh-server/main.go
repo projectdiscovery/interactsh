@@ -176,6 +176,9 @@ func main() {
 		}
 	}
 
+	// manually cleans up stale OCSP from storage
+	acme.CleanupStorage()
+
 	httpServer, err := server.NewHTTPServer(serverOptions)
 	if err != nil {
 		gologger.Fatal().Msgf("Could not create HTTP server")
