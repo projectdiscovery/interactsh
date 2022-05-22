@@ -39,7 +39,7 @@ func main() {
 	)
 
 	flagSet.CreateGroup("input", "Input",
-		flagSet.StringVarP(&cliOptions.Domain, "domain", "d", "", "configured domain to use with interactsh server"),
+		flagSet.CommaSeparatedStringSliceVarP(&cliOptions.Domains, "domain", "d", []string{}, "single/multiple configured domain to use for server"),
 		flagSet.StringVar(&cliOptions.IPAddress, "ip", "", "public ip address to use for interactsh server"),
 		flagSet.StringVarP(&cliOptions.ListenIP, "listen-ip", "lip", "0.0.0.0", "public ip address to listen on"),
 		flagSet.IntVarP(&cliOptions.Eviction, "eviction", "e", 30, "number of days to persist interaction data in memory"),
@@ -97,7 +97,10 @@ func main() {
 		cliOptions.IPAddress = ip
 		cliOptions.ListenIP = ip
 	}
-	cliOptions.Hostmaster = fmt.Sprintf("admin@%s", cliOptions.Domain)
+	for _, domain := range cliOptions.Domains {
+		hostmaster := fmt.Sprintf("admin@%s", domain)
+		cliOptions.Hostmasters = append(cliOptions.Hostmasters, hostmaster)
+	}
 
 	serverOptions := cliOptions.AsServerOptions()
 	if cliOptions.Debug {
@@ -140,9 +143,11 @@ func main() {
 		_ = serverOptions.Storage.SetID(serverOptions.Token)
 	}
 
-	// If riit-tld is enabled create a singleton unencrypted record in the store
+	// If root-tld is enabled create a singleton unencrypted record in the store
 	if serverOptions.RootTLD {
-		_ = store.SetID(serverOptions.Domain)
+		for _, domain := range serverOptions.Domains {
+			_ = store.SetID(domain)
+		}
 	}
 
 	acmeStore := acme.NewProvider()
@@ -155,24 +160,36 @@ func main() {
 	go dnsTcpServer.ListenAndServe(dnsTcpAlive)
 	go dnsUdpServer.ListenAndServe(dnsUdpAlive)
 
-	trimmedDomain := strings.TrimSuffix(serverOptions.Domain, ".")
-
 	var tlsConfig *tls.Config
 	switch {
 	case cliOptions.CertificatePath != "" && cliOptions.PrivateKeyPath != "":
-		acmeManagerTLS, acmeErr := acme.BuildTlsConfigWithCertAndKeyPaths(cliOptions.CertificatePath, cliOptions.PrivateKeyPath, cliOptions.Domain)
+		var domain string
+		if len(cliOptions.Domains) > 0 {
+			domain = cliOptions.Domains[0]
+		}
+		acmeManagerTLS, acmeErr := acme.BuildTlsConfigWithCertAndKeyPaths(cliOptions.CertificatePath, cliOptions.PrivateKeyPath, domain)
 		if acmeErr != nil {
 			gologger.Error().Msgf("https will be disabled: %s", acmeErr)
 		} else {
 			tlsConfig = acmeManagerTLS
 		}
-	case !cliOptions.SkipAcme && cliOptions.Domain != "":
-		acmeManagerTLS, acmeErr := acme.HandleWildcardCertificates(fmt.Sprintf("*.%s", trimmedDomain), serverOptions.Hostmaster, acmeStore, cliOptions.Debug)
-		if acmeErr != nil {
-			gologger.Error().Msgf("An error occurred while applying for an certificate, error: %v", acmeErr)
-			gologger.Error().Msgf("Could not generate certs for auto TLS, https will be disabled")
-		} else {
-			tlsConfig = acmeManagerTLS
+	case !cliOptions.SkipAcme && len(cliOptions.Domains) > 0:
+		var certs []tls.Certificate
+		for idx, domain := range cliOptions.Domains {
+			trimmedDomain := strings.TrimSuffix(domain, ".")
+			hostmaster := serverOptions.Hostmasters[idx]
+			domainCerts, acmeErr := acme.HandleWildcardCertificates(fmt.Sprintf("*.%s", trimmedDomain), hostmaster, acmeStore, cliOptions.Debug)
+			if acmeErr != nil {
+				gologger.Error().Msgf("An error occurred while applying for a certificate, error: %v", acmeErr)
+				gologger.Error().Msgf("Could not generate certs for auto TLS, https will be disabled")
+			} else {
+				certs = append(certs, domainCerts...)
+			}
+		}
+		var tlsErr error
+		tlsConfig, tlsErr = acme.BuildTlsConfigWithCerts("", certs...)
+		if tlsErr != nil {
+			gologger.Error().Msgf("An error occurred while preparing tls configuration, error: %v", tlsErr)
 		}
 	}
 
