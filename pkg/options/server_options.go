@@ -38,6 +38,7 @@ type CLIServerOptions struct {
 	ScanEverywhere           bool
 	CertificatePath          string
 	PrivateKeyPath           string
+	OriginIPHeader           string
 }
 
 func (cliServerOptions *CLIServerOptions) AsServerOptions() *server.Options {
@@ -65,5 +66,6 @@ func (cliServerOptions *CLIServerOptions) AsServerOptions() *server.Options {
 		ScanEverywhere:           cliServerOptions.ScanEverywhere,
 		CertificatePath:          cliServerOptions.CertificatePath,
 		PrivateKeyPath:           cliServerOptions.PrivateKeyPath,
+		OriginIPHeader:           cliServerOptions.OriginIPHeader,
 	}
 }
