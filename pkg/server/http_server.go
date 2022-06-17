@@ -90,9 +90,9 @@ func (h *HTTPServer) logger(handler http.Handler) http.HandlerFunc {
 		_, _ = w.Write(data)
 
 		var host string
-		forwarded := r.Header.Get(h.options.RevHeader)
-		if forwarded != "" {
-			host = forwarded
+		// Check if the client's ip should be taken from a custom header (eg reverse proxy)
+		if originIP := r.Header.Get(h.options.OriginIPHeader); originIP != "" {
+			host = originIP
 		} else {
 			host, _, _ = net.SplitHostPort(r.RemoteAddr)
 		}
