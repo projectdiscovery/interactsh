@@ -21,7 +21,6 @@ import (
 // TLS and Non-TLS based servers.
 type HTTPServer struct {
 	options      *Options
-	domain       string
 	tlsserver    http.Server
 	nontlsserver http.Server
 }
@@ -35,7 +34,7 @@ func (l *noopLogger) Write(p []byte) (n int, err error) {
 
 // NewHTTPServer returns a new TLS & Non-TLS HTTP server.
 func NewHTTPServer(options *Options) (*HTTPServer, error) {
-	server := &HTTPServer{options: options, domain: strings.TrimSuffix(options.Domain, ".")}
+	server := &HTTPServer{options: options}
 
 	router := &http.ServeMux{}
 	router.Handle("/", server.logger(http.HandlerFunc(server.defaultHandler)))
@@ -99,25 +98,29 @@ func (h *HTTPServer) logger(handler http.Handler) http.HandlerFunc {
 		}
 
 		// if root-tld is enabled stores any interaction towards the main domain
-		if h.options.RootTLD && strings.HasSuffix(r.Host, h.domain) {
-			ID := h.domain
-
-			interaction := &Interaction{
-				Protocol:      "http",
-				UniqueID:      r.Host,
-				FullId:        r.Host,
-				RawRequest:    reqString,
-				RawResponse:   respString,
-				RemoteAddress: host,
-				Timestamp:     time.Now(),
-			}
-			buffer := &bytes.Buffer{}
-			if err := jsoniter.NewEncoder(buffer).Encode(interaction); err != nil {
-				gologger.Warning().Msgf("Could not encode root tld http interaction: %s\n", err)
-			} else {
-				gologger.Debug().Msgf("Root TLD HTTP Interaction: \n%s\n", buffer.String())
-				if err := h.options.Storage.AddInteractionWithId(ID, buffer.Bytes()); err != nil {
-					gologger.Warning().Msgf("Could not store root tld http interaction: %s\n", err)
+		if h.options.RootTLD {
+			for _, domain := range h.options.Domains {
+				if h.options.RootTLD && strings.HasSuffix(r.Host, domain) {
+					ID := domain
+					host, _, _ := net.SplitHostPort(r.RemoteAddr)
+					interaction := &Interaction{
+						Protocol:      "http",
+						UniqueID:      r.Host,
+						FullId:        r.Host,
+						RawRequest:    reqString,
+						RawResponse:   respString,
+						RemoteAddress: host,
+						Timestamp:     time.Now(),
+					}
+					buffer := &bytes.Buffer{}
+					if err := jsoniter.NewEncoder(buffer).Encode(interaction); err != nil {
+						gologger.Warning().Msgf("Could not encode root tld http interaction: %s\n", err)
+					} else {
+						gologger.Debug().Msgf("Root TLD HTTP Interaction: \n%s\n", buffer.String())
+						if err := h.options.Storage.AddInteractionWithId(ID, buffer.Bytes()); err != nil {
+							gologger.Warning().Msgf("Could not store root tld http interaction: %s\n", err)
+						}
+					}
 				}
 			}
 		}
@@ -187,10 +190,25 @@ You should investigate the sites where these interactions were generated from, a
 // defaultHandler is a handler for default collaborator requests
 func (h *HTTPServer) defaultHandler(w http.ResponseWriter, req *http.Request) {
 	reflection := h.options.URLReflection(req.Host)
-	w.Header().Set("Server", h.domain)
+	// use first domain as default (todo: should be extracted from certificate)
+	var domain string
+	if len(h.options.Domains) > 0 {
+		// attempts to extract the domain name from host header
+		for _, configuredDomain := range h.options.Domains {
+			if stringsutil.HasSuffixI(req.Host, configuredDomain) {
+				domain = configuredDomain
+				break
+			}
+		}
+		// fallback to first domain in case of unknown host header
+		if domain == "" {
+			domain = h.options.Domains[0]
+		}
+	}
+	w.Header().Set("Server", domain)
 
 	if req.URL.Path == "/" && reflection == "" {
-		fmt.Fprintf(w, banner, h.domain)
+		fmt.Fprintf(w, banner, domain)
 	} else if strings.EqualFold(req.URL.Path, "/robots.txt") {
 		fmt.Fprintf(w, "User-agent: *\nDisallow: / # %s", reflection)
 	} else if strings.HasSuffix(req.URL.Path, ".json") {
@@ -289,7 +307,9 @@ func (h *HTTPServer) pollHandler(w http.ResponseWriter, req *http.Request) {
 	// At this point the client is authenticated, so we return also the data related to the auth token
 	var tlddata, extradata []string
 	if h.options.RootTLD {
-		tlddata, _ = h.options.Storage.GetInteractionsWithId(h.options.Domain)
+		for _, domain := range h.options.Domains {
+			tlddata, _ = h.options.Storage.GetInteractionsWithId(domain)
+		}
 		extradata, _ = h.options.Storage.GetInteractionsWithId(h.options.Token)
 	}
 	response := &PollResponse{Data: data, AESKey: aesKey, TLDData: tlddata, Extra: extradata}

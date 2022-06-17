@@ -2,6 +2,7 @@ package client
 
 import (
 	"bytes"
+	"context"
 	"crypto/aes"
 	"crypto/cipher"
 	"crypto/rand"
@@ -207,7 +208,7 @@ func (c *Client) parseServerURLs(serverURL string, payload []byte) error {
 		if err := c.performRegistration(parsed.String(), payload); err != nil {
 			if !c.disableHTTPFallback && parsed.Scheme == "https" {
 				parsed.Scheme = "http"
-				gologger.Error().Msgf("Could not register to %s: %s, retrying with http\n", parsed.String(), err)
+				gologger.Verbose().Msgf("Could not register to %s: %s, retrying with http\n", parsed.String(), err)
 				goto makeReq
 			}
 			return err
@@ -217,13 +218,13 @@ func (c *Client) parseServerURLs(serverURL string, payload []byte) error {
 	}
 	err := registerFunc(gotValue)
 	if err != nil {
-		gologger.Error().Msgf("Could not register to %s: %s, retrying with remaining\n", gotValue, err)
+		gologger.Verbose().Msgf("Could not register to %s: %s, retrying with remaining\n", gotValue, err)
 		values = removeIndex(values, firstIdx)
 		mathrand.Shuffle(len(values), func(i, j int) { values[i], values[j] = values[j], values[i] })
 
 		for _, value := range values {
 			if err = registerFunc(value); err != nil {
-				gologger.Error().Msgf("Could not register to %s: %s, retrying with remaining\n", gotValue, err)
+				gologger.Verbose().Msgf("Could not register to %s: %s, retrying with remaining\n", gotValue, err)
 				continue
 			}
 			break
@@ -386,8 +387,11 @@ func (c *Client) Close() error {
 // performRegistration registers the current client with the master server using the
 // provided RSA Public Key as well as Correlation Key.
 func (c *Client) performRegistration(serverURL string, payload []byte) error {
+	// By default we attempt registration once before switching to the next server
+	ctx := context.WithValue(context.Background(), retryablehttp.RETRY_MAX, 0)
+
 	URL := serverURL + "/register"
-	req, err := retryablehttp.NewRequest("POST", URL, bytes.NewReader(payload))
+	req, err := retryablehttp.NewRequestWithContext(ctx, "POST", URL, bytes.NewReader(payload))
 	if err != nil {
 		return errors.Wrap(err, "could not create new request")
 	}
