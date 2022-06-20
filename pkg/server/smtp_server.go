@@ -11,6 +11,7 @@ import (
 	"git.mills.io/prologic/smtpd"
 	jsoniter "github.com/json-iterator/go"
 	"github.com/projectdiscovery/gologger"
+	"github.com/projectdiscovery/stringsutil"
 )
 
 // SMTPServer is a smtp server instance that listens both
@@ -91,7 +92,7 @@ func (h *SMTPServer) defaultHandler(remoteAddr net.Addr, from string, to []strin
 	for _, addr := range to {
 		if h.options.RootTLD {
 			for _, domain := range h.options.Domains {
-				if strings.HasSuffix(addr, domain) {
+				if stringsutil.HasSuffixI(addr, domain) {
 					ID := domain
 					host, _, _ := net.SplitHostPort(remoteAddr.String())
 					address := addr[strings.Index(addr, "@"):]
