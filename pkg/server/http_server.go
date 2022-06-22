@@ -121,8 +121,9 @@ func (h *HTTPServer) logger(handler http.Handler) http.HandlerFunc {
 			chunks := stringsutil.SplitAny(reqString, ".\n\t\"'")
 			for _, chunk := range chunks {
 				for part := range stringsutil.SlideWithLength(chunk, h.options.GetIdLength()) {
-					if h.options.isCorrelationID(part) {
-						h.handleInteraction(part, part, reqString, respString, r.RemoteAddr)
+					normalizedPart := strings.ToLower(part)
+					if h.options.isCorrelationID(normalizedPart) {
+						h.handleInteraction(normalizedPart, part, reqString, respString, r.RemoteAddr)
 					}
 				}
 			}
@@ -130,12 +131,13 @@ func (h *HTTPServer) logger(handler http.Handler) http.HandlerFunc {
 			parts := strings.Split(r.Host, ".")
 			for i, part := range parts {
 				for partChunk := range stringsutil.SlideWithLength(part, h.options.GetIdLength()) {
-					if h.options.isCorrelationID(partChunk) {
+					normalizedPartChunk := strings.ToLower(partChunk)
+					if h.options.isCorrelationID(normalizedPartChunk) {
 						fullID := part
 						if i+1 <= len(parts) {
 							fullID = strings.Join(parts[:i+1], ".")
 						}
-						h.handleInteraction(partChunk, fullID, reqString, respString, r.RemoteAddr)
+						h.handleInteraction(normalizedPartChunk, fullID, reqString, respString, r.RemoteAddr)
 					}
 				}
 			}
