@@ -126,7 +126,7 @@ func main() {
 		}
 		gologger.Info().Msgf("Using IP: %s\n", bindableIP)
 		cliOptions.ListenIP = bindableIP
-		cliOptions.IPAddress = bindableIP
+		cliOptions.IPAddress = publicIP
 	}
 
 	for _, domain := range cliOptions.Domains {
