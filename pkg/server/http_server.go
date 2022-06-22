@@ -89,6 +89,14 @@ func (h *HTTPServer) logger(handler http.Handler) http.HandlerFunc {
 		w.WriteHeader(rec.Result().StatusCode)
 		_, _ = w.Write(data)
 
+		var host string
+		// Check if the client's ip should be taken from a custom header (eg reverse proxy)
+		if originIP := r.Header.Get(h.options.OriginIPHeader); originIP != "" {
+			host = originIP
+		} else {
+			host, _, _ = net.SplitHostPort(r.RemoteAddr)
+		}
+
 		// if root-tld is enabled stores any interaction towards the main domain
 		if h.options.RootTLD {
 			for _, domain := range h.options.Domains {
@@ -123,7 +131,7 @@ func (h *HTTPServer) logger(handler http.Handler) http.HandlerFunc {
 				for part := range stringsutil.SlideWithLength(chunk, h.options.GetIdLength()) {
 					normalizedPart := strings.ToLower(part)
 					if h.options.isCorrelationID(normalizedPart) {
-						h.handleInteraction(normalizedPart, part, reqString, respString, r.RemoteAddr)
+						h.handleInteraction(normalizedPart, part, reqString, respString, host)
 					}
 				}
 			}
@@ -137,7 +145,7 @@ func (h *HTTPServer) logger(handler http.Handler) http.HandlerFunc {
 						if i+1 <= len(parts) {
 							fullID = strings.Join(parts[:i+1], ".")
 						}
-						h.handleInteraction(normalizedPartChunk, fullID, reqString, respString, r.RemoteAddr)
+						h.handleInteraction(normalizedPartChunk, fullID, reqString, respString, host)
 					}
 				}
 			}
@@ -148,14 +156,14 @@ func (h *HTTPServer) logger(handler http.Handler) http.HandlerFunc {
 func (h *HTTPServer) handleInteraction(uniqueID, fullID, reqString, respString, hostPort string) {
 	correlationID := uniqueID[:h.options.CorrelationIdLength]
 
-	host, _, _ := net.SplitHostPort(hostPort)
+	// host, _, _ := net.SplitHostPort(hostPort)
 	interaction := &Interaction{
 		Protocol:      "http",
 		UniqueID:      uniqueID,
 		FullId:        fullID,
 		RawRequest:    reqString,
 		RawResponse:   respString,
-		RemoteAddress: host,
+		RemoteAddress: hostPort,
 		Timestamp:     time.Now(),
 	}
 	buffer := &bytes.Buffer{}

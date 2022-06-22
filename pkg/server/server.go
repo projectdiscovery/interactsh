@@ -81,6 +81,8 @@ type Options struct {
 	CertificatePath string
 	// Private Key Path
 	PrivateKeyPath string
+	// HTTP header containing origin IP
+	OriginIPHeader string
 
 	ACMEStore *acme.Provider
 }
