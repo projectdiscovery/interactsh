@@ -100,7 +100,7 @@ func (h *HTTPServer) logger(handler http.Handler) http.HandlerFunc {
 		// if root-tld is enabled stores any interaction towards the main domain
 		if h.options.RootTLD {
 			for _, domain := range h.options.Domains {
-				if h.options.RootTLD && strings.HasSuffix(r.Host, domain) {
+				if h.options.RootTLD && stringsutil.HasSuffixI(r.Host, domain) {
 					ID := domain
 					host, _, _ := net.SplitHostPort(r.RemoteAddr)
 					interaction := &Interaction{
@@ -129,9 +129,9 @@ func (h *HTTPServer) logger(handler http.Handler) http.HandlerFunc {
 			chunks := stringsutil.SplitAny(reqString, ".\n\t\"'")
 			for _, chunk := range chunks {
 				for part := range stringsutil.SlideWithLength(chunk, h.options.GetIdLength()) {
-					if h.options.isCorrelationID(part) {
-						// h.handleInteraction(part, part, reqString, respString, r.RemoteAddr)
-						h.handleInteraction(part, part, reqString, respString, host)
+					normalizedPart := strings.ToLower(part)
+					if h.options.isCorrelationID(normalizedPart) {
+						h.handleInteraction(normalizedPart, part, reqString, respString, host)
 					}
 				}
 			}
@@ -139,13 +139,13 @@ func (h *HTTPServer) logger(handler http.Handler) http.HandlerFunc {
 			parts := strings.Split(r.Host, ".")
 			for i, part := range parts {
 				for partChunk := range stringsutil.SlideWithLength(part, h.options.GetIdLength()) {
-					if h.options.isCorrelationID(partChunk) {
+					normalizedPartChunk := strings.ToLower(partChunk)
+					if h.options.isCorrelationID(normalizedPartChunk) {
 						fullID := part
 						if i+1 <= len(parts) {
 							fullID = strings.Join(parts[:i+1], ".")
 						}
-						// h.handleInteraction(partChunk, fullID, reqString, respString, r.RemoteAddr)
-						h.handleInteraction(partChunk, fullID, reqString, respString, host)
+						h.handleInteraction(normalizedPartChunk, fullID, reqString, respString, host)
 					}
 				}
 			}
@@ -211,10 +211,10 @@ func (h *HTTPServer) defaultHandler(w http.ResponseWriter, req *http.Request) {
 		fmt.Fprintf(w, banner, domain)
 	} else if strings.EqualFold(req.URL.Path, "/robots.txt") {
 		fmt.Fprintf(w, "User-agent: *\nDisallow: / # %s", reflection)
-	} else if strings.HasSuffix(req.URL.Path, ".json") {
+	} else if stringsutil.HasSuffixI(req.URL.Path, ".json") {
 		fmt.Fprintf(w, "{\"data\":\"%s\"}", reflection)
 		w.Header().Set("Content-Type", "application/json")
-	} else if strings.HasSuffix(req.URL.Path, ".xml") {
+	} else if stringsutil.HasSuffixI(req.URL.Path, ".xml") {
 		fmt.Fprintf(w, "<data>%s</data>", reflection)
 		w.Header().Set("Content-Type", "application/xml")
 	} else {

@@ -11,6 +11,7 @@ import (
 	jsoniter "github.com/json-iterator/go"
 	"github.com/miekg/dns"
 	"github.com/projectdiscovery/gologger"
+	"github.com/projectdiscovery/stringsutil"
 )
 
 // DNSServer is a DNS server instance that listens on port 53.
@@ -262,7 +263,7 @@ func (h *DNSServer) handleInteraction(domain string, w dns.ResponseWriter, r *dn
 	var foundDomain string
 	for _, configuredDomain := range h.options.Domains {
 		configuredDotDomain := dns.Fqdn(configuredDomain)
-		if strings.HasSuffix(domain, configuredDotDomain) {
+		if stringsutil.HasSuffixI(domain, configuredDotDomain) {
 			foundDomain = configuredDomain
 			break
 		}
