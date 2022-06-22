@@ -99,14 +99,10 @@ func main() {
 	}
 
 	if cliOptions.IPAddress == "" && cliOptions.ListenIP == "0.0.0.0" {
-		publicIP, err := getPublicIP()
-		if err != nil {
-			gologger.Info().Msgf("%s %s\n", err, publicIP)
-		}
-		outboundIP, err := iputil.GetSourceIP("scanme.sh")
-		if err != nil {
-			gologger.Info().Msgf("%s\n", err)
-		}
+		publicIP, _ := getPublicIP()
+		gologger.Info().Msgf("Public IP: %s\n", publicIP)
+		outboundIP, _ := iputil.GetSourceIP("scanme.sh")
+		gologger.Info().Msgf("Outbound IP: %s\n", outboundIP)
 		// it's essential to be able to bind to cliOptions.DnsPort on any of the two ips
 		bindableIP, err := iputil.GetBindableAddress(cliOptions.DnsPort, publicIP, outboundIP.String())
 		if bindableIP == "" && err != nil {
@@ -124,7 +120,6 @@ func main() {
 			}
 			gologger.Fatal().Msgf("%s\nNo bindable address could be found for port %d\nPlease ensure to have proper privileges and/or choose the correct ip:\n%s\n", err, cliOptions.DnsPort, addressesBuilder.String())
 		}
-		gologger.Info().Msgf("Using IP: %s\n", bindableIP)
 		cliOptions.ListenIP = bindableIP
 		cliOptions.IPAddress = publicIP
 	}
