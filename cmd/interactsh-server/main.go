@@ -1,13 +1,12 @@
 package main
 
 import (
-	"context"
 	"crypto/rand"
 	"crypto/tls"
 	"encoding/hex"
+	"errors"
 	"fmt"
-	"io/ioutil"
-	"net/http"
+	"net"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -23,6 +22,8 @@ import (
 	"github.com/projectdiscovery/interactsh/pkg/server/acme"
 	"github.com/projectdiscovery/interactsh/pkg/settings"
 	"github.com/projectdiscovery/interactsh/pkg/storage"
+	"github.com/projectdiscovery/iputil"
+	"github.com/projectdiscovery/stringsutil"
 )
 
 var (
@@ -93,11 +94,36 @@ func main() {
 		}
 	}
 
-	if cliOptions.IPAddress == "" && cliOptions.ListenIP == "0.0.0.0" {
-		ip := getPublicIP()
-		cliOptions.IPAddress = ip
-		cliOptions.ListenIP = ip
+	if len(cliOptions.Domains) == 0 {
+		gologger.Fatal().Msgf("No domains specified\n")
 	}
+
+	if cliOptions.IPAddress == "" && cliOptions.ListenIP == "0.0.0.0" {
+		publicIP, _ := getPublicIP()
+		gologger.Info().Msgf("Public IP: %s\n", publicIP)
+		outboundIP, _ := iputil.GetSourceIP("scanme.sh")
+		gologger.Info().Msgf("Outbound IP: %s\n", outboundIP)
+		// it's essential to be able to bind to cliOptions.DnsPort on any of the two ips
+		bindableIP, err := iputil.GetBindableAddress(cliOptions.DnsPort, publicIP, outboundIP.String())
+		if bindableIP == "" && err != nil {
+			var addressesBuilder strings.Builder
+			networkInterfaces, _ := net.Interfaces()
+			for _, networkInterface := range networkInterfaces {
+				addresses, _ := networkInterface.Addrs()
+				var addressesStr []string
+				for _, address := range addresses {
+					addressesStr = append(addressesStr, address.String())
+				}
+				if len(addressesStr) > 0 {
+					addressesBuilder.WriteString(fmt.Sprintf("%s: %s\n", networkInterface.Name, strings.Join(addressesStr, ",")))
+				}
+			}
+			gologger.Fatal().Msgf("%s\nNo bindable address could be found for port %d\nPlease ensure to have proper privileges and/or choose the correct ip:\n%s\n", err, cliOptions.DnsPort, addressesBuilder.String())
+		}
+		cliOptions.ListenIP = bindableIP
+		cliOptions.IPAddress = publicIP
+	}
+
 	for _, domain := range cliOptions.Domains {
 		hostmaster := fmt.Sprintf("admin@%s", domain)
 		cliOptions.Hostmasters = append(cliOptions.Hostmasters, hostmaster)
@@ -319,22 +345,23 @@ func main() {
 	}
 }
 
-func getPublicIP() string {
-	url := "https://api.ipify.org?format=text" // we are using a pulib IP API, we're using ipify here, below are some others
+func getPublicIP() (string, error) {
+	ip, err := iputil.WhatsMyIP()
+	if err != nil {
+		return "", err
+	}
 
-	req, err := http.NewRequestWithContext(context.Background(), "GET", url, nil)
+	// public ip should match one of the configured interfaces
+	addresses, err := net.InterfaceAddrs()
 	if err != nil {
-		return ""
+		return "", err
 	}
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return ""
+	externalIP := string(ip)
+	for _, address := range addresses {
+		if stringsutil.EqualFoldAny(externalIP, address.String()) {
+			return externalIP, nil
+		}
 	}
-	defer resp.Body.Close()
 
-	ip, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return ""
-	}
-	return string(ip)
+	return externalIP, errors.New("couldn't find an interface configured with external ip")
 }
