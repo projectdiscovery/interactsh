@@ -277,7 +277,7 @@ Interactsh can be used with OWASP ZAP via the [OAST add-on for ZAP](https://www.
 
 # Interactsh Server
 
-Interactsh server runs multiple services and captures all the incoming requests. To host an instance of interactsh-server, you are required to have the follow requirements:
+Interactsh server runs multiple services and captures all the incoming requests. To host an instance of **interactsh-server**, you are required to setup:
 
 1. Domain name with custom **host names** and **nameservers**.
 2. Basic droplet running 24/7 in the background.
@@ -296,19 +296,20 @@ Usage:
 
 Flags:
 INPUT:
-   -d, -domain string                       single/multiple configured domain to use for server
+   -d, -domain string[]                     single/multiple configured domain to use for server
    -ip string                               public ip address to use for interactsh server
    -lip, -listen-ip string                  public ip address to listen on (default "0.0.0.0")
    -e, -eviction int                        number of days to persist interaction data in memory (default 30)
    -a, -auth                                enable authentication to server using random generated token
    -t, -token string                        enable authentication to server using given token
-   -acao-url string                         origin url to send in acao header (required to use web-client)
+   -acao-url string                         origin url to send in acao header to use web-client) (default "*")
    -sa, -skip-acme                          skip acme registration (certificate checks/handshake + TLS protocols will be disabled)
    -se, -scan-everywhere                    scan canary token everywhere
    -cidl, -correlation-id-length int        length of the correlation id preamble (default 20)
    -cidn, -correlation-id-nonce-length int  length of the correlation id nonce (default 13)
    -cert string                             custom certificate path
    -privkey string                          custom private key path
+   -oih, -origin-ip-header string           HTTP header containing origin ip (interactsh behind a reverse proxy)
 
 SERVICES:
    -dns-port int           port to use for dns service (default 53)
@@ -328,7 +329,8 @@ SERVICES:
    -ftp-dir string         ftp directory - temporary if not specified
 
 DEBUG:
-   -debug  start interactsh server in debug mode
+   -version  show version of the project
+   -debug    start interactsh server in debug mode
 ```
 
 We are using GoDaddy for domain name and DigitalOcean droplet for the server, a basic $5 droplet should be sufficient to run self-hosted Interactsh server. If you are not using GoDaddy, follow your registrar's process for creating / updating DNS entries.
