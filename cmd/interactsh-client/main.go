@@ -13,6 +13,7 @@ import (
 	"github.com/projectdiscovery/folderutil"
 	"github.com/projectdiscovery/goflags"
 	"github.com/projectdiscovery/gologger"
+	"github.com/projectdiscovery/gologger/levels"
 	"github.com/projectdiscovery/interactsh/pkg/client"
 	"github.com/projectdiscovery/interactsh/pkg/options"
 	"github.com/projectdiscovery/interactsh/pkg/server"
@@ -24,6 +25,8 @@ var (
 )
 
 func main() {
+	gologger.DefaultLogger.SetMaxLevel(levels.LevelVerbose)
+
 	defaultOpts := client.DefaultOptions
 	cliOptions := &options.CLIClientOptions{}
 

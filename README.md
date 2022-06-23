@@ -33,6 +33,7 @@
 - Automatic ACME based Wildcard TLS w/ Auto Renewal
 - DNS Entries for Cloud Metadata service
 - Self-Hosted Interactsh Server
+- Multiple domain support **(self-hosted)**
 - NTLM/SMB/FTP/RESPONDER Listener **(self-hosted)**
 - Wildcard / Protected Interactions **(self-hosted)**
 - Customizable Payload Length **(self-hosted)**
@@ -295,7 +296,7 @@ Usage:
 
 Flags:
 INPUT:
-   -d, -domain string                       configured domain to use with interactsh server
+   -d, -domain string                       single/multiple configured domain to use for server
    -ip string                               public ip address to use for interactsh server
    -lip, -listen-ip string                  public ip address to listen on (default "0.0.0.0")
    -e, -eviction int                        number of days to persist interaction data in memory (default 30)
@@ -389,6 +390,33 @@ interactsh-server -domain interact.sh
 
                 projectdiscovery.io
 
+[INF] Listening with the following services:
+[HTTPS] Listening on TCP 46.101.25.250:443
+[HTTP] Listening on TCP 46.101.25.250:80
+[SMTPS] Listening on TCP 46.101.25.250:587
+[LDAP] Listening on TCP 46.101.25.250:389
+[SMTP] Listening on TCP 46.101.25.250:25
+[DNS] Listening on TCP 46.101.25.250:53
+[DNS] Listening on UDP 46.101.25.250:53
+```
+
+## Interactsh Server with Multiple Domain
+
+Multiple domain names can be given in the same way as above to run the same interactsh server across multiple **configured domains**.
+
+```console
+interactsh-server -d oast.pro,oast.me
+
+    _       __                       __       __
+   (_)___  / /____  _________ ______/ /______/ /_
+  / / __ \/ __/ _ \/ ___/ __ '/ ___/ __/ ___/ __ \
+ / / / / / /_/  __/ /  / /_/ / /__/ /_(__  ) / / /
+/_/_/ /_/\__/\___/_/   \__,_/\___/\__/____/_/ /_/ 1.0.5
+
+                projectdiscovery.io
+
+[INF] Loading existing SSL Certificate for:  [*.oast.pro, oast.pro]
+[INF] Loading existing SSL Certificate for:  [*.oast.me, oast.me]
 [INF] Listening with the following services:
 [HTTPS] Listening on TCP 46.101.25.250:443
 [HTTP] Listening on TCP 46.101.25.250:80

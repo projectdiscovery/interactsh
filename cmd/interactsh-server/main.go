@@ -1,13 +1,12 @@
 package main
 
 import (
-	"context"
 	"crypto/rand"
 	"crypto/tls"
 	"encoding/hex"
+	"errors"
 	"fmt"
-	"io/ioutil"
-	"net/http"
+	"net"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -23,6 +22,8 @@ import (
 	"github.com/projectdiscovery/interactsh/pkg/server/acme"
 	"github.com/projectdiscovery/interactsh/pkg/settings"
 	"github.com/projectdiscovery/interactsh/pkg/storage"
+	"github.com/projectdiscovery/iputil"
+	"github.com/projectdiscovery/stringsutil"
 )
 
 var (
@@ -39,19 +40,20 @@ func main() {
 	)
 
 	flagSet.CreateGroup("input", "Input",
-		flagSet.StringVarP(&cliOptions.Domain, "domain", "d", "", "configured domain to use with interactsh server"),
+		flagSet.CommaSeparatedStringSliceVarP(&cliOptions.Domains, "domain", "d", []string{}, "single/multiple configured domain to use for server"),
 		flagSet.StringVar(&cliOptions.IPAddress, "ip", "", "public ip address to use for interactsh server"),
 		flagSet.StringVarP(&cliOptions.ListenIP, "listen-ip", "lip", "0.0.0.0", "public ip address to listen on"),
 		flagSet.IntVarP(&cliOptions.Eviction, "eviction", "e", 30, "number of days to persist interaction data in memory"),
 		flagSet.BoolVarP(&cliOptions.Auth, "auth", "a", false, "enable authentication to server using random generated token"),
 		flagSet.StringVarP(&cliOptions.Token, "token", "t", "", "enable authentication to server using given token"),
-		flagSet.StringVar(&cliOptions.OriginURL, "acao-url", "https://app.interactsh.com", "origin url to send in acao header (required to use web-client)"),
+		flagSet.StringVar(&cliOptions.OriginURL, "acao-url", "*", "origin url to send in acao header to use web-client)"), // cli flag set to deprecate
 		flagSet.BoolVarP(&cliOptions.SkipAcme, "skip-acme", "sa", false, "skip acme registration (certificate checks/handshake + TLS protocols will be disabled)"),
 		flagSet.BoolVarP(&cliOptions.ScanEverywhere, "scan-everywhere", "se", false, "scan canary token everywhere"),
 		flagSet.IntVarP(&cliOptions.CorrelationIdLength, "correlation-id-length", "cidl", settings.CorrelationIdLengthDefault, "length of the correlation id preamble"),
 		flagSet.IntVarP(&cliOptions.CorrelationIdNonceLength, "correlation-id-nonce-length", "cidn", settings.CorrelationIdNonceLengthDefault, "length of the correlation id nonce"),
 		flagSet.StringVar(&cliOptions.CertificatePath, "cert", "", "custom certificate path"),
 		flagSet.StringVar(&cliOptions.PrivateKeyPath, "privkey", "", "custom private key path"),
+		flagSet.StringVarP(&cliOptions.OriginIPHeader, "origin-ip-header", "oih", "", "HTTP header containing origin ip (interactsh behind a reverse proxy)"),
 	)
 	flagSet.CreateGroup("services", "Services",
 		flagSet.IntVar(&cliOptions.DnsPort, "dns-port", 53, "port to use for dns service"),
@@ -92,12 +94,40 @@ func main() {
 		}
 	}
 
-	if cliOptions.IPAddress == "" && cliOptions.ListenIP == "0.0.0.0" {
-		ip := getPublicIP()
-		cliOptions.IPAddress = ip
-		cliOptions.ListenIP = ip
+	if len(cliOptions.Domains) == 0 {
+		gologger.Fatal().Msgf("No domains specified\n")
 	}
-	cliOptions.Hostmaster = fmt.Sprintf("admin@%s", cliOptions.Domain)
+
+	if cliOptions.IPAddress == "" && cliOptions.ListenIP == "0.0.0.0" {
+		publicIP, _ := getPublicIP()
+		gologger.Info().Msgf("Public IP: %s\n", publicIP)
+		outboundIP, _ := iputil.GetSourceIP("scanme.sh")
+		gologger.Info().Msgf("Outbound IP: %s\n", outboundIP)
+		// it's essential to be able to bind to cliOptions.DnsPort on any of the two ips
+		bindableIP, err := iputil.GetBindableAddress(cliOptions.DnsPort, publicIP, outboundIP.String())
+		if bindableIP == "" && err != nil {
+			var addressesBuilder strings.Builder
+			networkInterfaces, _ := net.Interfaces()
+			for _, networkInterface := range networkInterfaces {
+				addresses, _ := networkInterface.Addrs()
+				var addressesStr []string
+				for _, address := range addresses {
+					addressesStr = append(addressesStr, address.String())
+				}
+				if len(addressesStr) > 0 {
+					addressesBuilder.WriteString(fmt.Sprintf("%s: %s\n", networkInterface.Name, strings.Join(addressesStr, ",")))
+				}
+			}
+			gologger.Fatal().Msgf("%s\nNo bindable address could be found for port %d\nPlease ensure to have proper privileges and/or choose the correct ip:\n%s\n", err, cliOptions.DnsPort, addressesBuilder.String())
+		}
+		cliOptions.ListenIP = bindableIP
+		cliOptions.IPAddress = publicIP
+	}
+
+	for _, domain := range cliOptions.Domains {
+		hostmaster := fmt.Sprintf("admin@%s", domain)
+		cliOptions.Hostmasters = append(cliOptions.Hostmasters, hostmaster)
+	}
 
 	serverOptions := cliOptions.AsServerOptions()
 	if cliOptions.Debug {
@@ -140,9 +170,11 @@ func main() {
 		_ = serverOptions.Storage.SetID(serverOptions.Token)
 	}
 
-	// If riit-tld is enabled create a singleton unencrypted record in the store
+	// If root-tld is enabled create a singleton unencrypted record in the store
 	if serverOptions.RootTLD {
-		_ = store.SetID(serverOptions.Domain)
+		for _, domain := range serverOptions.Domains {
+			_ = store.SetID(domain)
+		}
 	}
 
 	acmeStore := acme.NewProvider()
@@ -155,26 +187,41 @@ func main() {
 	go dnsTcpServer.ListenAndServe(dnsTcpAlive)
 	go dnsUdpServer.ListenAndServe(dnsUdpAlive)
 
-	trimmedDomain := strings.TrimSuffix(serverOptions.Domain, ".")
-
 	var tlsConfig *tls.Config
 	switch {
 	case cliOptions.CertificatePath != "" && cliOptions.PrivateKeyPath != "":
-		acmeManagerTLS, acmeErr := acme.BuildTlsConfigWithCertAndKeyPaths(cliOptions.CertificatePath, cliOptions.PrivateKeyPath, cliOptions.Domain)
+		var domain string
+		if len(cliOptions.Domains) > 0 {
+			domain = cliOptions.Domains[0]
+		}
+		acmeManagerTLS, acmeErr := acme.BuildTlsConfigWithCertAndKeyPaths(cliOptions.CertificatePath, cliOptions.PrivateKeyPath, domain)
 		if acmeErr != nil {
 			gologger.Error().Msgf("https will be disabled: %s", acmeErr)
 		} else {
 			tlsConfig = acmeManagerTLS
 		}
-	case !cliOptions.SkipAcme && cliOptions.Domain != "":
-		acmeManagerTLS, acmeErr := acme.HandleWildcardCertificates(fmt.Sprintf("*.%s", trimmedDomain), serverOptions.Hostmaster, acmeStore, cliOptions.Debug)
-		if acmeErr != nil {
-			gologger.Error().Msgf("An error occurred while applying for an certificate, error: %v", acmeErr)
-			gologger.Error().Msgf("Could not generate certs for auto TLS, https will be disabled")
-		} else {
-			tlsConfig = acmeManagerTLS
+	case !cliOptions.SkipAcme && len(cliOptions.Domains) > 0:
+		var certs []tls.Certificate
+		for idx, domain := range cliOptions.Domains {
+			trimmedDomain := strings.TrimSuffix(domain, ".")
+			hostmaster := serverOptions.Hostmasters[idx]
+			domainCerts, acmeErr := acme.HandleWildcardCertificates(fmt.Sprintf("*.%s", trimmedDomain), hostmaster, acmeStore, cliOptions.Debug)
+			if acmeErr != nil {
+				gologger.Error().Msgf("An error occurred while applying for a certificate, error: %v", acmeErr)
+				gologger.Error().Msgf("Could not generate certs for auto TLS, https will be disabled")
+			} else {
+				certs = append(certs, domainCerts...)
+			}
+		}
+		var tlsErr error
+		tlsConfig, tlsErr = acme.BuildTlsConfigWithCerts("", certs...)
+		if tlsErr != nil {
+			gologger.Error().Msgf("An error occurred while preparing tls configuration, error: %v", tlsErr)
 		}
 	}
+
+	// manually cleans up stale OCSP from storage
+	acme.CleanupStorage()
 
 	httpServer, err := server.NewHTTPServer(serverOptions)
 	if err != nil {
@@ -298,22 +345,23 @@ func main() {
 	}
 }
 
-func getPublicIP() string {
-	url := "https://api.ipify.org?format=text" // we are using a pulib IP API, we're using ipify here, below are some others
+func getPublicIP() (string, error) {
+	ip, err := iputil.WhatsMyIP()
+	if err != nil {
+		return "", err
+	}
 
-	req, err := http.NewRequestWithContext(context.Background(), "GET", url, nil)
+	// public ip should match one of the configured interfaces
+	addresses, err := net.InterfaceAddrs()
 	if err != nil {
-		return ""
+		return "", err
 	}
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return ""
+	externalIP := string(ip)
+	for _, address := range addresses {
+		if stringsutil.EqualFoldAny(externalIP, address.String()) {
+			return externalIP, nil
+		}
 	}
-	defer resp.Body.Close()
 
-	ip, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return ""
-	}
-	return string(ip)
+	return externalIP, errors.New("couldn't find an interface configured with external ip")
 }
