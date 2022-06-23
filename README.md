@@ -429,6 +429,16 @@ interactsh-server -d oast.pro,oast.me
 [DNS] Listening on UDP 46.101.25.250:53
 ```
 
+<table>
+<td>
+
+**Note:**
+
+While running interactsh server on **Cloud VM**'s like Amazon EC2, Goolge Cloud Platform (GCP), it is required to update the security rules to allow **"all traffic"** for inbound connections.
+
+</table>
+</td>
+
 There are more useful capabilities supported by `interactsh-server` that are not enabled by default and are intended to be used only by **self-hosted** servers.
 
 ## Wildcard Interaction
