@@ -25,7 +25,7 @@ require (
 	github.com/projectdiscovery/stringsutil v0.0.0-20220422150559-b54fb5dc6833
 	github.com/remeh/sizedwaitgroup v1.0.0
 	github.com/rs/xid v1.4.0
-	github.com/stretchr/testify v1.7.4
+	github.com/stretchr/testify v1.7.5
 	go.uber.org/zap v1.21.0
 	goftp.io/server/v2 v2.0.0
 	gopkg.in/corvus-ch/zbase32.v1 v1.0.0
