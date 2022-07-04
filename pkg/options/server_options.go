@@ -63,6 +63,8 @@ func (cliServerOptions *CLIServerOptions) AsServerOptions() *server.Options {
 		OriginURL:                cliServerOptions.OriginURL,
 		RootTLD:                  cliServerOptions.RootTLD,
 		FTPDirectory:             cliServerOptions.FTPDirectory,
+		HTTPIndex:                cliServerOptions.HTTPIndex,
+		HTTPDirectory:            cliServerOptions.HTTPDirectory,
 		CorrelationIdLength:      cliServerOptions.CorrelationIdLength,
 		CorrelationIdNonceLength: cliServerOptions.CorrelationIdNonceLength,
 		ScanEverywhere:           cliServerOptions.ScanEverywhere,
