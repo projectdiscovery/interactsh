@@ -28,6 +28,8 @@ type CLIServerOptions struct {
 	LdapPort                 int
 	Ftp                      bool
 	Auth                     bool
+	HTTPIndex                string
+	HTTPDirectory            string
 	Token                    string
 	OriginURL                string
 	RootTLD                  bool

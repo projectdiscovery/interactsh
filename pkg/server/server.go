@@ -83,6 +83,10 @@ type Options struct {
 	PrivateKeyPath string
 	// HTTP header containing origin IP
 	OriginIPHeader string
+	// HTTPIndex is the http index file for server
+	HTTPIndex string
+	// HTTPDirectory is the directory for interact server
+	HTTPDirectory string
 
 	ACMEStore *acme.Provider
 }
