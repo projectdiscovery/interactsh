@@ -40,6 +40,9 @@ func (l *noopLogger) Write(p []byte) (n int, err error) {
 // NewHTTPServer returns a new TLS & Non-TLS HTTP server.
 func NewHTTPServer(options *Options) (*HTTPServer, error) {
 	server := &HTTPServer{options: options, contents: make(map[string]string)}
+	if err := server.readIndexContents(options); err != nil {
+		return nil, errors.Wrap(err, "could not read index contents")
+	}
 
 	router := &http.ServeMux{}
 	router.Handle("/", server.logger(http.HandlerFunc(server.defaultHandler)))
