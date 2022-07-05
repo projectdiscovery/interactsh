@@ -244,6 +244,7 @@ func (h *HTTPServer) defaultHandler(w http.ResponseWriter, req *http.Request) {
 	filename := strings.TrimPrefix(req.URL.Path, "/")
 	content, ok := h.contents[filename]
 	if !ok {
+		filename = "index.html"
 		content = h.contents["index.html"]
 	}
 
