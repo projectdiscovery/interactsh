@@ -4,15 +4,18 @@ import (
 	"bytes"
 	"crypto/tls"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"net"
 	"net/http"
 	"net/http/httptest"
 	"net/http/httputil"
+	"path/filepath"
 	"strings"
 	"time"
 
 	jsoniter "github.com/json-iterator/go"
+	"github.com/pkg/errors"
 	"github.com/projectdiscovery/gologger"
 	"github.com/projectdiscovery/stringsutil"
 )
@@ -20,7 +23,7 @@ import (
 // HTTPServer is a http server instance that listens both
 // TLS and Non-TLS based servers.
 type HTTPServer struct {
-	indexServer http.HandlerFunc
+	contents map[string]string
 
 	options      *Options
 	tlsserver    http.Server
@@ -36,17 +39,8 @@ func (l *noopLogger) Write(p []byte) (n int, err error) {
 
 // NewHTTPServer returns a new TLS & Non-TLS HTTP server.
 func NewHTTPServer(options *Options) (*HTTPServer, error) {
-	server := &HTTPServer{options: options}
+	server := &HTTPServer{options: options, contents: make(map[string]string)}
 
-	if options.HTTPIndex != "" {
-		server.indexServer = http.FileServer(http.Dir(options.HTTPIndex)).ServeHTTP
-	} else if options.HTTPDirectory != "" {
-		server.indexServer = http.FileServer(http.Dir(options.HTTPDirectory)).ServeHTTP
-	} else {
-		server.indexServer = func(w http.ResponseWriter, r *http.Request) {
-			fmt.Fprintf(w, banner, options.Domains[0])
-		}
-	}
 	router := &http.ServeMux{}
 	router.Handle("/", server.logger(http.HandlerFunc(server.defaultHandler)))
 	router.Handle("/register", server.corsMiddleware(server.authMiddleware(http.HandlerFunc(server.registerHandler))))
@@ -56,6 +50,32 @@ func NewHTTPServer(options *Options) (*HTTPServer, error) {
 	server.tlsserver = http.Server{Addr: options.ListenIP + fmt.Sprintf(":%d", options.HttpsPort), Handler: router, ErrorLog: log.New(&noopLogger{}, "", 0)}
 	server.nontlsserver = http.Server{Addr: options.ListenIP + fmt.Sprintf(":%d", options.HttpPort), Handler: router, ErrorLog: log.New(&noopLogger{}, "", 0)}
 	return server, nil
+}
+
+// readIndexContents reads index contents for the pages
+func (h *HTTPServer) readIndexContents(options *Options) error {
+	if options.HTTPIndex != "" {
+		if data, err := ioutil.ReadFile(options.HTTPIndex); err != nil {
+			return errors.Wrap(err, "could not read index file")
+		} else {
+			h.contents["index.html"] = string(data)
+		}
+	} else if options.HTTPDirectory != "" {
+		files, err := ioutil.ReadDir(options.HTTPDirectory)
+		if err != nil {
+			return errors.Wrap(err, "could not read index directory")
+		}
+		for _, file := range files {
+			if data, err := ioutil.ReadFile(file.Name()); err != nil {
+				return errors.Wrap(err, "could not read index file")
+			} else {
+				h.contents[filepath.Base(file.Name())] = string(data)
+			}
+		}
+	} else {
+		h.contents["index.html"] = fmt.Sprintf(banner, options.Domains[0])
+	}
+	return nil
 }
 
 // ListenAndServe listens on http and/or https ports for the server.
@@ -218,8 +238,13 @@ func (h *HTTPServer) defaultHandler(w http.ResponseWriter, req *http.Request) {
 	}
 	w.Header().Set("Server", domain)
 
-	if req.URL.Path == "/" && reflection == "" {
-		h.indexServer(w, req)
+	content, ok := h.contents[req.URL.Path]
+	if !ok {
+		content = h.contents["index.html"]
+	}
+
+	if req.URL.Path == "/" || content != "" {
+		fmt.Fprint(w, content)
 	} else if strings.EqualFold(req.URL.Path, "/robots.txt") {
 		fmt.Fprintf(w, "User-agent: *\nDisallow: / # %s", reflection)
 	} else if stringsutil.HasSuffixI(req.URL.Path, ".json") {
