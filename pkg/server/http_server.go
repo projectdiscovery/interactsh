@@ -20,6 +20,8 @@ import (
 // HTTPServer is a http server instance that listens both
 // TLS and Non-TLS based servers.
 type HTTPServer struct {
+	indexServer http.HandlerFunc
+
 	options      *Options
 	tlsserver    http.Server
 	nontlsserver http.Server
@@ -36,6 +38,15 @@ func (l *noopLogger) Write(p []byte) (n int, err error) {
 func NewHTTPServer(options *Options) (*HTTPServer, error) {
 	server := &HTTPServer{options: options}
 
+	if options.HTTPIndex != "" {
+		server.indexServer = http.FileServer(http.Dir(options.HTTPIndex)).ServeHTTP
+	} else if options.HTTPDirectory != "" {
+		server.indexServer = http.FileServer(http.Dir(options.HTTPDirectory)).ServeHTTP
+	} else {
+		server.indexServer = func(w http.ResponseWriter, r *http.Request) {
+			fmt.Fprintf(w, banner, options.Domains[0])
+		}
+	}
 	router := &http.ServeMux{}
 	router.Handle("/", server.logger(http.HandlerFunc(server.defaultHandler)))
 	router.Handle("/register", server.corsMiddleware(server.authMiddleware(http.HandlerFunc(server.registerHandler))))
@@ -208,12 +219,7 @@ func (h *HTTPServer) defaultHandler(w http.ResponseWriter, req *http.Request) {
 	w.Header().Set("Server", domain)
 
 	if req.URL.Path == "/" && reflection == "" {
-		if h.options.HTTPIndex != "" {
-			http.ServeFile(w, req, h.options.HTTPIndex)
-		} else if h.options.HTTPDirectory != "" {
-			http.ServeFile(w, req, h.options.HTTPDirectory)
-		}
-		fmt.Fprintf(w, banner, domain)
+		h.indexServer(w, req)
 	} else if strings.EqualFold(req.URL.Path, "/robots.txt") {
 		fmt.Fprintf(w, "User-agent: *\nDisallow: / # %s", reflection)
 	} else if stringsutil.HasSuffixI(req.URL.Path, ".json") {
