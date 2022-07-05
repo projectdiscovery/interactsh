@@ -227,7 +227,7 @@ func main() {
 
 	httpServer, err := server.NewHTTPServer(serverOptions)
 	if err != nil {
-		gologger.Fatal().Msgf("Could not create HTTP server")
+		gologger.Fatal().Msgf("Could not create HTTP server: %s", err)
 	}
 	httpAlive := make(chan bool)
 	httpsAlive := make(chan bool)
@@ -235,7 +235,7 @@ func main() {
 
 	smtpServer, err := server.NewSMTPServer(serverOptions)
 	if err != nil {
-		gologger.Fatal().Msgf("Could not create SMTP server")
+		gologger.Fatal().Msgf("Could not create SMTP server: %s", err)
 	}
 	smtpAlive := make(chan bool)
 	smtpsAlive := make(chan bool)
@@ -244,7 +244,7 @@ func main() {
 	ldapAlive := make(chan bool)
 	ldapServer, err := server.NewLDAPServer(serverOptions, cliOptions.LdapWithFullLogger)
 	if err != nil {
-		gologger.Fatal().Msgf("Could not create LDAP server")
+		gologger.Fatal().Msgf("Could not create LDAP server: %s", err)
 	}
 	go ldapServer.ListenAndServe(tlsConfig, ldapAlive)
 	defer ldapServer.Close()
@@ -253,7 +253,7 @@ func main() {
 	if cliOptions.Ftp {
 		ftpServer, err := server.NewFTPServer(serverOptions)
 		if err != nil {
-			gologger.Fatal().Msgf("Could not create FTP server")
+			gologger.Fatal().Msgf("Could not create FTP server: %s", err)
 		}
 		go ftpServer.ListenAndServe(tlsConfig, ftpAlive) //nolint
 	}
@@ -262,7 +262,7 @@ func main() {
 	if cliOptions.Responder {
 		responderServer, err := server.NewResponderServer(serverOptions)
 		if err != nil {
-			gologger.Fatal().Msgf("Could not create SMB server")
+			gologger.Fatal().Msgf("Could not create SMB server: %s", err)
 		}
 		go responderServer.ListenAndServe(responderAlive) //nolint
 		defer responderServer.Close()
@@ -272,7 +272,7 @@ func main() {
 	if cliOptions.Smb {
 		smbServer, err := server.NewSMBServer(serverOptions)
 		if err != nil {
-			gologger.Fatal().Msgf("Could not create SMB server")
+			gologger.Fatal().Msgf("Could not create SMB server: %s", err)
 		}
 		go smbServer.ListenAndServe(smbAlive) //nolint
 		defer smbServer.Close()
