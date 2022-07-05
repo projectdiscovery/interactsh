@@ -241,7 +241,8 @@ func (h *HTTPServer) defaultHandler(w http.ResponseWriter, req *http.Request) {
 	}
 	w.Header().Set("Server", domain)
 
-	content, ok := h.contents[strings.TrimPrefix(req.URL.Path, "/")]
+	filename := strings.TrimPrefix(req.URL.Path, "/")
+	content, ok := h.contents[filename]
 	if !ok {
 		content = h.contents["index.html"]
 	}
@@ -257,7 +258,7 @@ func (h *HTTPServer) defaultHandler(w http.ResponseWriter, req *http.Request) {
 	} else if reflection != "" {
 		fmt.Fprintf(w, "<html><head></head><body>%s</body></html>", reflection)
 	} else {
-		fmt.Fprint(w, content)
+		http.ServeContent(w, req, filename, time.Now(), strings.NewReader(content))
 	}
 }
 
