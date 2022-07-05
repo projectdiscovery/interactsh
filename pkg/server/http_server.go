@@ -256,7 +256,7 @@ func (h *HTTPServer) defaultHandler(w http.ResponseWriter, req *http.Request) {
 	} else if stringsutil.HasSuffixI(req.URL.Path, ".xml") {
 		fmt.Fprintf(w, "<data>%s</data>", reflection)
 		w.Header().Set("Content-Type", "application/xml")
-	} else if reflection != "" {
+	} else if reflection != "" && filename == "" {
 		fmt.Fprintf(w, "<html><head></head><body>%s</body></html>", reflection)
 	} else {
 		http.ServeContent(w, req, filename, time.Now(), strings.NewReader(content))
