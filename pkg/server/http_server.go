@@ -241,14 +241,12 @@ func (h *HTTPServer) defaultHandler(w http.ResponseWriter, req *http.Request) {
 	}
 	w.Header().Set("Server", domain)
 
-	content, ok := h.contents[req.URL.Path]
+	content, ok := h.contents[strings.TrimPrefix(req.URL.Path, "/")]
 	if !ok {
 		content = h.contents["index.html"]
 	}
 
-	if req.URL.Path == "/" || content != "" {
-		fmt.Fprint(w, content)
-	} else if strings.EqualFold(req.URL.Path, "/robots.txt") {
+	if strings.EqualFold(req.URL.Path, "/robots.txt") {
 		fmt.Fprintf(w, "User-agent: *\nDisallow: / # %s", reflection)
 	} else if stringsutil.HasSuffixI(req.URL.Path, ".json") {
 		fmt.Fprintf(w, "{\"data\":\"%s\"}", reflection)
@@ -256,8 +254,10 @@ func (h *HTTPServer) defaultHandler(w http.ResponseWriter, req *http.Request) {
 	} else if stringsutil.HasSuffixI(req.URL.Path, ".xml") {
 		fmt.Fprintf(w, "<data>%s</data>", reflection)
 		w.Header().Set("Content-Type", "application/xml")
-	} else {
+	} else if reflection != "" {
 		fmt.Fprintf(w, "<html><head></head><body>%s</body></html>", reflection)
+	} else {
+		fmt.Fprint(w, content)
 	}
 }
 
