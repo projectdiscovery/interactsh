@@ -87,6 +87,8 @@ type Options struct {
 	PrivateKeyPath string
 	// HTTP header containing origin IP
 	OriginIPHeader string
+	// Version is the version of interactsh server
+	Version string
 
 	ACMEStore *acme.Provider
 }

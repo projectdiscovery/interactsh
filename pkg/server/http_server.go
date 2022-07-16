@@ -52,11 +52,13 @@ func NewHTTPServer(options *Options) (*HTTPServer, error) {
 
 	// If a static directory is specified, also serve it.
 	if options.HTTPDirectory != "" {
+		gologger.Info().Msgf("Loading directory (%s) to serve from : %s/s/", options.HTTPDirectory, strings.Join(options.Domains, ","))
 		server.staticHandler = http.StripPrefix("/s/", disableDirectoryListing(http.FileServer(http.Dir(options.HTTPDirectory))))
 	}
 	// If custom index, read the custom index file and serve it.
 	// Supports {DOMAIN} placeholders.
 	if options.HTTPIndex != "" {
+		gologger.Info().Msgf("Using custom server index: %s", options.HTTPIndex)
 		if data, err := ioutil.ReadFile(options.HTTPIndex); err == nil {
 			server.customBanner = string(data)
 		}
@@ -231,6 +233,7 @@ func (h *HTTPServer) defaultHandler(w http.ResponseWriter, req *http.Request) {
 		}
 	}
 	w.Header().Set("Server", domain)
+	w.Header().Set("X-Interactsh-Version", h.options.Version)
 
 	if stringsutil.HasPrefixI(req.URL.Path, "/s/") && h.staticHandler != nil {
 		h.staticHandler.ServeHTTP(w, req)

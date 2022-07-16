@@ -62,6 +62,7 @@ func (cliServerOptions *CLIServerOptions) AsServerOptions() *server.Options {
 		HTTPIndex:                cliServerOptions.HTTPIndex,
 		HTTPDirectory:            cliServerOptions.HTTPDirectory,
 		Token:                    cliServerOptions.Token,
+		Version:                  Version,
 		OriginURL:                cliServerOptions.OriginURL,
 		RootTLD:                  cliServerOptions.RootTLD,
 		FTPDirectory:             cliServerOptions.FTPDirectory,
