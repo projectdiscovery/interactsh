@@ -20,9 +20,10 @@ import (
 // HTTPServer is a http server instance that listens both
 // TLS and Non-TLS based servers.
 type HTTPServer struct {
-	options      *Options
-	tlsserver    http.Server
-	nontlsserver http.Server
+	options       *Options
+	tlsserver     http.Server
+	nontlsserver  http.Server
+	staticHandler http.Handler
 }
 
 type noopLogger struct {
@@ -36,6 +37,17 @@ func (l *noopLogger) Write(p []byte) (n int, err error) {
 func NewHTTPServer(options *Options) (*HTTPServer, error) {
 	server := &HTTPServer{options: options}
 
+	// If a static directory is specified, also serve it.
+	var staticDirectory string
+	if options.HTTPDirectory != "" {
+		staticDirectory = options.HTTPDirectory
+	} else if options.HTTPIndex != "" {
+		staticDirectory = options.HTTPIndex
+	}
+
+	if staticDirectory != "" {
+		server.staticHandler = http.StripPrefix("/s/", http.FileServer(http.Dir(staticDirectory)))
+	}
 	router := &http.ServeMux{}
 	router.Handle("/", server.logger(http.HandlerFunc(server.defaultHandler)))
 	router.Handle("/register", server.corsMiddleware(server.authMiddleware(http.HandlerFunc(server.registerHandler))))
@@ -207,7 +219,9 @@ func (h *HTTPServer) defaultHandler(w http.ResponseWriter, req *http.Request) {
 	}
 	w.Header().Set("Server", domain)
 
-	if req.URL.Path == "/" && reflection == "" {
+	if stringsutil.HasPrefixI(req.URL.Path, "/s/") && h.staticHandler != nil {
+		h.staticHandler.ServeHTTP(w, req)
+	} else if req.URL.Path == "/" && reflection == "" {
 		fmt.Fprintf(w, banner, domain)
 	} else if strings.EqualFold(req.URL.Path, "/robots.txt") {
 		fmt.Fprintf(w, "User-agent: *\nDisallow: / # %s", reflection)

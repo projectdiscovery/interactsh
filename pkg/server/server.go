@@ -63,6 +63,10 @@ type Options struct {
 	Storage *storage.Storage
 	// Auth requires client to authenticate
 	Auth bool
+	// HTTPIndex is the http index file for server
+	HTTPIndex string
+	// HTTPDirectory is the directory for interact server
+	HTTPDirectory string
 	// Token required to retrieve interactions
 	Token string
 	// Enable root tld interactions

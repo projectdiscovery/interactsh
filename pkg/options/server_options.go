@@ -28,6 +28,8 @@ type CLIServerOptions struct {
 	LdapPort                 int
 	Ftp                      bool
 	Auth                     bool
+	HTTPIndex                string
+	HTTPDirectory            string
 	Token                    string
 	OriginURL                string
 	RootTLD                  bool
@@ -57,6 +59,8 @@ func (cliServerOptions *CLIServerOptions) AsServerOptions() *server.Options {
 		FtpPort:                  cliServerOptions.FtpPort,
 		LdapPort:                 cliServerOptions.LdapPort,
 		Auth:                     cliServerOptions.Auth,
+		HTTPIndex:                cliServerOptions.HTTPIndex,
+		HTTPDirectory:            cliServerOptions.HTTPDirectory,
 		Token:                    cliServerOptions.Token,
 		OriginURL:                cliServerOptions.OriginURL,
 		RootTLD:                  cliServerOptions.RootTLD,
