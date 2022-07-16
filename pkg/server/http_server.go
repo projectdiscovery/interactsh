@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"crypto/tls"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"net"
 	"net/http"
@@ -23,6 +24,7 @@ type HTTPServer struct {
 	options       *Options
 	tlsserver     http.Server
 	nontlsserver  http.Server
+	customBanner  string
 	staticHandler http.Handler
 }
 
@@ -38,15 +40,15 @@ func NewHTTPServer(options *Options) (*HTTPServer, error) {
 	server := &HTTPServer{options: options}
 
 	// If a static directory is specified, also serve it.
-	var staticDirectory string
 	if options.HTTPDirectory != "" {
-		staticDirectory = options.HTTPDirectory
-	} else if options.HTTPIndex != "" {
-		staticDirectory = options.HTTPIndex
+		server.staticHandler = http.StripPrefix("/s/", http.FileServer(http.Dir(options.HTTPDirectory)))
 	}
-
-	if staticDirectory != "" {
-		server.staticHandler = http.StripPrefix("/s/", http.FileServer(http.Dir(staticDirectory)))
+	// If custom index, read the custom index file and serve it.
+	// Supports {DOMAIN} placeholders.
+	if options.HTTPIndex != "" {
+		if data, err := ioutil.ReadFile(options.HTTPIndex); err == nil {
+			server.customBanner = string(data)
+		}
 	}
 	router := &http.ServeMux{}
 	router.Handle("/", server.logger(http.HandlerFunc(server.defaultHandler)))
@@ -221,8 +223,12 @@ func (h *HTTPServer) defaultHandler(w http.ResponseWriter, req *http.Request) {
 
 	if stringsutil.HasPrefixI(req.URL.Path, "/s/") && h.staticHandler != nil {
 		h.staticHandler.ServeHTTP(w, req)
-	} else if req.URL.Path == "/" && reflection == "" {
-		fmt.Fprintf(w, banner, domain)
+	} else if req.URL.Path == "/" {
+		if h.customBanner != "" {
+			fmt.Fprint(w, strings.ReplaceAll(h.customBanner, "{DOMAIN}", domain))
+		} else {
+			fmt.Fprintf(w, banner, domain)
+		}
 	} else if strings.EqualFold(req.URL.Path, "/robots.txt") {
 		fmt.Fprintf(w, "User-agent: *\nDisallow: / # %s", reflection)
 	} else if stringsutil.HasSuffixI(req.URL.Path, ".json") {
