@@ -35,13 +35,24 @@ func (l *noopLogger) Write(p []byte) (n int, err error) {
 	return 0, nil
 }
 
+// disableDirectoryListing disables directory listing on http.FileServer
+func disableDirectoryListing(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.HasSuffix(r.URL.Path, "/") {
+			http.NotFound(w, r)
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
 // NewHTTPServer returns a new TLS & Non-TLS HTTP server.
 func NewHTTPServer(options *Options) (*HTTPServer, error) {
 	server := &HTTPServer{options: options}
 
 	// If a static directory is specified, also serve it.
 	if options.HTTPDirectory != "" {
-		server.staticHandler = http.StripPrefix("/s/", http.FileServer(http.Dir(options.HTTPDirectory)))
+		server.staticHandler = http.StripPrefix("/s/", disableDirectoryListing(http.FileServer(http.Dir(options.HTTPDirectory))))
 	}
 	// If custom index, read the custom index file and serve it.
 	// Supports {DOMAIN} placeholders.
@@ -223,7 +234,7 @@ func (h *HTTPServer) defaultHandler(w http.ResponseWriter, req *http.Request) {
 
 	if stringsutil.HasPrefixI(req.URL.Path, "/s/") && h.staticHandler != nil {
 		h.staticHandler.ServeHTTP(w, req)
-	} else if req.URL.Path == "/" {
+	} else if req.URL.Path == "/" && reflection == "" {
 		if h.customBanner != "" {
 			fmt.Fprint(w, strings.ReplaceAll(h.customBanner, "{DOMAIN}", domain))
 		} else {
