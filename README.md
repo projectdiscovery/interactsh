@@ -36,6 +36,7 @@
 - Multiple domain support **(self-hosted)**
 - NTLM/SMB/FTP/RESPONDER Listener **(self-hosted)**
 - Wildcard / Protected Interactions **(self-hosted)**
+- Customizable Index / File hosting **(self-hosted)**
 - Customizable Payload Length **(self-hosted)**
 - Custom SSL Certificate **(self-hosted)**
 
@@ -311,6 +312,11 @@ INPUT:
    -privkey string                          custom private key path
    -oih, -origin-ip-header string           HTTP header containing origin ip (interactsh behind a reverse proxy)
 
+CONFIG:
+   -config string               flag configuration file (default "$HOME/.config/interactsh-server/config.yaml")
+   -hi, -http-index string      custom index file for http server
+   -hd, -http-directory string  directory with files to serve with http server
+
 SERVICES:
    -dns-port int           port to use for dns service (default 53)
    -http-port int          port to use for http service (default 80)
@@ -440,6 +446,31 @@ While running interactsh server on **Cloud VM**'s like Amazon EC2, Goolge Cloud 
 </td>
 
 There are more useful capabilities supported by `interactsh-server` that are not enabled by default and are intended to be used only by **self-hosted** servers.
+
+## Custom Server Index
+
+Index page for http server can be customized while running custom interactsh server using `-http-index` flag.
+
+```console
+interactsh-server -d hackwithautomation.com -http-index banner.html
+```
+
+`{DOMAIN}` placeholder is also supported in index file to replace with server domain name.
+
+![image](https://user-images.githubusercontent.com/8293321/179397016-f6ee12e0-5b0b-42b6-83e7-f0972a804655.png)
+
+
+## Static File Hosting
+
+Interactsh http server optionally enables file hosting to help in security testing. This capability can be used with a self-hosted server to serve files for common payloads for **XSS, XXE, RCE** and other attacks.
+
+To use this feature, `-http-directory` flag can be used which accepts diretory as input and files are served under `/s/` direcotry.
+
+```console
+interactsh-server -d hackwithautomation.com -http-directory ./paylods
+```
+
+![image](https://user-images.githubusercontent.com/8293321/179396480-d5ff8399-8b91-48aa-b21f-c67e40e80945.png)
 
 ## Wildcard Interaction
 
