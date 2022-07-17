@@ -35,12 +35,6 @@ func main() {
 	flagSet := goflags.NewFlagSet()
 	flagSet.SetDescription(`Interactsh server - Go client to configure and host interactsh server.`)
 
-	flagSet.CreateGroup("config", "config",
-		flagSet.StringVar(&cliOptions.Config, "config", defaultConfigLocation, "flag configuration file"),
-		flagSet.StringVarP(&cliOptions.HTTPIndex, "http-index", "hi", "", "custom index file for http server"),
-		flagSet.StringVarP(&cliOptions.HTTPDirectory, "http-directory", "hd", "", "directory with files to serve with http server"),
-	)
-
 	flagSet.CreateGroup("input", "Input",
 		flagSet.CommaSeparatedStringSliceVarP(&cliOptions.Domains, "domain", "d", []string{}, "single/multiple configured domain to use for server"),
 		flagSet.StringVar(&cliOptions.IPAddress, "ip", "", "public ip address to use for interactsh server"),
@@ -57,6 +51,13 @@ func main() {
 		flagSet.StringVar(&cliOptions.PrivateKeyPath, "privkey", "", "custom private key path"),
 		flagSet.StringVarP(&cliOptions.OriginIPHeader, "origin-ip-header", "oih", "", "HTTP header containing origin ip (interactsh behind a reverse proxy)"),
 	)
+
+	flagSet.CreateGroup("config", "config",
+		flagSet.StringVar(&cliOptions.Config, "config", defaultConfigLocation, "flag configuration file"),
+		flagSet.StringVarP(&cliOptions.HTTPIndex, "http-index", "hi", "", "custom index file for http server"),
+		flagSet.StringVarP(&cliOptions.HTTPDirectory, "http-directory", "hd", "", "directory with files to serve with http server"),
+	)
+
 	flagSet.CreateGroup("services", "Services",
 		flagSet.IntVar(&cliOptions.DnsPort, "dns-port", 53, "port to use for dns service"),
 		flagSet.IntVar(&cliOptions.HttpPort, "http-port", 80, "port to use for http service"),
