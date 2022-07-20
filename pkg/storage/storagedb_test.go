@@ -10,21 +10,19 @@ import (
 	"encoding/base64"
 	"encoding/pem"
 	"strconv"
-	"strings"
-	"sync"
 	"testing"
 	"time"
 
 	"github.com/goburrow/cache"
 	"github.com/google/uuid"
 	"github.com/karlseguin/ccache/v2"
-	"github.com/klauspost/compress/zlib"
 	"github.com/rs/xid"
 	"github.com/stretchr/testify/require"
 )
 
 func TestStorageSetIDPublicKey(t *testing.T) {
-	storage := New(1 * time.Hour)
+	mem, err := New(&Options{EvictionTTL: 1 * time.Hour})
+	require.Nil(t, err)
 
 	secret := uuid.New().String()
 	correlationID := xid.New().String()
@@ -45,21 +43,22 @@ func TestStorageSetIDPublicKey(t *testing.T) {
 
 	encoded := base64.StdEncoding.EncodeToString(pubkeyPem)
 
-	err = storage.SetIDPublicKey(correlationID, secret, encoded)
+	err = mem.SetIDPublicKey(correlationID, secret, encoded)
 	require.Nil(t, err, "could not set correlation-id and rsa public key in storage")
 
-	item, ok := storage.cache.GetIfPresent(correlationID)
+	item, ok := mem.cache.GetIfPresent(correlationID)
 	require.True(t, ok, "could not assert item value presence")
 	require.NotNil(t, item, "could not get correlation-id item from storage")
 
 	value, ok := item.(*CorrelationData)
 	require.True(t, ok, "could not assert item value type as correlation data")
 
-	require.Equal(t, secret, value.secretKey, "could not get correct secret key")
+	require.Equal(t, secret, value.SecretKey, "could not get correct secret key")
 }
 
 func TestStorageAddGetInteractions(t *testing.T) {
-	storage := New(1 * time.Hour)
+	mem, err := New(&Options{EvictionTTL: 1 * time.Hour})
+	require.Nil(t, err)
 
 	secret := uuid.New().String()
 	correlationID := xid.New().String()
@@ -80,14 +79,14 @@ func TestStorageAddGetInteractions(t *testing.T) {
 
 	encoded := base64.StdEncoding.EncodeToString(pubkeyPem)
 
-	err = storage.SetIDPublicKey(correlationID, secret, encoded)
+	err = mem.SetIDPublicKey(correlationID, secret, encoded)
 	require.Nil(t, err, "could not set correlation-id and rsa public key in storage")
 
 	dataOriginal := []byte("hello world, this is unencrypted interaction")
-	err = storage.AddInteraction(correlationID, dataOriginal)
+	err = mem.AddInteraction(correlationID, dataOriginal)
 	require.Nil(t, err, "could not add interaction to storage")
 
-	data, key, err := storage.GetInteractions(correlationID, secret)
+	data, key, err := mem.GetInteractions(correlationID, secret)
 	require.Nil(t, err, "could not get interaction from storage")
 
 	decodedKey, err := base64.StdEncoding.DecodeString(key)
@@ -119,24 +118,8 @@ func TestStorageAddGetInteractions(t *testing.T) {
 	require.Equal(t, dataOriginal, decoded, "could not get correct decrypted interaction")
 }
 
-func TestGetInteractions(t *testing.T) {
-	compressZlib := func(data string) string {
-		var builder strings.Builder
-		writer := zlib.NewWriter(&builder)
-		_, _ = writer.Write([]byte(data))
-		writer.Close()
-		return builder.String()
-	}
-	data := &CorrelationData{
-		dataMutex: &sync.Mutex{},
-		Data:      []string{compressZlib("test"), compressZlib("another")},
-	}
-	decompressed := data.GetInteractions()
-	require.ElementsMatch(t, []string{"test", "another"}, decompressed, "could not get correct decompressed list")
-}
-
 func BenchmarkCacheParallel(b *testing.B) {
-	config := ccache.Configure().MaxSize(defaultCacheMaxSize).Buckets(64).GetsPerPromote(10).PromoteBuffer(4096)
+	config := ccache.Configure().MaxSize(int64(DefaultOptions.MaxSize)).Buckets(64).GetsPerPromote(10).PromoteBuffer(4096)
 	cache := ccache.New(config)
 
 	b.RunParallel(func(pb *testing.PB) {
@@ -147,7 +130,7 @@ func BenchmarkCacheParallel(b *testing.B) {
 }
 
 func BenchmarkCacheParallelOther(b *testing.B) {
-	cache := cache.New(cache.WithMaximumSize(defaultCacheMaxSize), cache.WithExpireAfterWrite(24*7*time.Hour))
+	cache := cache.New(cache.WithMaximumSize(DefaultOptions.MaxSize), cache.WithExpireAfterWrite(24*7*time.Hour))
 
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {

@@ -407,7 +407,7 @@ func (h *HTTPServer) checkToken(req *http.Request) bool {
 
 // metricsHandler is a handler for /metrics endpoint
 func (h *HTTPServer) metricsHandler(w http.ResponseWriter, req *http.Request) {
-	metrics := h.options.Storage.GetCacheMetrics()
+	metrics, _ := h.options.Storage.GetCacheMetrics()
 
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.Header().Set("X-Content-Type-Options", "nosniff")

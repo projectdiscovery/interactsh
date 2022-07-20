@@ -26,6 +26,7 @@ require (
 	github.com/remeh/sizedwaitgroup v1.0.0
 	github.com/rs/xid v1.4.0
 	github.com/stretchr/testify v1.8.0
+	github.com/syndtr/goleveldb v1.0.0
 	go.uber.org/zap v1.21.0
 	goftp.io/server/v2 v2.0.0
 	gopkg.in/corvus-ch/zbase32.v1 v1.0.0
@@ -36,6 +37,7 @@ require (
 	github.com/Mzack9999/go-http-digest-auth-client v0.6.1-0.20220414142836-eb8883508809 // indirect
 	github.com/cnf/structhash v0.0.0-20201127153200-e1b16c1ebc08 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
+	github.com/golang/snappy v0.0.3 // indirect
 	github.com/hashicorp/errwrap v1.0.0 // indirect
 	github.com/hashicorp/go-multierror v1.1.1 // indirect
 	github.com/karrick/godirwalk v1.16.1 // indirect

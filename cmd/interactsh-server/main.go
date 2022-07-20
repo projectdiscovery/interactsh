@@ -56,6 +56,8 @@ func main() {
 		flagSet.StringVar(&cliOptions.Config, "config", defaultConfigLocation, "flag configuration file"),
 		flagSet.StringVarP(&cliOptions.HTTPIndex, "http-index", "hi", "", "custom index file for http server"),
 		flagSet.StringVarP(&cliOptions.HTTPDirectory, "http-directory", "hd", "", "directory with files to serve with http server"),
+		flagSet.BoolVarP(&cliOptions.DiskStorage, "disk", "ds", false, "disk based storage"),
+		flagSet.StringVarP(&cliOptions.DiskStoragePath, "disk-path", "dsp", "", "disk storage path"),
 	)
 
 	flagSet.CreateGroup("services", "Services",
@@ -166,7 +168,23 @@ func main() {
 		gologger.Info().Msgf("Client Token: %s\n", serverOptions.Token)
 	}
 
-	store := storage.New(time.Duration(cliOptions.Eviction) * time.Hour * 24)
+	evictionTTL := time.Duration(cliOptions.Eviction) * time.Hour * 24
+	var store storage.Storage
+	storeOptions := storage.DefaultOptions
+	storeOptions.EvictionTTL = evictionTTL
+	if cliOptions.DiskStorage {
+		if cliOptions.DiskStoragePath == "" {
+			gologger.Fatal().Msgf("disk storage path must be specified\n")
+		}
+		storeOptions.DbPath = cliOptions.DiskStoragePath
+	}
+
+	var err error
+	store, err = storage.New(&storeOptions)
+	if err != nil {
+		gologger.Fatal().Msgf("couldn't create storage: %s\n", err)
+	}
+
 	serverOptions.Storage = store
 
 	if serverOptions.Auth {
@@ -344,6 +362,9 @@ func main() {
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt)
 	for range c {
+		if err := store.Close(); err != nil {
+			gologger.Warning().Msgf("Couldn't close the storage: %s\n", err)
+		}
 		os.Exit(1)
 	}
 }
