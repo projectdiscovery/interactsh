@@ -66,7 +66,7 @@ func New(options *Options) (*StorageDB, error) {
 
 func (s *StorageDB) OnCacheRemovalCallback(key cache.Key, value cache.Value) {
 	if key, ok := value.([]byte); ok {
-		s.db.Delete(key, &opt.WriteOptions{})
+		_ = s.db.Delete(key, &opt.WriteOptions{})
 	}
 }
 
