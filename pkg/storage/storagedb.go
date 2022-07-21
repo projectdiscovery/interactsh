@@ -131,18 +131,21 @@ func (s *StorageDB) AddInteraction(correlationID string, data []byte) error {
 		return errors.New("invalid correlation-id cache value found")
 	}
 
-	value.Lock()
 	if s.Options.UseDisk() {
 		ct, err := AESEncrypt(value.AESKey, data)
 		if err != nil {
 			return errors.Wrap(err, "could not encrypt event data")
 		}
+		value.Lock()
 		existingData, _ := s.db.Get([]byte(correlationID), nil)
 		_ = s.db.Put([]byte(correlationID), AppendMany(existingData, []byte("\n"), []byte(ct)), nil)
+		value.Unlock()
 	} else {
+		value.Lock()
 		value.Data = append(value.Data, string(data))
+		value.Unlock()
 	}
-	value.Unlock()
+
 	return nil
 }
 
@@ -157,18 +160,21 @@ func (s *StorageDB) AddInteractionWithId(id string, data []byte) error {
 		return errors.New("invalid correlation-id cache value found")
 	}
 
-	value.Lock()
 	if s.Options.UseDisk() {
 		ct, err := AESEncrypt(value.AESKey, data)
 		if err != nil {
 			return errors.Wrap(err, "could not encrypt event data")
 		}
+		value.Lock()
 		existingData, _ := s.db.Get([]byte(id), nil)
 		_ = s.db.Put([]byte(id), AppendMany(existingData, []byte("\n"), []byte(ct)), nil)
+		value.Unlock()
 	} else {
+		value.Lock()
 		value.Data = append(value.Data, string(data))
+		value.Unlock()
 	}
-	value.Unlock()
+
 	return nil
 }
 
