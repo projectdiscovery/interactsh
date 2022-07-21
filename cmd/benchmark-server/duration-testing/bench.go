@@ -68,7 +68,7 @@ func startClient(idx int) {
 	}
 
 	log.Printf("client %d registered, sample url: %s\n", idx, client.URL())
-	client.StartPolling(defaultDuration, func(interaction *server.Interaction) {
+	client.StartPolling(*pollintInterval, func(interaction *server.Interaction) {
 		log.Printf("Client %d polled interaction: %s\n", idx, interaction.FullId)
 	})
 
@@ -84,7 +84,7 @@ func startClient(idx int) {
 		if err != nil {
 			log.Printf("client %d failed to send http request\n", idx)
 		} else if resp != nil {
-			io.Copy(io.Discard, resp.Body)
+			_, _ = io.Copy(io.Discard, resp.Body)
 			resp.Body.Close()
 			log.Printf("Client %d sent HTTP request: %d\n", idx, resp.StatusCode)
 		}
