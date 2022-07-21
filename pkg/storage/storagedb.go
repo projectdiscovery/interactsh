@@ -138,7 +138,7 @@ func (s *StorageDB) AddInteraction(correlationID string, data []byte) error {
 		}
 		value.Lock()
 		existingData, _ := s.db.Get([]byte(correlationID), nil)
-		_ = s.db.Put([]byte(correlationID), AppendMany(existingData, []byte("\n"), []byte(ct)), nil)
+		_ = s.db.Put([]byte(correlationID), AppendMany("\n", existingData, []byte(ct)), nil)
 		value.Unlock()
 	} else {
 		value.Lock()
@@ -167,7 +167,7 @@ func (s *StorageDB) AddInteractionWithId(id string, data []byte) error {
 		}
 		value.Lock()
 		existingData, _ := s.db.Get([]byte(id), nil)
-		_ = s.db.Put([]byte(id), AppendMany(existingData, []byte("\n"), []byte(ct)), nil)
+		_ = s.db.Put([]byte(id), AppendMany("\n", existingData, []byte(ct)), nil)
 		value.Unlock()
 	} else {
 		value.Lock()

@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"bytes"
 	"crypto/aes"
 	"crypto/cipher"
 	"crypto/rand"
@@ -57,10 +58,13 @@ func AESEncrypt(key []byte, message []byte) (string, error) {
 	return string(encMessage), nil
 }
 
-func AppendMany(slices ...[]byte) []byte {
-	var final []byte
+func AppendMany(sep string, slices ...[]byte) []byte {
+	var final [][]byte
 	for _, slice := range slices {
-		final = append(final, slice...)
+		if len(slice) == 0 {
+			continue
+		}
+		final = append(final, slice)
 	}
-	return final
+	return bytes.Join(final, []byte(sep))
 }
