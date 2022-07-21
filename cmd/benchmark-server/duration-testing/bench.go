@@ -69,7 +69,7 @@ func startClient(idx int) {
 
 	log.Printf("client %d registered, sample url: %s\n", idx, client.URL())
 	client.StartPolling(defaultDuration, func(interaction *server.Interaction) {
-		log.Printf("Client %d polled interaction: %s interactions:", idx, interaction.FullId)
+		log.Printf("Client %d polled interaction: %s\n", idx, interaction.FullId)
 	})
 
 	dnsClient := retryabledns.New([]string{*serverIP + ":53"}, 1)
