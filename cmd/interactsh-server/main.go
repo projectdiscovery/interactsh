@@ -7,11 +7,14 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"net/http"
 	"os"
 	"os/signal"
 	"path/filepath"
 	"strings"
 	"time"
+
+	_ "net/http/pprof"
 
 	"github.com/projectdiscovery/folderutil"
 	"github.com/projectdiscovery/goflags"
@@ -28,6 +31,7 @@ import (
 
 var (
 	defaultConfigLocation = filepath.Join(folderutil.HomeDirOrDefault("."), ".config/interactsh-server/config.yaml")
+	pprofServerAddress    = "127.0.0.1:8086"
 )
 
 func main() {
@@ -80,6 +84,7 @@ func main() {
 	flagSet.CreateGroup("debug", "Debug",
 		flagSet.BoolVar(&cliOptions.Version, "version", false, "show version of the project"),
 		flagSet.BoolVar(&cliOptions.Debug, "debug", false, "start interactsh server in debug mode"),
+		flagSet.BoolVarP(&cliOptions.EnablePprof, "enable-pprof", "ep", false, "enable pprof debugging server"),
 	)
 
 	if err := flagSet.Parse(); err != nil {
@@ -359,11 +364,26 @@ func main() {
 		}
 	}()
 
+	var pprofServer *http.Server
+	if cliOptions.EnablePprof {
+		pprofServer = &http.Server{
+			Addr:    pprofServerAddress,
+			Handler: http.DefaultServeMux,
+		}
+		gologger.Info().Msgf("Listening pprof debug server on: %s", pprofServerAddress)
+		go func() {
+			_ = pprofServer.ListenAndServe()
+		}()
+	}
+
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt)
 	for range c {
 		if err := store.Close(); err != nil {
 			gologger.Warning().Msgf("Couldn't close the storage: %s\n", err)
+		}
+		if pprofServer != nil {
+			pprofServer.Close()
 		}
 		os.Exit(1)
 	}
