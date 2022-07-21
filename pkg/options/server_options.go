@@ -43,6 +43,7 @@ type CLIServerOptions struct {
 	OriginIPHeader           string
 	DiskStorage              bool
 	DiskStoragePath          string
+	EnablePprof              bool
 }
 
 func (cliServerOptions *CLIServerOptions) AsServerOptions() *server.Options {
