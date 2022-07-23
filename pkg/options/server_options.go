@@ -9,7 +9,7 @@ type CLIServerOptions struct {
 	Config                   string
 	Version                  bool
 	Debug                    bool
-	Domains                  goflags.CommaSeparatedStringSlice
+	Domains                  goflags.StringSlice
 	DnsPort                  int
 	IPAddress                string
 	ListenIP                 string
