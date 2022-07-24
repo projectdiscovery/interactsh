@@ -1,10 +1,13 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"io"
 	"log"
 	"net/http"
+	"os"
+	"os/signal"
 	"sync"
 	"time"
 
@@ -15,29 +18,39 @@ import (
 	"go.uber.org/ratelimit"
 )
 
-var defaultDuration time.Duration
-
-func init() {
-	defaultDuration, _ = time.ParseDuration("30s")
-}
-
 var (
 	serverURL             = flag.String("url", "http://192.168.1.86", "URL of the interactsh server")
 	serverIP              = flag.String("ip", "192.168.1.86", "IP of benchmarked server")
-	n                     = flag.Int("n", 1000, "Number of interactsh clients to register")
-	pollintInterval       = flag.Duration("d", defaultDuration, "Polling interval")
+	n                     = flag.Int("n", 100, "Number of interactsh clients to register")
+	pollintInterval       = flag.Int("d", 30, "Polling interval in seconds")
 	interactionsRateLimit = flag.Int("rl", 10, "Max interactions per second per session")
 )
 
 var (
-	errors int64
+	errors    int64
+	clients   []*client.Client
+	ctx       context.Context
+	ctxCancel context.CancelFunc
 )
 
 func main() {
 	flag.Parse()
 
+	ctx, ctxCancel = context.WithCancel(context.Background())
+	clients = make([]*client.Client, *n)
+
 	if err := process(); err != nil {
 		log.Fatalf("Could not process: %s\n", err)
+	}
+
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, os.Interrupt)
+	for range c {
+		ctxCancel()
+		for _, client := range clients {
+			client.StopPolling()
+			client.Close()
+		}
 	}
 }
 
@@ -67,8 +80,10 @@ func startClient(idx int) {
 		return
 	}
 
+	clients[idx] = client
+
 	log.Printf("client %d registered, sample url: %s\n", idx, client.URL())
-	client.StartPolling(*pollintInterval, func(interaction *server.Interaction) {
+	client.StartPolling(time.Duration(*pollintInterval)*time.Second, func(interaction *server.Interaction) {
 		log.Printf("Client %d polled interaction: %s\n", idx, interaction.FullId)
 	})
 
@@ -77,22 +92,31 @@ func startClient(idx int) {
 	// simulate continous interactions
 	rateLimiter := ratelimit.New(*interactionsRateLimit)
 	for {
-		rateLimiter.Take()
-		req, _ := http.NewRequest(http.MethodGet, *serverURL, nil)
-		req.Host = client.URL()
-		resp, err := http.DefaultClient.Do(req)
-		if err != nil {
-			log.Printf("client %d failed to send http request\n", idx)
-		} else if resp != nil {
-			_, _ = io.Copy(io.Discard, resp.Body)
-			resp.Body.Close()
-			log.Printf("Client %d sent HTTP request: %d\n", idx, resp.StatusCode)
-		}
+		select {
+		case <-ctx.Done():
+			return
+		default:
+			rateLimiter.Take()
+			req, err := http.NewRequest(http.MethodGet, *serverURL, nil)
+			if err != nil {
+				log.Printf("%s\n", err)
+				continue
+			}
+			req.Host = client.URL()
+			resp, err := http.DefaultClient.Do(req)
+			if err != nil {
+				log.Printf("client %d failed to send http request\n", idx)
+			} else if resp != nil {
+				_, _ = io.Copy(io.Discard, resp.Body)
+				resp.Body.Close()
+				log.Printf("Client %d sent HTTP request: %d\n", idx, resp.StatusCode)
+			}
 
-		data, err := dnsClient.Query(client.URL(), dns.TypeA)
-		if err != nil {
-			log.Printf("client %d failed to send dns request\n", idx)
+			data, err := dnsClient.Query(client.URL(), dns.TypeA)
+			if err != nil {
+				log.Printf("client %d failed to send dns request\n", idx)
+			}
+			log.Printf("Client %d sent DNS request: %s\n", idx, data.StatusCode)
 		}
-		log.Printf("Client %d sent DNS request: %s\n", idx, data.StatusCode)
 	}
 }
