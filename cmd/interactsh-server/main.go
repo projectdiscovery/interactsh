@@ -36,7 +36,7 @@ func main() {
 	flagSet.SetDescription(`Interactsh server - Go client to configure and host interactsh server.`)
 
 	flagSet.CreateGroup("input", "Input",
-		flagSet.CommaSeparatedStringSliceVarP(&cliOptions.Domains, "domain", "d", []string{}, "single/multiple configured domain to use for server"),
+		flagSet.StringSliceVarP(&cliOptions.Domains, "domain", "d", []string{}, "single/multiple configured domain to use for server", goflags.CommaSeparatedStringSliceOptions),
 		flagSet.StringVar(&cliOptions.IPAddress, "ip", "", "public ip address to use for interactsh server"),
 		flagSet.StringVarP(&cliOptions.ListenIP, "listen-ip", "lip", "0.0.0.0", "public ip address to listen on"),
 		flagSet.IntVarP(&cliOptions.Eviction, "eviction", "e", 30, "number of days to persist interaction data in memory"),
