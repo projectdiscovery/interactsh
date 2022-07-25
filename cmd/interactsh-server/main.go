@@ -17,6 +17,7 @@ import (
 	"github.com/projectdiscovery/goflags"
 	"github.com/projectdiscovery/gologger"
 	"github.com/projectdiscovery/gologger/levels"
+	"github.com/projectdiscovery/interactsh/internal/runner"
 	"github.com/projectdiscovery/interactsh/pkg/options"
 	"github.com/projectdiscovery/interactsh/pkg/server"
 	"github.com/projectdiscovery/interactsh/pkg/server/acme"
@@ -27,6 +28,7 @@ import (
 )
 
 var (
+	healthcheck           bool
 	defaultConfigLocation = filepath.Join(folderutil.HomeDirOrDefault("."), ".config/interactsh-server/config.yaml")
 )
 
@@ -78,14 +80,19 @@ func main() {
 	flagSet.CreateGroup("debug", "Debug",
 		flagSet.BoolVar(&cliOptions.Version, "version", false, "show version of the project"),
 		flagSet.BoolVar(&cliOptions.Debug, "debug", false, "start interactsh server in debug mode"),
+		flagSet.BoolVarP(&healthcheck, "hc", "health-check", false, "run diagnostic check up"),
 	)
 
 	if err := flagSet.Parse(); err != nil {
 		gologger.Fatal().Msgf("Could not parse options: %s\n", err)
 	}
-
 	options.ShowBanner()
 
+	if healthcheck {
+		cfgFilePath, _ := goflags.GetConfigFilePath()
+		gologger.Print().Msgf("%s\n", runner.DoHealthCheck(cfgFilePath))
+		os.Exit(0)
+	}
 	if cliOptions.Version {
 		gologger.Info().Msgf("Current Version: %s\n", options.Version)
 		os.Exit(0)
