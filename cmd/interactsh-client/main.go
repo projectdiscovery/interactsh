@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"regexp"
 	"time"
 
 	"github.com/projectdiscovery/fileutil"
@@ -51,6 +52,8 @@ func main() {
 	)
 
 	flagSet.CreateGroup("filter", "Filter",
+		flagSet.FileCommaSeparatedStringSliceVarP(&cliOptions.Match, "match", "m", nil, "match interaction based on the specified pattern"),
+		flagSet.FileCommaSeparatedStringSliceVarP(&cliOptions.Filter, "filter", "f", nil, "filter interaction based on the specified pattern"),
 		flagSet.BoolVar(&cliOptions.DNSOnly, "dns-only", false, "display only dns interaction in CLI output"),
 		flagSet.BoolVar(&cliOptions.HTTPOnly, "http-only", false, "display only http interaction in CLI output"),
 		flagSet.BoolVar(&cliOptions.SmtpOnly, "smtp-only", false, "display only smtp interactions in CLI output"),
@@ -124,7 +127,26 @@ func main() {
 	// show all interactions
 	noFilter := !cliOptions.DNSOnly && !cliOptions.HTTPOnly && !cliOptions.SmtpOnly
 
+	var matcher *regexMatcher
+	var filter *regexMatcher
+	if len(cliOptions.Match) > 0 {
+		if matcher, err = newRegexMatcher(cliOptions.Match); err != nil {
+			gologger.Fatal().Msgf("Could not compile matchers: %s\n", err)
+		}
+	}
+	if len(cliOptions.Filter) > 0 {
+		if filter, err = newRegexMatcher(cliOptions.Filter); err != nil {
+			gologger.Fatal().Msgf("Could not compile filter: %s\n", err)
+		}
+	}
+
 	client.StartPolling(time.Duration(cliOptions.PollInterval)*time.Second, func(interaction *server.Interaction) {
+		if matcher != nil && !matcher.match(interaction.FullId) {
+			return
+		}
+		if filter != nil && filter.match(interaction.FullId) {
+			return
+		}
 		if !cliOptions.JSON {
 			builder := &bytes.Buffer{}
 
@@ -214,4 +236,29 @@ func writeOutput(outputFile *os.File, builder *bytes.Buffer) {
 		_, _ = outputFile.Write([]byte("\n"))
 	}
 	gologger.Silent().Msgf("%s", builder.String())
+}
+
+type regexMatcher struct {
+	items []*regexp.Regexp
+}
+
+func newRegexMatcher(items []string) (*regexMatcher, error) {
+	matcher := &regexMatcher{}
+	for _, item := range items {
+		if compiled, err := regexp.Compile(item); err != nil {
+			return nil, err
+		} else {
+			matcher.items = append(matcher.items, compiled)
+		}
+	}
+	return matcher, nil
+}
+
+func (m *regexMatcher) match(item string) bool {
+	for _, regex := range m.items {
+		if regex.MatchString(item) {
+			return true
+		}
+	}
+	return false
 }
