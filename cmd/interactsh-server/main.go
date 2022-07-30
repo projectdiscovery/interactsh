@@ -7,11 +7,14 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"net/http"
 	"os"
 	"os/signal"
 	"path/filepath"
 	"strings"
 	"time"
+
+	_ "net/http/pprof"
 
 	"github.com/projectdiscovery/folderutil"
 	"github.com/projectdiscovery/goflags"
@@ -30,6 +33,7 @@ import (
 var (
 	healthcheck           bool
 	defaultConfigLocation = filepath.Join(folderutil.HomeDirOrDefault("."), ".config/interactsh-server/config.yaml")
+	pprofServerAddress    = "127.0.0.1:8086"
 )
 
 func main() {
@@ -58,6 +62,8 @@ func main() {
 		flagSet.StringVar(&cliOptions.Config, "config", defaultConfigLocation, "flag configuration file"),
 		flagSet.StringVarP(&cliOptions.HTTPIndex, "http-index", "hi", "", "custom index file for http server"),
 		flagSet.StringVarP(&cliOptions.HTTPDirectory, "http-directory", "hd", "", "directory with files to serve with http server"),
+		flagSet.BoolVarP(&cliOptions.DiskStorage, "disk", "ds", false, "disk based storage"),
+		flagSet.StringVarP(&cliOptions.DiskStoragePath, "disk-path", "dsp", "", "disk storage path"),
 	)
 
 	flagSet.CreateGroup("services", "Services",
@@ -80,6 +86,7 @@ func main() {
 	flagSet.CreateGroup("debug", "Debug",
 		flagSet.BoolVar(&cliOptions.Version, "version", false, "show version of the project"),
 		flagSet.BoolVar(&cliOptions.Debug, "debug", false, "start interactsh server in debug mode"),
+		flagSet.BoolVarP(&cliOptions.EnablePprof, "enable-pprof", "ep", false, "enable pprof debugging server"),
 		flagSet.BoolVarP(&healthcheck, "hc", "health-check", false, "run diagnostic check up"),
 	)
 
@@ -173,7 +180,23 @@ func main() {
 		gologger.Info().Msgf("Client Token: %s\n", serverOptions.Token)
 	}
 
-	store := storage.New(time.Duration(cliOptions.Eviction) * time.Hour * 24)
+	evictionTTL := time.Duration(cliOptions.Eviction) * time.Hour * 24
+	var store storage.Storage
+	storeOptions := storage.DefaultOptions
+	storeOptions.EvictionTTL = evictionTTL
+	if cliOptions.DiskStorage {
+		if cliOptions.DiskStoragePath == "" {
+			gologger.Fatal().Msgf("disk storage path must be specified\n")
+		}
+		storeOptions.DbPath = cliOptions.DiskStoragePath
+	}
+
+	var err error
+	store, err = storage.New(&storeOptions)
+	if err != nil {
+		gologger.Fatal().Msgf("couldn't create storage: %s\n", err)
+	}
+
 	serverOptions.Storage = store
 
 	if serverOptions.Auth {
@@ -348,9 +371,27 @@ func main() {
 		}
 	}()
 
+	var pprofServer *http.Server
+	if cliOptions.EnablePprof {
+		pprofServer = &http.Server{
+			Addr:    pprofServerAddress,
+			Handler: http.DefaultServeMux,
+		}
+		gologger.Info().Msgf("Listening pprof debug server on: %s", pprofServerAddress)
+		go func() {
+			_ = pprofServer.ListenAndServe()
+		}()
+	}
+
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt)
 	for range c {
+		if err := store.Close(); err != nil {
+			gologger.Warning().Msgf("Couldn't close the storage: %s\n", err)
+		}
+		if pprofServer != nil {
+			pprofServer.Close()
+		}
 		os.Exit(1)
 	}
 }

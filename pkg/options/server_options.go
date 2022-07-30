@@ -41,6 +41,9 @@ type CLIServerOptions struct {
 	CertificatePath          string
 	PrivateKeyPath           string
 	OriginIPHeader           string
+	DiskStorage              bool
+	DiskStoragePath          string
+	EnablePprof              bool
 }
 
 func (cliServerOptions *CLIServerOptions) AsServerOptions() *server.Options {
@@ -72,5 +75,7 @@ func (cliServerOptions *CLIServerOptions) AsServerOptions() *server.Options {
 		CertificatePath:          cliServerOptions.CertificatePath,
 		PrivateKeyPath:           cliServerOptions.PrivateKeyPath,
 		OriginIPHeader:           cliServerOptions.OriginIPHeader,
+		DiskStorage:              cliServerOptions.DiskStorage,
+		DiskStoragePath:          cliServerOptions.DiskStoragePath,
 	}
 }
