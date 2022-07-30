@@ -52,8 +52,8 @@ func main() {
 	)
 
 	flagSet.CreateGroup("filter", "Filter",
-		flagSet.FileCommaSeparatedStringSliceVarP(&cliOptions.Match, "match", "m", nil, "match interaction based on the specified pattern"),
-		flagSet.FileCommaSeparatedStringSliceVarP(&cliOptions.Filter, "filter", "f", nil, "filter interaction based on the specified pattern"),
+		flagSet.StringSliceVarP(&cliOptions.Match, "match", "m", nil, "match interaction based on the specified pattern", goflags.FileCommaSeparatedStringSliceOptions),
+		flagSet.StringSliceVarP(&cliOptions.Filter, "filter", "f", nil, "filter interaction based on the specified pattern", goflags.FileCommaSeparatedStringSliceOptions),
 		flagSet.BoolVar(&cliOptions.DNSOnly, "dns-only", false, "display only dns interaction in CLI output"),
 		flagSet.BoolVar(&cliOptions.HTTPOnly, "http-only", false, "display only http interaction in CLI output"),
 		flagSet.BoolVar(&cliOptions.SmtpOnly, "smtp-only", false, "display only smtp interactions in CLI output"),
