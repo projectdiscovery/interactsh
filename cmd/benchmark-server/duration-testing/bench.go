@@ -87,7 +87,10 @@ func startClient(idx int) {
 		log.Printf("Client %d polled interaction: %s\n", idx, interaction.FullId)
 	})
 
-	dnsClient := retryabledns.New([]string{*serverIP + ":53"}, 1)
+	dnsClient, err := retryabledns.New([]string{*serverIP + ":53"}, 1)
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	// simulate continous interactions
 	rateLimiter := ratelimit.New(*interactionsRateLimit)

@@ -19,7 +19,7 @@ require (
 	github.com/projectdiscovery/goflags v0.0.9
 	github.com/projectdiscovery/gologger v1.1.4
 	github.com/projectdiscovery/iputil v0.0.0-20220620153941-036d511e4097
-	github.com/projectdiscovery/retryabledns v1.0.13
+	github.com/projectdiscovery/retryabledns v1.0.14
 	github.com/projectdiscovery/retryablehttp-go v1.0.3-0.20220506110515-811d938bd26d
 	github.com/projectdiscovery/stringsutil v0.0.0-20220422150559-b54fb5dc6833
 	github.com/remeh/sizedwaitgroup v1.0.0
@@ -52,6 +52,7 @@ require (
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/projectdiscovery/blackrock v0.0.0-20210415162320-b38689ae3a2e // indirect
 	github.com/projectdiscovery/mapcidr v1.0.0 // indirect
+	github.com/projectdiscovery/sliceutil v0.0.0-20220225084130-8392ac12fa6d // indirect
 	github.com/rogpeppe/go-internal v1.8.0 // indirect
 	go.uber.org/atomic v1.7.0 // indirect
 	golang.org/x/crypto v0.0.0-20220210151621-f4118a5b28e2 // indirect
