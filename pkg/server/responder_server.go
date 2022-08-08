@@ -14,7 +14,6 @@ import (
 	"github.com/projectdiscovery/fileutil"
 	"github.com/projectdiscovery/gologger"
 	"github.com/projectdiscovery/interactsh/pkg/filewatcher"
-	"github.com/projectdiscovery/stringsutil"
 )
 
 var responderMonitorList map[string]string = map[string]string{
@@ -84,7 +83,10 @@ func (h *ResponderServer) ListenAndServe(responderAlive chan bool) error {
 		for data := range ch {
 			for searchTerm, extractAfter := range responderMonitorList {
 				if strings.Contains(data, searchTerm) {
-					responderData := stringsutil.After(data, extractAfter)
+					var responderData string
+					if idxExtract := strings.Index(data, extractAfter); idxExtract > 0 {
+						responderData = data[idxExtract:]
+					}
 
 					// Correlation id doesn't apply here, we skip encryption
 					interaction := &Interaction{
