@@ -85,6 +85,8 @@ type Options struct {
 	CertificatePath string
 	// Private Key Path
 	PrivateKeyPath string
+	// CustomRecords is a file containing custom DNS records
+	CustomRecords string
 	// HTTP header containing origin IP
 	OriginIPHeader string
 	// Version is the version of interactsh server
