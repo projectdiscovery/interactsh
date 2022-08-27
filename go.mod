@@ -21,7 +21,7 @@ require (
 	github.com/projectdiscovery/iputil v0.0.0-20220620153941-036d511e4097
 	github.com/projectdiscovery/retryabledns v1.0.14
 	github.com/projectdiscovery/retryablehttp-go v1.0.3-0.20220506110515-811d938bd26d
-	github.com/projectdiscovery/stringsutil v0.0.0-20220422150559-b54fb5dc6833
+	github.com/projectdiscovery/stringsutil v0.0.0-20220731064040-4b67f194751e
 	github.com/remeh/sizedwaitgroup v1.0.0
 	github.com/rs/xid v1.4.0
 	github.com/stretchr/testify v1.8.0
@@ -37,9 +37,11 @@ require (
 require (
 	github.com/Mzack9999/go-http-digest-auth-client v0.6.1-0.20220414142836-eb8883508809 // indirect
 	github.com/andres-erbsen/clock v0.0.0-20160526145045-9e14626cd129 // indirect
+	github.com/aymerick/douceur v0.2.0 // indirect
 	github.com/cnf/structhash v0.0.0-20201127153200-e1b16c1ebc08 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/golang/snappy v0.0.3 // indirect
+	github.com/gorilla/css v1.0.0 // indirect
 	github.com/hashicorp/errwrap v1.0.0 // indirect
 	github.com/hashicorp/go-multierror v1.1.1 // indirect
 	github.com/klauspost/cpuid/v2 v2.1.0 // indirect
@@ -47,6 +49,7 @@ require (
 	github.com/logrusorgru/aurora v2.0.3+incompatible // indirect
 	github.com/lor00x/goldap v0.0.0-20180618054307-a546dffdd1a3 // indirect
 	github.com/mholt/acmez v1.0.4 // indirect
+	github.com/microcosm-cc/bluemonday v1.0.19 // indirect
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.2 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
@@ -54,6 +57,7 @@ require (
 	github.com/projectdiscovery/mapcidr v1.0.0 // indirect
 	github.com/projectdiscovery/sliceutil v0.0.0-20220225084130-8392ac12fa6d // indirect
 	github.com/rogpeppe/go-internal v1.8.0 // indirect
+	github.com/saintfish/chardet v0.0.0-20120816061221-3af4cd4741ca // indirect
 	go.uber.org/atomic v1.7.0 // indirect
 	golang.org/x/crypto v0.0.0-20220722155217-630584e8d5aa // indirect
 	golang.org/x/mod v0.4.2 // indirect

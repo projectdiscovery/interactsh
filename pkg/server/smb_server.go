@@ -85,7 +85,11 @@ func (h *SMBServer) ListenAndServe(smbAlive chan bool) error {
 		for data := range ch {
 			for searchTerm, extractAfter := range smbMonitorList {
 				if strings.Contains(data, searchTerm) {
-					smbData := stringsutil.After(data, extractAfter)
+					smbData, err := stringsutil.After(data, extractAfter)
+					if err != nil {
+						gologger.Warning().Msgf("Could not get smb interaction: %s\n", err)
+						continue
+					}
 
 					// Correlation id doesn't apply here, we skip encryption
 					interaction := &Interaction{
