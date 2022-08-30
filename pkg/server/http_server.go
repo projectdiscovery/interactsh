@@ -12,6 +12,7 @@ import (
 	"net/http/httputil"
 	"path/filepath"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	jsoniter "github.com/json-iterator/go"
@@ -219,7 +220,7 @@ You should investigate the sites where these interactions were generated from, a
 
 // defaultHandler is a handler for default collaborator requests
 func (h *HTTPServer) defaultHandler(w http.ResponseWriter, req *http.Request) {
-	h.options.Stats.IncrementCounter("http", 1)
+	atomic.AddUint64(&h.options.Stats.Http, 1)
 
 	reflection := h.options.URLReflection(req.Host)
 	// use first domain as default (todo: should be extracted from certificate)
@@ -273,7 +274,7 @@ type RegisterRequest struct {
 
 // registerHandler is a handler for client register requests
 func (h *HTTPServer) registerHandler(w http.ResponseWriter, req *http.Request) {
-	h.options.Stats.IncrementCounter("sessions", 1)
+	atomic.AddInt64(&h.options.Stats.Sessions, 1)
 
 	r := &RegisterRequest{}
 	if err := jsoniter.NewDecoder(req.Body).Decode(r); err != nil {
@@ -301,7 +302,7 @@ type DeregisterRequest struct {
 
 // deregisterHandler is a handler for client deregister requests
 func (h *HTTPServer) deregisterHandler(w http.ResponseWriter, req *http.Request) {
-	h.options.Stats.IncrementCounter("sessions", -1)
+	atomic.AddInt64(&h.options.Stats.Sessions, -1)
 
 	r := &DeregisterRequest{}
 	if err := jsoniter.NewDecoder(req.Body).Decode(r); err != nil {
@@ -413,9 +414,13 @@ func (h *HTTPServer) checkToken(req *http.Request) bool {
 
 // metricsHandler is a handler for /metrics endpoint
 func (h *HTTPServer) metricsHandler(w http.ResponseWriter, req *http.Request) {
-	metrics, _ := h.options.Storage.GetCacheMetrics()
+	interactMetrics := h.options.Stats
+	interactMetrics.Cache = GetCacheMetrics(h.options)
+	interactMetrics.Cpu = GetCpuMetrics()
+	interactMetrics.Memory = GetMemoryMetrics()
+	interactMetrics.Network = GetNetworkMetrics()
 
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.Header().Set("X-Content-Type-Options", "nosniff")
-	_ = jsoniter.NewEncoder(w).Encode(metrics)
+	_ = jsoniter.NewEncoder(w).Encode(interactMetrics)
 }

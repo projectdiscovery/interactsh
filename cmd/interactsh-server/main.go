@@ -11,15 +11,11 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"time"
 
 	_ "net/http/pprof"
 
-	"github.com/mackerelio/go-osstat/cpu"
-	"github.com/mackerelio/go-osstat/network"
-	"github.com/projectdiscovery/clistats"
 	"github.com/projectdiscovery/folderutil"
 	"github.com/projectdiscovery/goflags"
 	"github.com/projectdiscovery/gologger"
@@ -208,37 +204,7 @@ func main() {
 		_ = serverOptions.Storage.SetID(serverOptions.Token)
 	}
 
-	stats, err := clistats.New()
-	if err != nil {
-		gologger.Fatal().Msgf("couldn't create stats: %s\n", err)
-	}
-	stats.AddCounter("dns", 0)
-	stats.AddCounter("ftp", 0)
-	stats.AddCounter("http", 0)
-	stats.AddCounter("ldap", 0)
-	stats.AddCounter("smb", 0)
-	stats.AddCounter("smtp", 0)
-	stats.AddCounter("sessions", 0)
-	stats.AddDynamic("alloc", func(client clistats.StatisticsClient) interface{} {
-		var mStats runtime.MemStats
-		runtime.ReadMemStats(&mStats)
-		return mStats.Alloc
-	})
-	stats.AddDynamic("cpu", func(client clistats.StatisticsClient) interface{} {
-		cpuStats, err := cpu.Get()
-		if err != nil {
-			return err
-		}
-		return cpuStats
-	})
-	stats.AddDynamic("network", func(client clistats.StatisticsClient) interface{} {
-		networkStats, err := network.Get()
-		if err != nil {
-			return err
-		}
-		return networkStats
-	})
-	serverOptions.Stats = stats
+	serverOptions.Stats = &server.Metrics{}
 
 	// If root-tld is enabled create a singleton unencrypted record in the store
 	if serverOptions.RootTLD {

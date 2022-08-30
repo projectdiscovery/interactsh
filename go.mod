@@ -15,7 +15,6 @@ require (
 	github.com/mackerelio/go-osstat v0.2.3
 	github.com/miekg/dns v1.1.50
 	github.com/pkg/errors v0.9.1
-	github.com/projectdiscovery/clistats v0.0.8
 	github.com/projectdiscovery/fileutil v0.0.0-20220705195237-01becc2a8963
 	github.com/projectdiscovery/folderutil v0.0.0-20220215113126-add60a1e8e08
 	github.com/projectdiscovery/goflags v0.0.10-0.20220827133735-3ff03268251a

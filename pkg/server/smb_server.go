@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	jsoniter "github.com/json-iterator/go"
@@ -83,7 +84,7 @@ func (h *SMBServer) ListenAndServe(smbAlive chan bool) error {
 	// This fetches the content at each change.
 	go func() {
 		for data := range ch {
-			h.options.Stats.IncrementCounter("smb", 1)
+			atomic.AddUint64(&h.options.Stats.Smb, 1)
 			for searchTerm, extractAfter := range smbMonitorList {
 				if strings.Contains(data, searchTerm) {
 					smbData, err := stringsutil.After(data, extractAfter)
