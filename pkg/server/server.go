@@ -4,6 +4,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/projectdiscovery/clistats"
 	"github.com/projectdiscovery/interactsh/pkg/server/acme"
 	"github.com/projectdiscovery/interactsh/pkg/storage"
 	"github.com/projectdiscovery/stringsutil"
@@ -97,6 +98,7 @@ type Options struct {
 	DiskStoragePath string
 
 	ACMEStore *acme.Provider
+	Stats     *clistats.Statistics
 }
 
 func (options *Options) GetIdLength() int {

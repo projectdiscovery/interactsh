@@ -77,6 +77,8 @@ const (
 
 // ServeDNS is the default handler for DNS queries.
 func (h *DNSServer) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
+	h.options.Stats.IncrementCounter("dns", 1)
+
 	m := new(dns.Msg)
 	m.SetReply(r)
 	m.Authoritative = true

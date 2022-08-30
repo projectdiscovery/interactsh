@@ -75,6 +75,8 @@ func (h *FTPServer) Close() {
 }
 
 func (h *FTPServer) recordInteraction(remoteAddress, data string) {
+	h.options.Stats.IncrementCounter("ftp", 1)
+
 	if data == "" {
 		return
 	}
