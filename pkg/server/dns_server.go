@@ -7,6 +7,7 @@ import (
 	"net"
 	"os"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	jsoniter "github.com/json-iterator/go"
@@ -77,6 +78,8 @@ const (
 
 // ServeDNS is the default handler for DNS queries.
 func (h *DNSServer) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
+	atomic.AddUint64(&h.options.Stats.Dns, 1)
+
 	m := new(dns.Msg)
 	m.SetReply(r)
 	m.Authoritative = true

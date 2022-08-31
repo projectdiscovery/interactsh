@@ -89,6 +89,7 @@ func main() {
 		flagSet.BoolVar(&cliOptions.Debug, "debug", false, "start interactsh server in debug mode"),
 		flagSet.BoolVarP(&cliOptions.EnablePprof, "enable-pprof", "ep", false, "enable pprof debugging server"),
 		flagSet.BoolVarP(&healthcheck, "hc", "health-check", false, "run diagnostic check up"),
+		flagSet.BoolVar(&cliOptions.EnableMetrics, "metrics", false, "enable metrics endpoint"),
 	)
 
 	if err := flagSet.Parse(); err != nil {
@@ -203,6 +204,8 @@ func main() {
 	if serverOptions.Auth {
 		_ = serverOptions.Storage.SetID(serverOptions.Token)
 	}
+
+	serverOptions.Stats = &server.Metrics{}
 
 	// If root-tld is enabled create a singleton unencrypted record in the store
 	if serverOptions.RootTLD {

@@ -95,8 +95,11 @@ type Options struct {
 	DiskStorage bool
 	// DiskStoragePath defines the disk storage location
 	DiskStoragePath string
+	// EnableMetrics enables metrics endpoint
+	EnableMetrics bool
 
 	ACMEStore *acme.Provider
+	Stats     *Metrics
 }
 
 func (options *Options) GetIdLength() int {
