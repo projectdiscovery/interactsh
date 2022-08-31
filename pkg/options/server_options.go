@@ -45,6 +45,7 @@ type CLIServerOptions struct {
 	DiskStorage              bool
 	DiskStoragePath          string
 	EnablePprof              bool
+	EnableMetrics            bool
 }
 
 func (cliServerOptions *CLIServerOptions) AsServerOptions() *server.Options {
@@ -79,5 +80,6 @@ func (cliServerOptions *CLIServerOptions) AsServerOptions() *server.Options {
 		OriginIPHeader:           cliServerOptions.OriginIPHeader,
 		DiskStorage:              cliServerOptions.DiskStorage,
 		DiskStoragePath:          cliServerOptions.DiskStoragePath,
+		EnableMetrics:            cliServerOptions.EnableMetrics,
 	}
 }

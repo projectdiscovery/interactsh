@@ -7,6 +7,7 @@ require (
 	github.com/Mzack9999/ldapserver v1.0.2-0.20211229000134-b44a0d6ad0dd
 	github.com/asaskevich/govalidator v0.0.0-20210307081110-f21760c49a8d
 	github.com/caddyserver/certmagic v0.16.3
+	github.com/docker/go-units v0.5.0
 	github.com/goburrow/cache v0.1.4
 	github.com/google/uuid v1.3.0
 	github.com/json-iterator/go v1.1.12
@@ -43,8 +44,6 @@ require (
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/golang/snappy v0.0.3 // indirect
 	github.com/gorilla/css v1.0.0 // indirect
-	github.com/hashicorp/errwrap v1.0.0 // indirect
-	github.com/hashicorp/go-multierror v1.1.1 // indirect
 	github.com/klauspost/cpuid/v2 v2.1.0 // indirect
 	github.com/kr/pretty v0.3.0 // indirect
 	github.com/logrusorgru/aurora v2.0.3+incompatible // indirect
@@ -66,5 +65,4 @@ require (
 	golang.org/x/sys v0.0.0-20220829200755-d48e67d00261 // indirect
 	golang.org/x/text v0.3.7 // indirect
 	golang.org/x/tools v0.1.12 // indirect
-	golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1 // indirect
 )

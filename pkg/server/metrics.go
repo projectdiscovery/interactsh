@@ -3,6 +3,7 @@ package server
 import (
 	"runtime"
 
+	units "github.com/docker/go-units"
 	"github.com/mackerelio/go-osstat/cpu"
 	"github.com/mackerelio/go-osstat/network"
 	"github.com/projectdiscovery/interactsh/pkg/storage"
@@ -19,7 +20,7 @@ type Metrics struct {
 	Cache    *storage.CacheMetrics `json:"cache"`
 	Memory   *MemoryMetrics        `json:"memory"`
 	Cpu      *CpuStats             `json:"cpu"`
-	Network  []NetworkStats        `json:"network"`
+	Network  *NetworkStats         `json:"network"`
 }
 
 func GetCacheMetrics(options *Options) *storage.CacheMetrics {
@@ -28,48 +29,48 @@ func GetCacheMetrics(options *Options) *storage.CacheMetrics {
 }
 
 type MemoryMetrics struct {
-	Alloc        uint64 `json:"alloc"`
-	TotalAlloc   uint64 `json:"total_alloc"`
-	Sys          uint64 `json:"sys"`
+	Alloc        string `json:"alloc"`
+	TotalAlloc   string `json:"total_alloc"`
+	Sys          string `json:"sys"`
 	Lookups      uint64 `json:"lookups"`
 	Mallocs      uint64 `json:"mallocs"`
 	Frees        uint64 `json:"frees"`
-	HeapAlloc    uint64 `json:"heap_allo"`
-	HeapSys      uint64 `json:"heap_sys"`
-	HeapIdle     uint64 `json:"head_idle"`
-	HeapInuse    uint64 `json:"heap_in_use"`
-	HeapReleased uint64 `json:"heap_released"`
+	HeapAlloc    string `json:"heap_allo"`
+	HeapSys      string `json:"heap_sys"`
+	HeapIdle     string `json:"head_idle"`
+	HeapInuse    string `json:"heap_in_use"`
+	HeapReleased string `json:"heap_released"`
 	HeapObjects  uint64 `json:"heap_objects"`
-	StackInuse   uint64 `json:"stack_in_use"`
-	StackSys     uint64 `json:"stack_sys"`
-	MSpanInuse   uint64 `json:"mspan_in_use"`
-	MSpanSys     uint64 `json:"mspan_sys"`
-	MCacheInuse  uint64 `json:"mcache_in_use"`
-	MCacheSys    uint64 `json:"mcache_sys"`
+	StackInuse   string `json:"stack_in_use"`
+	StackSys     string `json:"stack_sys"`
+	MSpanInuse   string `json:"mspan_in_use"`
+	MSpanSys     string `json:"mspan_sys"`
+	MCacheInuse  string `json:"mcache_in_use"`
+	MCacheSys    string `json:"mcache_sys"`
 }
 
 func GetMemoryMetrics() *MemoryMetrics {
 	var mStats runtime.MemStats
 	runtime.ReadMemStats(&mStats)
 	return &MemoryMetrics{
-		Alloc:        mStats.Alloc,
-		TotalAlloc:   mStats.TotalAlloc,
-		Sys:          mStats.Sys,
+		Alloc:        units.HumanSize(float64(mStats.Alloc)),
+		TotalAlloc:   units.HumanSize(float64(mStats.TotalAlloc)),
+		Sys:          units.HumanSize(float64(mStats.Sys)),
 		Lookups:      mStats.Lookups,
 		Mallocs:      mStats.Mallocs,
 		Frees:        mStats.Frees,
-		HeapAlloc:    mStats.HeapAlloc,
-		HeapSys:      mStats.HeapSys,
-		HeapIdle:     mStats.HeapIdle,
-		HeapInuse:    mStats.HeapInuse,
-		HeapReleased: mStats.HeapReleased,
+		HeapAlloc:    units.HumanSize(float64(mStats.HeapAlloc)),
+		HeapSys:      units.HumanSize(float64(mStats.HeapSys)),
+		HeapIdle:     units.HumanSize(float64(mStats.HeapIdle)),
+		HeapInuse:    units.HumanSize(float64(mStats.HeapInuse)),
+		HeapReleased: units.HumanSize(float64(mStats.HeapReleased)),
 		HeapObjects:  mStats.HeapObjects,
-		StackInuse:   mStats.StackInuse,
-		StackSys:     mStats.StackSys,
-		MSpanInuse:   mStats.MSpanInuse,
-		MSpanSys:     mStats.MSpanSys,
-		MCacheInuse:  mStats.MCacheInuse,
-		MCacheSys:    mStats.MCacheSys,
+		StackInuse:   units.HumanSize(float64(mStats.StackInuse)),
+		StackSys:     units.HumanSize(float64(mStats.StackSys)),
+		MSpanInuse:   units.HumanSize(float64(mStats.MSpanInuse)),
+		MSpanSys:     units.HumanSize(float64(mStats.MSpanSys)),
+		MCacheInuse:  units.HumanSize(float64(mStats.MCacheInuse)),
+		MCacheSys:    units.HumanSize(float64(mStats.MCacheSys)),
 	}
 }
 
@@ -95,20 +96,21 @@ func GetCpuMetrics() (cpuStats *CpuStats) {
 }
 
 type NetworkStats struct {
-	Name    string `json:"name"`
-	RxBytes uint64 `json:"received"`
-	TxBytes uint64 `json:"transmitted"`
+	Rx      string `json:"received"`
+	rxBytes uint64
+	Tx      string `json:"transmitted"`
+	txBytes uint64
 }
 
-func GetNetworkMetrics() (networkStats []NetworkStats) {
+func GetNetworkMetrics() *NetworkStats {
+	networkStats := &NetworkStats{}
 	if nss, err := network.Get(); err == nil {
 		for _, ns := range nss {
-			networkStats = append(networkStats, NetworkStats{
-				Name:    ns.Name,
-				TxBytes: ns.TxBytes,
-				RxBytes: ns.RxBytes,
-			})
+			networkStats.rxBytes += ns.RxBytes
+			networkStats.txBytes += ns.TxBytes
 		}
 	}
-	return
+	networkStats.Rx = units.HumanSize(float64(networkStats.rxBytes))
+	networkStats.Tx = units.HumanSize(float64(networkStats.txBytes))
+	return networkStats
 }
