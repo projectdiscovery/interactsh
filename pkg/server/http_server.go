@@ -296,7 +296,7 @@ func writeResponseFromDynamicRequest(w http.ResponseWriter, req *http.Request) {
 		w.WriteHeader(parsed)
 	}
 	if body := values.Get("body"); body != "" {
-		w.Write([]byte(body))
+		_, _ = w.Write([]byte(body))
 	}
 }
 
