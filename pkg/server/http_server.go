@@ -11,6 +11,7 @@ import (
 	"net/http/httptest"
 	"net/http/httputil"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -260,7 +261,42 @@ func (h *HTTPServer) defaultHandler(w http.ResponseWriter, req *http.Request) {
 		fmt.Fprintf(w, "<data>%s</data>", reflection)
 		w.Header().Set("Content-Type", "application/xml")
 	} else {
+		if h.options.DynamicResp && len(req.URL.Query()) > 0 {
+			writeResponseFromDynamicRequest(w, req)
+			return
+		}
 		fmt.Fprintf(w, "<html><head></head><body>%s</body></html>", reflection)
+	}
+}
+
+// writeResponseFromDynamicRequest writes a response to http.ResponseWriter
+// based on dynamic data from HTTP URL Query parameters.
+//
+// The following parameters are supported -
+// 	body (response body)
+// 	header (response header)
+// 	status (response status code)
+// 	delay (response time)
+func writeResponseFromDynamicRequest(w http.ResponseWriter, req *http.Request) {
+	values := req.URL.Query()
+
+	if headers := values["header"]; len(headers) > 0 {
+		for _, header := range headers {
+			if headerParts := strings.SplitN(header, ":", 2); len(headerParts) == 2 {
+				w.Header().Add(headerParts[0], headerParts[1])
+			}
+		}
+	}
+	if delay := values.Get("delay"); delay != "" {
+		parsed, _ := strconv.Atoi(delay)
+		time.Sleep(time.Duration(parsed) * time.Second)
+	}
+	if status := values.Get("status"); status != "" {
+		parsed, _ := strconv.Atoi(status)
+		w.WriteHeader(parsed)
+	}
+	if body := values.Get("body"); body != "" {
+		w.Write([]byte(body))
 	}
 }
 
