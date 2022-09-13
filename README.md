@@ -32,6 +32,7 @@
 - AES encryption with zero logging
 - Automatic ACME based Wildcard TLS w/ Auto Renewal
 - DNS Entries for Cloud Metadata service
+- Dynamic HTTP Response control
 - Self-Hosted Interactsh Server
 - Multiple domain support **(self-hosted)**
 - NTLM/SMB/FTP/RESPONDER Listener **(self-hosted)**
@@ -483,8 +484,8 @@ The following query parameter names are supported - `body`, `header`, `status` a
 - **status** (response status code)
 - **delay** (response time)
 
-```
-curl -i 'https://ccg7b542vtc0000730kgggedi1hyyyyyb.hackwithautomation.com/?status=307&body=this+is+example+body&delay=1&header=header1:value1&header=header1:value12'
+```console
+curl -i 'https://hackwithautomation.com/x?status=307&body=this+is+example+body&delay=1&header=header1:value1&header=header1:value12'
 
 HTTP/2 307 
 header1: value1
@@ -497,6 +498,12 @@ date: Tue, 13 Sep 2022 12:31:05 GMT
 
 this is example body
 ```
+
+> **Note**:
+
+- Dynamic HTTP Response feature is disabled as default.
+- By design, this feature lets anyone run client-side code / redirects using your interactsh domain / server
+- Using this option with an isolated domain is recommended to **avoid security impact** on associated root/subdomains.
 
 ## Wildcard Interaction
 
