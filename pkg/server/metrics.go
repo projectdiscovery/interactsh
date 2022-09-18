@@ -4,7 +4,6 @@ import (
 	"runtime"
 
 	units "github.com/docker/go-units"
-	"github.com/mackerelio/go-osstat/cpu"
 	"github.com/mackerelio/go-osstat/network"
 	"github.com/projectdiscovery/interactsh/pkg/storage"
 )
@@ -83,16 +82,8 @@ type CpuStats struct {
 }
 
 func GetCpuMetrics() (cpuStats *CpuStats) {
-	if cs, err := cpu.Get(); err == nil {
-		cpuStats = &CpuStats{
-			User:   cs.User,
-			System: cs.System,
-			Idle:   cs.Idle,
-			Nice:   cs.Nice,
-			Total:  cs.Total,
-		}
-	}
-	return
+	cpuStats, _ = getCPUStats()
+	return cpuStats
 }
 
 type NetworkStats struct {
