@@ -32,6 +32,7 @@
 - AES encryption with zero logging
 - Automatic ACME based Wildcard TLS w/ Auto Renewal
 - DNS Entries for Cloud Metadata service
+- Dynamic HTTP Response control
 - Self-Hosted Interactsh Server
 - Multiple domain support **(self-hosted)**
 - NTLM/SMB/FTP/RESPONDER Listener **(self-hosted)**
@@ -471,6 +472,38 @@ interactsh-server -d hackwithautomation.com -http-directory ./paylods
 ```
 
 ![image](https://user-images.githubusercontent.com/8293321/179396480-d5ff8399-8b91-48aa-b21f-c67e40e80945.png)
+
+## Dynamic HTTP Response
+
+Interactsh http server optionally enables responding with dynamic HTTP response by using query parameters. This feature can be enabled by using `-dr` or `-dynamic-resp` flag.
+
+The following query parameter names are supported - `body`, `header`, `status` and `delay`. Multiple `header` parameters can be specified to set multiple headers. 
+
+- **body** (response body)
+- **header** (response header)
+- **status** (response status code)
+- **delay** (response time)
+
+```console
+curl -i 'https://hackwithautomation.com/x?status=307&body=this+is+example+body&delay=1&header=header1:value1&header=header1:value12'
+
+HTTP/2 307 
+header1: value1
+header1: value12
+server: hackwithautomation.com
+x-interactsh-version: 1.0.7
+content-type: text/plain; charset=utf-8
+content-length: 20
+date: Tue, 13 Sep 2022 12:31:05 GMT
+
+this is example body
+```
+
+> **Note**:
+
+- Dynamic HTTP Response feature is disabled as default.
+- By design, this feature lets anyone run client-side code / redirects using your interactsh domain / server
+- Using this option with an isolated domain is recommended to **avoid security impact** on associated root/subdomains.
 
 ## Wildcard Interaction
 

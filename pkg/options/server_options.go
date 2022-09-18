@@ -35,6 +35,7 @@ type CLIServerOptions struct {
 	RootTLD                  bool
 	FTPDirectory             string
 	SkipAcme                 bool
+	DynamicResp              bool
 	CorrelationIdLength      int
 	CorrelationIdNonceLength int
 	ScanEverywhere           bool
@@ -68,6 +69,7 @@ func (cliServerOptions *CLIServerOptions) AsServerOptions() *server.Options {
 		HTTPDirectory:            cliServerOptions.HTTPDirectory,
 		Token:                    cliServerOptions.Token,
 		Version:                  Version,
+		DynamicResp:              cliServerOptions.DynamicResp,
 		OriginURL:                cliServerOptions.OriginURL,
 		RootTLD:                  cliServerOptions.RootTLD,
 		FTPDirectory:             cliServerOptions.FTPDirectory,

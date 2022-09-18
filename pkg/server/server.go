@@ -95,6 +95,8 @@ type Options struct {
 	DiskStorage bool
 	// DiskStoragePath defines the disk storage location
 	DiskStoragePath string
+	// DynamicResp enables dynamic HTTP response
+	DynamicResp bool
 	// EnableMetrics enables metrics endpoint
 	EnableMetrics bool
 
