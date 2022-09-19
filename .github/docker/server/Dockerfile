@@ -1,5 +1,5 @@
 # Build
-FROM golang:1.19.0-alpine AS build-env
+FROM golang:1.19.1-alpine AS build-env
 RUN apk add build-base
 RUN go install -v github.com/projectdiscovery/interactsh/cmd/interactsh-server@latest
 
