@@ -640,7 +640,36 @@ interactsh-server -d hackwithautomation.com -cert hackwithautomation.com.crt -pr
 [DNS] Listening on UDP 157.230.223.165:53
 ```
 
-# Interactsh Integration
+## Supported Protocols
+
+### FTP
+
+FTP support can be enabled with the `-ftp` flag and is recommended for self-hosted instances only. The FTP agent simulates a fully-functional FTP server agent with authentication that captures authentications with every file operation. By default, the agent listens on port 21 (this can be changed with the `-ftp-port` flag) and lists in read-only mode the content of the OS default temporary directory (customizable with the `-ftp-dir` option).
+Example of starting the FTP daemon and capturing a login interaction:
+
+```console
+$ sudo go run . -ftp -skip-acme -debug -domain localhost
+...
+[INF] Outbound IP: 192.168.1.16
+[INF] Client Token: 6dc07e4a76c3d5e58e4bea13ce073dc403499b128c62397aff7b934a6e4822e3
+[INF] Listening with the following services:
+[DNS] Listening on TCP 192.168.1.16:53
+[SMTP] Listening on TCP 192.168.1.16:25
+[HTTP] Listening on TCP 192.168.1.16:80
+[FTP] Listening on TCP 192.168.1.16:21
+[DNS] Listening on UDP 192.168.1.16:53
+[LDAP] Listening on TCP 192.168.1.16:389
+[DBG] FTP Interaction: 
+{"protocol":"ftp","unique-id":"","full-id":"","raw-request":"USER test\ntest logging in","remote-address":"127.0.0.1:51564","timestamp":"2022-09-29T00:49:42.212323+02:00"}
+```
+
+## External Supported Protocols
+
+### SMB
+
+### Responder
+
+## Interactsh Integration
 
 ### Use as library
 
