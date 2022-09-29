@@ -667,6 +667,13 @@ $ sudo go run . -ftp -skip-acme -debug -domain localhost
 
 ### SMB
 
+The `-smb` flag enables the Samba protocol (only for self-hosted instances). The samba protocol uses [impacket](https://github.com/SecureAuthCorp/impacket) `smbserver` class to simulate a samba daemon share listening on port `445` unless changed by the `-smb-port` flag. When enabled, interactsh executes under the hoods the script `smb_server.py`. Hence Python3 and impacket dependencies are required.
+Example of enabling the samba server:
+
+```console
+$ sudo go run . -smb -skip-acme -debug -domain localhost
+```
+
 ### Responder
 
 ## Interactsh Integration
