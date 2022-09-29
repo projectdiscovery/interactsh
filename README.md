@@ -671,10 +671,25 @@ The `-smb` flag enables the Samba protocol (only for self-hosted instances). The
 Example of enabling the samba server:
 
 ```console
-$ sudo go run . -smb -skip-acme -debug -domain localhost
+$ sudo interactsh-server -smb -skip-acme -debug -domain localhost
 ```
 
 ### Responder
+[Responder](https://github.com/lgandx/Responder) is wrapped in a docker container exposing various service ports via docker port forwarding. The interactions are retrieved by monitoring the shared log file `Responder-Session.log` in the temp folder. To use it on a self-hosted instance, it's necessary first to build the docker container and tag it as `interactsh`(docker daemon must be configured correctly and with port forwarding capabilities):
+
+```console
+docker build . -t interactsh
+```
+
+Then run the service with:
+
+```console
+$ sudo interactsh-server -responder -d localhost
+```
+
+On default settings, the daemon listens on the following ports:
+- UDP: 137, 138, 1434
++ TCP: 21 (might collide with FTP daemon if used), 110, 135, 139, 389, 445, 1433, 3141, 3128
 
 ## Interactsh Integration
 
