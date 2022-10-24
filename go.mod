@@ -26,7 +26,7 @@ require (
 	github.com/projectdiscovery/stringsutil v0.0.0-20220731064040-4b67f194751e
 	github.com/remeh/sizedwaitgroup v1.0.0
 	github.com/rs/xid v1.4.0
-	github.com/stretchr/testify v1.8.0
+	github.com/stretchr/testify v1.8.1
 	github.com/syndtr/goleveldb v1.0.0
 	go.uber.org/multierr v1.8.0
 	go.uber.org/ratelimit v0.2.0
