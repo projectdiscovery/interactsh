@@ -16,7 +16,6 @@ import (
 
 	_ "net/http/pprof"
 
-	"github.com/projectdiscovery/folderutil"
 	"github.com/projectdiscovery/goflags"
 	"github.com/projectdiscovery/gologger"
 	"github.com/projectdiscovery/gologger/levels"
@@ -26,8 +25,9 @@ import (
 	"github.com/projectdiscovery/interactsh/pkg/server/acme"
 	"github.com/projectdiscovery/interactsh/pkg/settings"
 	"github.com/projectdiscovery/interactsh/pkg/storage"
-	"github.com/projectdiscovery/iputil"
-	"github.com/projectdiscovery/stringsutil"
+	folderutil "github.com/projectdiscovery/utils/folder"
+	iputil "github.com/projectdiscovery/utils/ip"
+	stringsutil "github.com/projectdiscovery/utils/strings"
 )
 
 var (

@@ -14,7 +14,7 @@ import (
 	"github.com/goburrow/cache"
 	"github.com/google/uuid"
 	"github.com/pkg/errors"
-	"github.com/projectdiscovery/fileutil"
+	fileutil "github.com/projectdiscovery/utils/file"
 	"github.com/rs/xid"
 	"github.com/syndtr/goleveldb/leveldb"
 	"github.com/syndtr/goleveldb/leveldb/opt"

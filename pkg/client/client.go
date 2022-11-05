@@ -29,7 +29,7 @@ import (
 	"github.com/projectdiscovery/interactsh/pkg/server"
 	"github.com/projectdiscovery/interactsh/pkg/settings"
 	"github.com/projectdiscovery/retryablehttp-go"
-	"github.com/projectdiscovery/stringsutil"
+	stringsutil "github.com/projectdiscovery/utils/strings"
 	"github.com/rs/xid"
 	"gopkg.in/corvus-ch/zbase32.v1"
 	"gopkg.in/yaml.v3"
