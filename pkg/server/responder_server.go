@@ -2,7 +2,6 @@ package server
 
 import (
 	"bytes"
-	"io/ioutil"
 	"net"
 	"os"
 	"os/exec"
@@ -46,7 +45,7 @@ func (h *ResponderServer) ListenAndServe(responderAlive chan bool) error {
 	defer func() {
 		responderAlive <- false
 	}()
-	tmpFolder, err := ioutil.TempDir("", "")
+	tmpFolder, err := os.MkdirTemp("", "")
 	if err != nil {
 		return err
 	}

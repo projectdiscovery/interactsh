@@ -3,7 +3,6 @@ package server
 import (
 	"bytes"
 	"fmt"
-	"io/ioutil"
 	"net"
 	"os"
 	"os/exec"
@@ -47,7 +46,7 @@ func (h *SMBServer) ListenAndServe(smbAlive chan bool) error {
 	defer func() {
 		smbAlive <- false
 	}()
-	tmpFile, err := ioutil.TempFile("", "")
+	tmpFile, err := os.CreateTemp("", "")
 	if err != nil {
 		return err
 	}
