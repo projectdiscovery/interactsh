@@ -4,12 +4,12 @@ import (
 	"bytes"
 	"crypto/tls"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"net"
 	"net/http"
 	"net/http/httptest"
 	"net/http/httputil"
+	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -18,7 +18,7 @@ import (
 
 	jsoniter "github.com/json-iterator/go"
 	"github.com/projectdiscovery/gologger"
-	"github.com/projectdiscovery/stringsutil"
+	stringsutil "github.com/projectdiscovery/utils/strings"
 )
 
 // HTTPServer is a http server instance that listens both
@@ -64,7 +64,7 @@ func NewHTTPServer(options *Options) (*HTTPServer, error) {
 	if options.HTTPIndex != "" {
 		abs, _ := filepath.Abs(options.HTTPDirectory)
 		gologger.Info().Msgf("Using custom server index: %s", abs)
-		if data, err := ioutil.ReadFile(options.HTTPIndex); err == nil {
+		if data, err := os.ReadFile(options.HTTPIndex); err == nil {
 			server.customBanner = string(data)
 		}
 	}
@@ -273,10 +273,11 @@ func (h *HTTPServer) defaultHandler(w http.ResponseWriter, req *http.Request) {
 // based on dynamic data from HTTP URL Query parameters.
 //
 // The following parameters are supported -
-// 	body (response body)
-// 	header (response header)
-// 	status (response status code)
-// 	delay (response time)
+//
+//	body (response body)
+//	header (response header)
+//	status (response status code)
+//	delay (response time)
 func writeResponseFromDynamicRequest(w http.ResponseWriter, req *http.Request) {
 	values := req.URL.Query()
 

@@ -16,14 +16,11 @@ require (
 	github.com/mackerelio/go-osstat v0.2.3
 	github.com/miekg/dns v1.1.50
 	github.com/pkg/errors v0.9.1
-	github.com/projectdiscovery/fileutil v0.0.3
-	github.com/projectdiscovery/folderutil v0.0.0-20220215113126-add60a1e8e08
 	github.com/projectdiscovery/goflags v0.0.10-0.20220827133735-3ff03268251a
 	github.com/projectdiscovery/gologger v1.1.4
-	github.com/projectdiscovery/iputil v0.0.2
 	github.com/projectdiscovery/retryabledns v1.0.17
 	github.com/projectdiscovery/retryablehttp-go v1.0.3-0.20220604122435-c175fc8f2d4a
-	github.com/projectdiscovery/stringsutil v0.0.2
+	github.com/projectdiscovery/utils v0.0.1
 	github.com/remeh/sizedwaitgroup v1.0.0
 	github.com/rs/xid v1.4.0
 	github.com/stretchr/testify v1.8.1
@@ -53,7 +50,10 @@ require (
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.2 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
+	github.com/projectdiscovery/fileutil v0.0.3 // indirect
+	github.com/projectdiscovery/iputil v0.0.2 // indirect
 	github.com/projectdiscovery/sliceutil v0.0.1 // indirect
+	github.com/projectdiscovery/stringsutil v0.0.2 // indirect
 	github.com/rogpeppe/go-internal v1.8.0 // indirect
 	github.com/saintfish/chardet v0.0.0-20120816061221-3af4cd4741ca // indirect
 	go.uber.org/atomic v1.10.0 // indirect

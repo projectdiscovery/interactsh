@@ -2,7 +2,6 @@ package server
 
 import (
 	"bytes"
-	"io/ioutil"
 	"net"
 	"os"
 	"os/exec"
@@ -11,10 +10,10 @@ import (
 	"time"
 
 	jsoniter "github.com/json-iterator/go"
-	"github.com/projectdiscovery/fileutil"
 	"github.com/projectdiscovery/gologger"
 	"github.com/projectdiscovery/interactsh/pkg/filewatcher"
-	"github.com/projectdiscovery/stringsutil"
+	fileutil "github.com/projectdiscovery/utils/file"
+	stringsutil "github.com/projectdiscovery/utils/strings"
 )
 
 var responderMonitorList map[string]string = map[string]string{
@@ -46,7 +45,7 @@ func (h *ResponderServer) ListenAndServe(responderAlive chan bool) error {
 	defer func() {
 		responderAlive <- false
 	}()
-	tmpFolder, err := ioutil.TempDir("", "")
+	tmpFolder, err := os.MkdirTemp("", "")
 	if err != nil {
 		return err
 	}

@@ -12,7 +12,7 @@ import (
 	"git.mills.io/prologic/smtpd"
 	jsoniter "github.com/json-iterator/go"
 	"github.com/projectdiscovery/gologger"
-	"github.com/projectdiscovery/stringsutil"
+	stringsutil "github.com/projectdiscovery/utils/strings"
 )
 
 // SMTPServer is a smtp server instance that listens both
