@@ -461,6 +461,95 @@ While running interactsh server on **Cloud VM**'s like Amazon EC2, Goolge Cloud 
 
 There are more useful capabilities supported by `interactsh-server` that are not enabled by default and are intended to be used only by **self-hosted** servers.
 
+## Interactsh Server behind a reverse proxy
+
+`interactsh-server` might require custom ports for services if the default ones are already busy. If this is the case but still default ports are required as part of the payload, it's possible to configure `interactsh-server` behind a reverse proxy, by port-forwarding HTTP/TCP/UDP based services via `http/stream` proxy directive (`proxy_pass`).
+
+## Nginx
+Assuming that `interactsh-server` essential services run on the following ports:
+- HTTP: 8080/TCP
+- HTTPS: 8440/TCP
+- SMTP: 8025/TCP
+- DNS: 8053/UDP
+- DNS: 8053/TCP
+
+The nginx configuration file to forward the traffic would look like the following one:
+
+```
+# http/https
+http {
+   server {
+      listen 443 ssl;
+      server_name mysite.com;
+      ssl_certificate /etc/nginx/interactsh.pem;
+      ssl_certificate_key /etc/nginx/interactsh.key;
+
+      location / {
+         proxy_pass https://interachsh.mysite.com:80/;
+         proxy_set_header Host $host;
+         proxy_set_header X-Real-IP $remote_addr;
+         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+         proxy_set_header X-Forwarded-Proto $scheme;
+      }        
+   }
+}
+
+stream {
+   # smtp
+   server {
+      listen 25;
+      proxy_pass interachsh.mysite.com:8025;
+   }
+
+   # dns
+   server {
+      listen 53;
+      proxy_pass interachsh.mysite.com:8053;
+   }
+   server {
+      listen 53 udp;
+      proxy_pass interachsh.mysite.com:8053;
+   }
+}
+```
+
+**configured domains**.
+
+```console
+interactsh-server -d oast.pro,oast.me
+
+    _       __                       __       __
+   (_)___  / /____  _________ ______/ /______/ /_
+  / / __ \/ __/ _ \/ ___/ __ '/ ___/ __/ ___/ __ \
+ / / / / / /_/  __/ /  / /_/ / /__/ /_(__  ) / / /
+/_/_/ /_/\__/\___/_/   \__,_/\___/\__/____/_/ /_/ 1.0.5
+
+                projectdiscovery.io
+
+[INF] Loading existing SSL Certificate for:  [*.oast.pro, oast.pro]
+[INF] Loading existing SSL Certificate for:  [*.oast.me, oast.me]
+[INF] Listening with the following services:
+[HTTPS] Listening on TCP 46.101.25.250:443
+[HTTP] Listening on TCP 46.101.25.250:80
+[SMTPS] Listening on TCP 46.101.25.250:587
+[LDAP] Listening on TCP 46.101.25.250:389
+[SMTP] Listening on TCP 46.101.25.250:25
+[DNS] Listening on TCP 46.101.25.250:53
+[DNS] Listening on UDP 46.101.25.250:53
+```
+
+<table>
+<td>
+
+**Note:**
+
+While running interactsh server on **Cloud VM**'s like Amazon EC2, Goolge Cloud Platform (GCP), it is required to update the security rules to allow **"all traffic"** for inbound connections.
+
+</table>
+</td>
+
+There are more useful capabilities supported by `interactsh-server` that are not enabled by default and are intended to be used only by **self-hosted** servers.
+
 ## Custom Server Index
 
 Index page for http server can be customized while running custom interactsh server using `-http-index` flag.
