@@ -466,7 +466,9 @@ There are more useful capabilities supported by `interactsh-server` that are not
 `interactsh-server` might require custom ports for services if the default ones are already busy. If this is the case but still default ports are required as part of the payload, it's possible to configure `interactsh-server` behind a reverse proxy, by port-forwarding HTTP/TCP/UDP based services via `http/stream` proxy directive (`proxy_pass`).
 
 ## Nginx
+
 Assuming that `interactsh-server` essential services run on the following ports:
+
 - HTTP: 8080/TCP
 - HTTPS: 8440/TCP
 - SMTP: 8025/TCP
@@ -475,7 +477,7 @@ Assuming that `interactsh-server` essential services run on the following ports:
 
 The nginx configuration file to forward the traffic would look like the following one:
 
-```
+```conf
 # http/https
 http {
    server {
@@ -537,18 +539,6 @@ interactsh-server -d oast.pro,oast.me
 [DNS] Listening on TCP 46.101.25.250:53
 [DNS] Listening on UDP 46.101.25.250:53
 ```
-
-<table>
-<td>
-
-**Note:**
-
-While running interactsh server on **Cloud VM**'s like Amazon EC2, Goolge Cloud Platform (GCP), it is required to update the security rules to allow **"all traffic"** for inbound connections.
-
-</table>
-</td>
-
-There are more useful capabilities supported by `interactsh-server` that are not enabled by default and are intended to be used only by **self-hosted** servers.
 
 ## Custom Server Index
 
@@ -701,8 +691,8 @@ interactsh-client -s hackwithautomation.com -cidl 4 -cidn 6
 [INF] c8rf4e8xm4.hackwithautomation.com
 ```
 
-
 ## Custom SSL Certificate
+
 The [certmagic](https://github.com/caddyserver/certmagic) library is used by default by interactsh server to produce wildcard certificates for requested domain in an automatic way. To use your own SSL certificate with self-hosted interactsh server, `cert` and `privkey` flag can be used to provider required certificate files.
 
 **Note:** To utilize all of the functionality of the SSL protocol, a wildcard certificate is mandatory.
@@ -777,6 +767,7 @@ $ sudo interactsh-server -responder -d localhost
 ```
 
 On default settings, the daemon listens on the following ports:
+
 - UDP: 137, 138, 1434
 + TCP: 21 (might collide with FTP daemon if used), 110, 135, 139, 389, 445, 1433, 3141, 3128
 
