@@ -20,7 +20,7 @@ require (
 	github.com/projectdiscovery/gologger v1.1.4
 	github.com/projectdiscovery/retryabledns v1.0.17
 	github.com/projectdiscovery/retryablehttp-go v1.0.3-0.20220604122435-c175fc8f2d4a
-	github.com/projectdiscovery/utils v0.0.1
+	github.com/projectdiscovery/utils v0.0.2
 	github.com/remeh/sizedwaitgroup v1.0.0
 	github.com/rs/xid v1.4.0
 	github.com/stretchr/testify v1.8.1
