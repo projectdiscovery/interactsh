@@ -118,8 +118,8 @@ github.com/projectdiscovery/sliceutil v0.0.1/go.mod h1:0wBmhU5uTDwMfrEZfvwH9qa5k
 github.com/projectdiscovery/stringsutil v0.0.0-20210804142656-fd3c28dbaafe/go.mod h1:oTRc18WBv9t6BpaN9XBY+QmG28PUpsyDzRht56Qf49I=
 github.com/projectdiscovery/stringsutil v0.0.2 h1:uzmw3IVLJSMW1kEg8eCStG/cGbYYZAja8BH3LqqJXMA=
 github.com/projectdiscovery/stringsutil v0.0.2/go.mod h1:EJ3w6bC5fBYjVou6ryzodQq37D5c6qbAYQpGmAy+DC0=
-github.com/projectdiscovery/utils v0.0.2 h1:lif4OYBqd8jCf0glRBfSs2lT4nMtNjHjeysRw8HIW8M=
-github.com/projectdiscovery/utils v0.0.2/go.mod h1:PEYYkpCedmtydQRUvfWLPw0VRWpaFms4GFqNAziBANI=
+github.com/projectdiscovery/utils v0.0.3 h1:pAjZTGYpnATRc6uaNACdiHv4joZ0Ml7Wpu0dudpcGfM=
+github.com/projectdiscovery/utils v0.0.3/go.mod h1:ne3eSlZlUKuhjHr8FfsfGcGteCzxcbJvFBx4VDBCxK0=
 github.com/remeh/sizedwaitgroup v1.0.0 h1:VNGGFwNo/R5+MJBf6yrsr110p0m4/OX4S3DCy7Kyl5E=
 github.com/remeh/sizedwaitgroup v1.0.0/go.mod h1:3j2R4OIe/SeS6YDhICBy22RWjJC5eNCJ1V+9+NVNYlo=
 github.com/rogpeppe/go-internal v1.6.1/go.mod h1:xXDCJY+GAPziupqXw64V24skbSoqbTEfhy4qGm1nDQc=
@@ -159,7 +159,6 @@ github.com/zmap/rc2 v0.0.0-20131011165748-24b9757f5521/go.mod h1:3YZ9o3WnatTIZhu
 github.com/zmap/zcertificate v0.0.0-20180516150559-0e3d58b1bac4/go.mod h1:5iU54tB79AMBcySS0R2XIyZBAVmeHranShAFELYx7is=
 github.com/zmap/zcrypto v0.0.0-20220803033029-557f3e4940be/go.mod h1:bRZdjnJaHWVXKEwrfAZMd0gfRjZGNhTbZwzp07s0Abw=
 go.uber.org/atomic v1.7.0/go.mod h1:fEN4uk6kAWBTFdckzkM89CLk9XfWZrxpCo0nPH17wJc=
-go.uber.org/atomic v1.9.0/go.mod h1:fEN4uk6kAWBTFdckzkM89CLk9XfWZrxpCo0nPH17wJc=
 go.uber.org/atomic v1.10.0 h1:9qC72Qh0+3MqyJbAn8YU5xVq1frD8bn3JtD2oXtafVQ=
 go.uber.org/atomic v1.10.0/go.mod h1:LUxbIzbOniOlMKjJjyPfpl4v+PKK2cNJn91OQbhoJI0=
 go.uber.org/goleak v1.1.11 h1:wy28qYRKZgnJTxGxvye5/wgWr1EKjmUDGYox5mGlRlI=
