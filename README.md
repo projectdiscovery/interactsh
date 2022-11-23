@@ -515,7 +515,7 @@ stream {
 }
 ```
 
-**configured domains**.
+**Configured Domains**
 
 ```console
 interactsh-server -d oast.pro,oast.me
