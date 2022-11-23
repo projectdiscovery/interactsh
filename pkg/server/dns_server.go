@@ -28,6 +28,7 @@ type DNSServer struct {
 	server        *dns.Server
 	customRecords *customDNSRecords
 	TxtRecord     string // used for ACME verification
+
 }
 
 // NewDNSServer returns a new DNS server.
@@ -281,6 +282,11 @@ func (h *DNSServer) handleInteraction(domain string, w dns.ResponseWriter, r *dn
 			RemoteAddress: host,
 			Timestamp:     time.Now(),
 		}
+
+		if nil != h.options.OnResult {
+			h.options.OnResult(interaction)
+		}
+
 		buffer := &bytes.Buffer{}
 		if err := jsoniter.NewEncoder(buffer).Encode(interaction); err != nil {
 			gologger.Warning().Msgf("Could not encode root tld dns interaction: %s\n", err)
