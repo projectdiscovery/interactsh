@@ -102,7 +102,9 @@ type Options struct {
 
 	ACMEStore *acme.Provider
 	Stats     *Metrics
+	OnResult  OnResultCallback
 }
+type OnResultCallback func(out interface{})
 
 func (options *Options) GetIdLength() int {
 	return options.CorrelationIdLength + options.CorrelationIdNonceLength
