@@ -28,7 +28,6 @@ type DNSServer struct {
 	server        *dns.Server
 	customRecords *customDNSRecords
 	TxtRecord     string // used for ACME verification
-
 }
 
 // NewDNSServer returns a new DNS server.
