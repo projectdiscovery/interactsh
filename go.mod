@@ -27,7 +27,7 @@ require (
 	github.com/syndtr/goleveldb v1.0.0
 	go.uber.org/multierr v1.8.0
 	go.uber.org/ratelimit v0.2.0
-	go.uber.org/zap v1.23.0
+	go.uber.org/zap v1.24.0
 	goftp.io/server/v2 v2.0.0
 	gopkg.in/corvus-ch/zbase32.v1 v1.0.0
 	gopkg.in/yaml.v3 v3.0.1
