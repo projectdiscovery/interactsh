@@ -11,7 +11,7 @@ type CLIServerOptions struct {
 	Debug                    bool
 	Domains                  goflags.StringSlice
 	DnsPort                  int
-	IPAddress                string
+	IPAddress                goflags.StringSlice
 	ListenIP                 string
 	HttpPort                 int
 	HttpsPort                int

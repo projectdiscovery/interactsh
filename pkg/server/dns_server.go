@@ -23,7 +23,7 @@ type DNSServer struct {
 	options       *Options
 	mxDomains     map[string]string
 	nsDomains     map[string][]string
-	ipAddress     net.IP
+	ipAddress     []net.IP
 	timeToLive    uint32
 	server        *dns.Server
 	customRecords *customDNSRecords
@@ -48,12 +48,15 @@ func NewDNSServer(network string, options *Options) *DNSServer {
 
 	server := &DNSServer{
 		options:       options,
-		ipAddress:     net.ParseIP(options.IPAddress),
 		mxDomains:     mxDomains,
 		nsDomains:     nsDomains,
 		timeToLive:    3600,
 		customRecords: newCustomDNSRecordsServer(options.CustomRecords),
 	}
+	for _, ip := range options.IPAddress {
+		server.ipAddress = append(server.ipAddress, net.ParseIP(ip))
+	}
+
 	server.server = &dns.Server{
 		Addr:    options.ListenIP + fmt.Sprintf(":%d", options.DnsPort),
 		Net:     network,
@@ -164,20 +167,24 @@ func (h *DNSServer) handleACNAMEANY(zone string, m *dns.Msg) {
 	record := h.customRecords.checkCustomResponse(zone)
 	switch {
 	case record != "":
-		h.resultFunction(nsHeader, zone, net.ParseIP(record), m)
+		h.resultFunction(nsHeader, zone, []net.IP{net.ParseIP(record)}, m)
 	default:
 		h.resultFunction(nsHeader, zone, h.ipAddress, m)
 	}
 }
 
-func (h *DNSServer) resultFunction(nsHeader dns.RR_Header, zone string, ipAddress net.IP, m *dns.Msg) {
-	m.Answer = append(m.Answer, &dns.A{Hdr: dns.RR_Header{Name: zone, Rrtype: dns.TypeA, Class: dns.ClassINET, Ttl: h.timeToLive}, A: ipAddress})
+func (h *DNSServer) resultFunction(nsHeader dns.RR_Header, zone string, ipAddress []net.IP, m *dns.Msg) {
+	for _, ipAddr := range ipAddress {
+		m.Answer = append(m.Answer, &dns.A{Hdr: dns.RR_Header{Name: zone, Rrtype: dns.TypeA, Class: dns.ClassINET, Ttl: h.timeToLive}, A: ipAddr})
+	}
 	dotDomains := []string{zone, dns.Fqdn(h.options.Domains[0])}
 	for _, dotDomain := range dotDomains {
 		if nsDomains, ok := h.nsDomains[dotDomain]; ok {
 			for _, nsDomain := range nsDomains {
 				m.Ns = append(m.Ns, &dns.NS{Hdr: nsHeader, Ns: nsDomain})
-				m.Extra = append(m.Extra, &dns.A{Hdr: dns.RR_Header{Name: nsDomain, Rrtype: dns.TypeA, Class: dns.ClassINET, Ttl: h.timeToLive}, A: h.ipAddress})
+				for _, ipAddr := range h.ipAddress {
+					m.Extra = append(m.Extra, &dns.A{Hdr: dns.RR_Header{Name: nsDomain, Rrtype: dns.TypeA, Class: dns.ClassINET, Ttl: h.timeToLive}, A: ipAddr})
+				}
 			}
 			return
 		}

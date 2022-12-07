@@ -36,7 +36,7 @@ type Options struct {
 	// Domains is the list domains for the instance.
 	Domains []string
 	// IPAddress is the IP address of the current server.
-	IPAddress string
+	IPAddress []string
 	// ListenIP is the IP address to listen servers on
 	ListenIP string
 	// DomainPort is the port to listen DNS servers on

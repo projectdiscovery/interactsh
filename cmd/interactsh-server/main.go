@@ -43,7 +43,7 @@ func main() {
 
 	flagSet.CreateGroup("input", "Input",
 		flagSet.StringSliceVarP(&cliOptions.Domains, "domain", "d", []string{}, "single/multiple configured domain to use for server", goflags.CommaSeparatedStringSliceOptions),
-		flagSet.StringVar(&cliOptions.IPAddress, "ip", "", "public ip address to use for interactsh server"),
+		flagSet.StringSliceVarConfigOnly(&cliOptions.IPAddress, "ip", []string{}, "public ip address to use for interactsh server"),
 		flagSet.StringVarP(&cliOptions.ListenIP, "listen-ip", "lip", "0.0.0.0", "public ip address to listen on"),
 		flagSet.IntVarP(&cliOptions.Eviction, "eviction", "e", 30, "number of days to persist interaction data in memory"),
 		flagSet.BoolVarP(&cliOptions.Auth, "auth", "a", false, "enable authentication to server using random generated token"),
@@ -118,7 +118,7 @@ func main() {
 		gologger.Fatal().Msgf("No domains specified\n")
 	}
 
-	if cliOptions.IPAddress == "" && cliOptions.ListenIP == "0.0.0.0" {
+	if 0 == len(cliOptions.IPAddress) && cliOptions.ListenIP == "0.0.0.0" {
 		publicIP, _ := getPublicIP()
 		gologger.Info().Msgf("Public IP: %s\n", publicIP)
 		outboundIP, _ := iputil.GetSourceIP("scanme.sh")
@@ -141,7 +141,7 @@ func main() {
 			gologger.Fatal().Msgf("%s\nNo bindable address could be found for port %d\nPlease ensure to have proper privileges and/or choose the correct ip:\n%s\n", err, cliOptions.DnsPort, addressesBuilder.String())
 		}
 		cliOptions.ListenIP = bindableIP
-		cliOptions.IPAddress = publicIP
+		cliOptions.IPAddress = []string{publicIP}
 	}
 
 	for _, domain := range cliOptions.Domains {
