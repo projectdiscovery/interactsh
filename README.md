@@ -461,6 +461,85 @@ While running interactsh server on **Cloud VM**'s like Amazon EC2, Goolge Cloud 
 
 There are more useful capabilities supported by `interactsh-server` that are not enabled by default and are intended to be used only by **self-hosted** servers.
 
+## Interactsh Server behind a reverse proxy
+
+`interactsh-server` might require custom ports for services if the default ones are already busy. If this is the case but still default ports are required as part of the payload, it's possible to configure `interactsh-server` behind a reverse proxy, by port-forwarding HTTP/TCP/UDP based services via `http/stream` proxy directive (`proxy_pass`).
+
+## Nginx
+
+Assuming that `interactsh-server` essential services run on the following ports:
+
+- HTTP: 8080/TCP
+- HTTPS: 8440/TCP
+- SMTP: 8025/TCP
+- DNS: 8053/UDP
+- DNS: 8053/TCP
+
+The nginx configuration file to forward the traffic would look like the following one:
+
+```conf
+# http/https
+http {
+   server {
+      listen 443 ssl;
+      server_name mysite.com;
+      ssl_certificate /etc/nginx/interactsh.pem;
+      ssl_certificate_key /etc/nginx/interactsh.key;
+
+      location / {
+         proxy_pass https://interachsh.mysite.com:80/;
+         proxy_set_header Host $host;
+         proxy_set_header X-Real-IP $remote_addr;
+         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+         proxy_set_header X-Forwarded-Proto $scheme;
+      }        
+   }
+}
+
+stream {
+   # smtp
+   server {
+      listen 25;
+      proxy_pass interachsh.mysite.com:8025;
+   }
+
+   # dns
+   server {
+      listen 53;
+      proxy_pass interachsh.mysite.com:8053;
+   }
+   server {
+      listen 53 udp;
+      proxy_pass interachsh.mysite.com:8053;
+   }
+}
+```
+
+**Configured Domains**
+
+```console
+interactsh-server -d oast.pro,oast.me
+
+    _       __                       __       __
+   (_)___  / /____  _________ ______/ /______/ /_
+  / / __ \/ __/ _ \/ ___/ __ '/ ___/ __/ ___/ __ \
+ / / / / / /_/  __/ /  / /_/ / /__/ /_(__  ) / / /
+/_/_/ /_/\__/\___/_/   \__,_/\___/\__/____/_/ /_/ 1.0.5
+
+                projectdiscovery.io
+
+[INF] Loading existing SSL Certificate for:  [*.oast.pro, oast.pro]
+[INF] Loading existing SSL Certificate for:  [*.oast.me, oast.me]
+[INF] Listening with the following services:
+[HTTPS] Listening on TCP 46.101.25.250:443
+[HTTP] Listening on TCP 46.101.25.250:80
+[SMTPS] Listening on TCP 46.101.25.250:587
+[LDAP] Listening on TCP 46.101.25.250:389
+[SMTP] Listening on TCP 46.101.25.250:25
+[DNS] Listening on TCP 46.101.25.250:53
+[DNS] Listening on UDP 46.101.25.250:53
+```
+
 ## Custom Server Index
 
 Index page for http server can be customized while running custom interactsh server using `-http-index` flag.
@@ -612,8 +691,8 @@ interactsh-client -s hackwithautomation.com -cidl 4 -cidn 6
 [INF] c8rf4e8xm4.hackwithautomation.com
 ```
 
-
 ## Custom SSL Certificate
+
 The [certmagic](https://github.com/caddyserver/certmagic) library is used by default by interactsh server to produce wildcard certificates for requested domain in an automatic way. To use your own SSL certificate with self-hosted interactsh server, `cert` and `privkey` flag can be used to provider required certificate files.
 
 **Note:** To utilize all of the functionality of the SSL protocol, a wildcard certificate is mandatory.
@@ -688,6 +767,7 @@ $ sudo interactsh-server -responder -d localhost
 ```
 
 On default settings, the daemon listens on the following ports:
+
 - UDP: 137, 138, 1434
 + TCP: 21 (might collide with FTP daemon if used), 110, 135, 139, 389, 445, 1433, 3141, 3128
 
