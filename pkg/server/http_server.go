@@ -393,6 +393,8 @@ func (h *HTTPServer) pollHandler(w http.ResponseWriter, req *http.Request) {
 		for _, domain := range h.options.Domains {
 			tlddata, _ = h.options.Storage.GetInteractionsWithId(domain)
 		}
+	}
+	if h.options.Token != "" {
 		extradata, _ = h.options.Storage.GetInteractionsWithId(h.options.Token)
 	}
 	response := &PollResponse{Data: data, AESKey: aesKey, TLDData: tlddata, Extra: extradata}
