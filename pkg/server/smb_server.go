@@ -24,20 +24,20 @@ var smbMonitorList map[string]string = map[string]string{
 
 // SMBServer is a smb wrapper server instance
 type SMBServer struct {
-	options   *Options
-	LogFile   string
-	ipAddress []net.IP
-	cmd       *exec.Cmd
-	tmpFile   string
+	options     *Options
+	LogFile     string
+	ipAddresses []net.IP
+	cmd         *exec.Cmd
+	tmpFile     string
 }
 
 // NewSMBServer returns a new SMB server.
 func NewSMBServer(options *Options) (*SMBServer, error) {
-	server := &SMBServer{
-		options: options,
-	}
-	for _, ip := range options.IPAddress {
-		server.ipAddress = append(server.ipAddress, net.ParseIP(ip))
+	server := &SMBServer{options: options}
+	for _, ip := range options.IPAddresses {
+		if parsedIP := net.ParseIP(ip); parsedIP != nil {
+			server.ipAddresses = append(server.ipAddresses, net.ParseIP(ip))
+		}
 	}
 	return server, nil
 }

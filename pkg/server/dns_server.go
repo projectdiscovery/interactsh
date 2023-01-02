@@ -23,7 +23,7 @@ type DNSServer struct {
 	options       *Options
 	mxDomains     map[string]string
 	nsDomains     map[string][]string
-	ipAddress     []net.IP
+	ipAddresses   []net.IP
 	timeToLive    uint32
 	server        *dns.Server
 	customRecords *customDNSRecords
@@ -53,8 +53,10 @@ func NewDNSServer(network string, options *Options) *DNSServer {
 		timeToLive:    3600,
 		customRecords: newCustomDNSRecordsServer(options.CustomRecords),
 	}
-	for _, ip := range options.IPAddress {
-		server.ipAddress = append(server.ipAddress, net.ParseIP(ip))
+	for _, ip := range options.IPAddresses {
+		if parsedIP := net.ParseIP(ip); parsedIP != nil {
+			server.ipAddresses = append(server.ipAddresses, net.ParseIP(ip))
+		}
 	}
 
 	server.server = &dns.Server{
@@ -169,7 +171,7 @@ func (h *DNSServer) handleACNAMEANY(zone string, m *dns.Msg) {
 	case record != "":
 		h.resultFunction(nsHeader, zone, []net.IP{net.ParseIP(record)}, m)
 	default:
-		h.resultFunction(nsHeader, zone, h.ipAddress, m)
+		h.resultFunction(nsHeader, zone, h.ipAddresses, m)
 	}
 }
 
@@ -182,7 +184,7 @@ func (h *DNSServer) resultFunction(nsHeader dns.RR_Header, zone string, ipAddres
 		if nsDomains, ok := h.nsDomains[dotDomain]; ok {
 			for _, nsDomain := range nsDomains {
 				m.Ns = append(m.Ns, &dns.NS{Hdr: nsHeader, Ns: nsDomain})
-				for _, ipAddr := range h.ipAddress {
+				for _, ipAddr := range h.ipAddresses {
 					m.Extra = append(m.Extra, &dns.A{Hdr: dns.RR_Header{Name: nsDomain, Rrtype: dns.TypeA, Class: dns.ClassINET, Ttl: h.timeToLive}, A: ipAddr})
 				}
 			}

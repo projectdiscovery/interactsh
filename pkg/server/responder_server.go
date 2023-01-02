@@ -23,11 +23,11 @@ var responderMonitorList map[string]string = map[string]string{
 
 // ResponderServer is a Responder wrapper server instance
 type ResponderServer struct {
-	options   *Options
-	LogFile   string
-	ipAddress []net.IP
-	cmd       *exec.Cmd
-	tmpFolder string
+	options     *Options
+	LogFile     string
+	ipAddresses []net.IP
+	cmd         *exec.Cmd
+	tmpFolder   string
 }
 
 // NewResponderServer returns a new SMB server.
@@ -35,8 +35,10 @@ func NewResponderServer(options *Options) (*ResponderServer, error) {
 	server := &ResponderServer{
 		options: options,
 	}
-	for _, ip := range options.IPAddress {
-		server.ipAddress = append(server.ipAddress, net.ParseIP(ip))
+	for _, ip := range options.IPAddresses {
+		if parsedIP := net.ParseIP(ip); parsedIP != nil {
+			server.ipAddresses = append(server.ipAddresses, net.ParseIP(ip))
+		}
 	}
 	return server, nil
 }
