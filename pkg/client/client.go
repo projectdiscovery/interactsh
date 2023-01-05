@@ -14,6 +14,7 @@ import (
 	"fmt"
 	"io"
 	mathrand "math/rand"
+	"net"
 	"net/http"
 	"net/url"
 	"os"
@@ -23,11 +24,13 @@ import (
 	"github.com/google/uuid"
 	jsoniter "github.com/json-iterator/go"
 	"github.com/pkg/errors"
+	asnmap "github.com/projectdiscovery/asnmap/libs"
 	"github.com/projectdiscovery/gologger"
 	"github.com/projectdiscovery/interactsh/pkg/options"
 	"github.com/projectdiscovery/interactsh/pkg/server"
 	"github.com/projectdiscovery/interactsh/pkg/settings"
 	"github.com/projectdiscovery/retryablehttp-go"
+	iputil "github.com/projectdiscovery/utils/ip"
 	stringsutil "github.com/projectdiscovery/utils/strings"
 	"github.com/rs/xid"
 	"gopkg.in/corvus-ch/zbase32.v1"
@@ -46,6 +49,7 @@ type Client struct {
 	secretKey                string
 	serverURL                *url.URL
 	httpClient               *retryablehttp.Client
+	asnmapClient             *asnmap.Client
 	privKey                  *rsa.PrivateKey
 	quitChan                 chan struct{}
 	disableHTTPFallback      bool
@@ -70,6 +74,8 @@ type Options struct {
 	HTTPClient *retryablehttp.Client
 	// SessionInfo to resume an existing session
 	SessionInfo *options.SessionInfo
+	// AsnMapClient use a custom asnmap client
+	AsnMapClient *asnmap.Client
 }
 
 // DefaultOptions is the default options for the interact client
@@ -123,6 +129,11 @@ func New(options *Options) (*Client, error) {
 		correlationIdLength:      options.CorrelationIdLength,
 		CorrelationIdNonceLength: options.CorrelationIdNonceLength,
 	}
+
+	if options.AsnMapClient != nil {
+		client.asnmapClient = options.AsnMapClient
+	}
+
 	if options.SessionInfo != nil {
 		privKey, err := x509.ParsePKCS1PrivateKey([]byte(options.SessionInfo.PrivateKey))
 		if err == nil {
@@ -290,7 +301,7 @@ func (c *Client) getInteractions(callback InteractionCallback) error {
 	if err != nil {
 		return err
 	}
-	if resp.StatusCode != 200 {
+	if resp.StatusCode != http.StatusOK {
 		if resp.StatusCode == http.StatusUnauthorized {
 			return authError
 		}
@@ -336,6 +347,36 @@ func (c *Client) getInteractions(callback InteractionCallback) error {
 		callback(interaction)
 	}
 
+	return nil
+}
+
+// TryGetAsnInfo attempts to enrich interaction with asn data
+func (c *Client) TryGetAsnInfo(interaction *server.Interaction) error {
+	if c.asnmapClient != nil {
+		var remoteIp string
+		if iputil.IsIP(interaction.RemoteAddress) {
+			remoteIp = interaction.RemoteAddress
+		} else {
+			var err error
+			remoteIp, _, err = net.SplitHostPort(interaction.RemoteAddress)
+			if err != nil {
+				return err
+			}
+		}
+
+		if asnItems := c.asnmapClient.GetData(asnmap.IP(remoteIp)); len(asnItems) > 0 {
+			for _, asnItem := range asnItems {
+				// convert to map to prune and turn fields into camel case
+				newOutputAsnItem := make(map[string]string)
+				newOutputAsnItem["first-ip"] = asnItem.FirstIp
+				newOutputAsnItem["last-ip"] = asnItem.LastIp
+				newOutputAsnItem["asn"] = fmt.Sprintf("AS%d", asnItem.ASN)
+				newOutputAsnItem["country"] = asnItem.Country
+				newOutputAsnItem["org"] = asnItem.Org
+				interaction.AsnInfo = append(interaction.AsnInfo, newOutputAsnItem)
+			}
+		}
+	}
 	return nil
 }
 

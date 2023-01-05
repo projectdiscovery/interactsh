@@ -28,7 +28,8 @@ type Interaction struct {
 	// RemoteAddress is the remote address for interaction
 	RemoteAddress string `json:"remote-address"`
 	// Timestamp is the timestamp for the interaction
-	Timestamp time.Time `json:"timestamp"`
+	Timestamp time.Time           `json:"timestamp"`
+	AsnInfo   []map[string]string `json:"asninfo,omitempty"`
 }
 
 // Options contains configuration options for the servers
