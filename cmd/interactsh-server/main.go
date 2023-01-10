@@ -100,7 +100,7 @@ func main() {
 	options.ShowBanner()
 
 	if healthcheck {
-		cfgFilePath, _ := goflags.GetConfigFilePath()
+		cfgFilePath, _ := flagSet.GetConfigFilePath()
 		gologger.Print().Msgf("%s\n", runner.DoHealthCheck(cfgFilePath))
 		os.Exit(0)
 	}
