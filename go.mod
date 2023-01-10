@@ -19,7 +19,7 @@ require (
 	github.com/projectdiscovery/goflags v0.0.10-0.20220827133735-3ff03268251a
 	github.com/projectdiscovery/gologger v1.1.7
 	github.com/projectdiscovery/retryabledns v1.0.18
-	github.com/projectdiscovery/retryablehttp-go v1.0.7
+	github.com/projectdiscovery/retryablehttp-go v1.0.8
 	github.com/projectdiscovery/utils v0.0.4-0.20221201124851-f8524345b6d3
 	github.com/remeh/sizedwaitgroup v1.0.0
 	github.com/rs/xid v1.4.0
@@ -62,9 +62,9 @@ require (
 	go.uber.org/atomic v1.10.0 // indirect
 	golang.org/x/crypto v0.1.0 // indirect
 	golang.org/x/mod v0.6.0 // indirect
-	golang.org/x/net v0.4.0 // indirect
-	golang.org/x/sys v0.3.0 // indirect
-	golang.org/x/text v0.5.0 // indirect
+	golang.org/x/net v0.5.0 // indirect
+	golang.org/x/sys v0.4.0 // indirect
+	golang.org/x/text v0.6.0 // indirect
 	golang.org/x/tools v0.2.0 // indirect
 	gopkg.in/djherbis/times.v1 v1.3.0 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
