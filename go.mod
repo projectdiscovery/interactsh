@@ -17,10 +17,10 @@ require (
 	github.com/miekg/dns v1.1.50
 	github.com/pkg/errors v0.9.1
 	github.com/projectdiscovery/asnmap v0.0.1
-	github.com/projectdiscovery/goflags v0.1.0
-	github.com/projectdiscovery/gologger v1.1.5
-	github.com/projectdiscovery/retryabledns v1.0.18
-	github.com/projectdiscovery/retryablehttp-go v1.0.7
+	github.com/projectdiscovery/goflags v0.1.6
+	github.com/projectdiscovery/gologger v1.1.7
+	github.com/projectdiscovery/retryabledns v1.0.19
+	github.com/projectdiscovery/retryablehttp-go v1.0.8
 	github.com/projectdiscovery/utils v0.0.4-0.20230104202814-954b634edb4f
 	github.com/remeh/sizedwaitgroup v1.0.0
 	github.com/rs/xid v1.4.0
@@ -55,7 +55,6 @@ require (
 	github.com/pierrec/lz4 v2.6.0+incompatible // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/projectdiscovery/blackrock v0.0.0-20220628111055-35616c71b2dc // indirect
-	github.com/projectdiscovery/fileutil v0.0.3 // indirect
 	github.com/projectdiscovery/mapcidr v1.0.2 // indirect
 	github.com/projectdiscovery/sliceutil v0.0.1 // indirect
 	github.com/projectdiscovery/stringsutil v0.0.2 // indirect
@@ -65,6 +64,7 @@ require (
 	github.com/xi2/xz v0.0.0-20171230120015-48954b6210f8 // indirect
 	go.uber.org/atomic v1.10.0 // indirect
 	golang.org/x/crypto v0.1.0 // indirect
+	golang.org/x/exp v0.0.0-20230108222341-4b8118a2686a // indirect
 	golang.org/x/mod v0.7.0 // indirect
 	golang.org/x/net v0.5.0 // indirect
 	golang.org/x/sys v0.4.0 // indirect
