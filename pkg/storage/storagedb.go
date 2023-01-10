@@ -35,7 +35,9 @@ func New(options *Options) (*StorageDB, error) {
 	storageDB := &StorageDB{Options: options}
 	cacheOptions := []cache.Option{
 		cache.WithMaximumSize(options.MaxSize),
-		cache.WithExpireAfterWrite(options.EvictionTTL),
+	}
+	if options.EvictionTTL > 0 {
+		cacheOptions = append(cacheOptions, cache.WithExpireAfterWrite(options.EvictionTTL))
 	}
 	if options.UseDisk() {
 		cacheOptions = append(cacheOptions, cache.WithRemovalListener(storageDB.OnCacheRemovalCallback))
