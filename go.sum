@@ -108,8 +108,8 @@ github.com/projectdiscovery/fileutil v0.0.3 h1:GSsoey4p8ZHIRxWF2VXh4mhLr+wfEkpJw
 github.com/projectdiscovery/fileutil v0.0.3/go.mod h1:GLejWd3YerG3RNYD/Hk2pJlytlYRgHdkWfWUAdCH2YQ=
 github.com/projectdiscovery/goflags v0.0.10-0.20220827133735-3ff03268251a h1:ETQwkjM4HKdV6rvXUOFpXBXA4El1V+GQN+3Bz4TI4Vs=
 github.com/projectdiscovery/goflags v0.0.10-0.20220827133735-3ff03268251a/go.mod h1:t/dEhv2VDOzayugXZCkbkX8n+pPeVmRD+WgQRSgReeI=
-github.com/projectdiscovery/gologger v1.1.5 h1:CT2Jrpzusca+dwNREMMz4RnAreJ0RqaISRU4SBcZC+M=
-github.com/projectdiscovery/gologger v1.1.5/go.mod h1:bNyVaC1U/NpJtFkJltcesn01NR3K8Hg6RsLVce6yvrw=
+github.com/projectdiscovery/gologger v1.1.7 h1:QeByO4NR8vlZ5ZM2XIOJARRj5WOOU5Ix35FBQ1iH5Rk=
+github.com/projectdiscovery/gologger v1.1.7/go.mod h1:bNyVaC1U/NpJtFkJltcesn01NR3K8Hg6RsLVce6yvrw=
 github.com/projectdiscovery/retryabledns v1.0.18 h1:9vOEeK1n2s95Eju4bWz4ynWZWo9k/hhfdPzZ3WCt7fY=
 github.com/projectdiscovery/retryabledns v1.0.18/go.mod h1:YcJDUCz8vXaUGl6Agm3bFZezQZe7zVlm1JoKY5ZQODg=
 github.com/projectdiscovery/retryablehttp-go v1.0.7 h1:4Nd87QN+3yUMxYwQQgG/v+BLQt1fYqXu9PjEoar8LGs=
