@@ -46,6 +46,7 @@ func main() {
 		flagSet.StringSliceVar(&cliOptions.IPAddresses, "ip", nil, "public ip addresses to use for interactsh server", goflags.CommaSeparatedStringSliceOptions),
 		flagSet.StringVarP(&cliOptions.ListenIP, "listen-ip", "lip", "0.0.0.0", "public ip address to listen on"),
 		flagSet.IntVarP(&cliOptions.Eviction, "eviction", "e", 30, "number of days to persist interaction data in memory"),
+		flagSet.BoolVarP(&cliOptions.NoEviction, "no-eviction", "ne", false, "disable periodic data eviction from memory"),
 		flagSet.BoolVarP(&cliOptions.Auth, "auth", "a", false, "enable authentication to server using random generated token"),
 		flagSet.StringVarP(&cliOptions.Token, "token", "t", "", "enable authentication to server using given token"),
 		flagSet.StringVar(&cliOptions.OriginURL, "acao-url", "*", "origin url to send in acao header to use web-client)"), // cli flag set to deprecate
@@ -184,6 +185,9 @@ func main() {
 	}
 
 	evictionTTL := time.Duration(cliOptions.Eviction) * time.Hour * 24
+	if cliOptions.NoEviction {
+		evictionTTL = -1
+	}
 	var store storage.Storage
 	storeOptions := storage.DefaultOptions
 	storeOptions.EvictionTTL = evictionTTL
