@@ -27,7 +27,9 @@ import (
 	"github.com/projectdiscovery/interactsh/pkg/options"
 	"github.com/projectdiscovery/interactsh/pkg/server"
 	"github.com/projectdiscovery/interactsh/pkg/settings"
+	"github.com/projectdiscovery/interactsh/pkg/storage"
 	"github.com/projectdiscovery/retryablehttp-go"
+	errorutil "github.com/projectdiscovery/utils/errors"
 	stringsutil "github.com/projectdiscovery/utils/strings"
 	"github.com/rs/xid"
 	"gopkg.in/corvus-ch/zbase32.v1"
@@ -252,8 +254,12 @@ func (c *Client) StartPolling(duration time.Duration, callback InteractionCallba
 			select {
 			case <-ticker.C:
 				err := c.getInteractions(callback)
-				if err != nil && err.Error() == authError.Error() {
-					gologger.Fatal().Msgf("Could not authenticate to the server")
+				if err != nil {
+					if errorutil.IsAny(err, authError) {
+						gologger.Fatal().Msgf("Could not authenticate to the server")
+					} else if errorutil.IsAny(err, storage.ErrCorrelationIdNotFound) {
+						gologger.Fatal().Msgf("The correlation id was not found (probably evicted due to inactivity)")
+					}
 				}
 			case <-c.quitChan:
 				ticker.Stop()
@@ -290,11 +296,14 @@ func (c *Client) getInteractions(callback InteractionCallback) error {
 	if err != nil {
 		return err
 	}
-	if resp.StatusCode != 200 {
+	if resp.StatusCode != http.StatusOK {
 		if resp.StatusCode == http.StatusUnauthorized {
 			return authError
 		}
 		data, _ := io.ReadAll(resp.Body)
+		if stringsutil.ContainsAny(string(data), storage.ErrCorrelationIdNotFound.Error()) {
+			return storage.ErrCorrelationIdNotFound
+		}
 		return fmt.Errorf("could not poll interactions: %s", string(data))
 	}
 	response := &server.PollResponse{}
@@ -376,7 +385,7 @@ func (c *Client) Close() error {
 	if err != nil {
 		return errors.Wrap(err, "could not make deregister request")
 	}
-	if resp.StatusCode != 200 {
+	if resp.StatusCode != http.StatusOK {
 		data, _ := io.ReadAll(resp.Body)
 		return fmt.Errorf("could not deregister to server: %s", string(data))
 	}
@@ -410,10 +419,10 @@ func (c *Client) performRegistration(serverURL string, payload []byte) error {
 	if err != nil {
 		return errors.Wrap(err, "could not make register request")
 	}
-	if resp.StatusCode == 401 {
+	if resp.StatusCode == http.StatusUnauthorized {
 		return errors.New("invalid token provided for interactsh server")
 	}
-	if resp.StatusCode != 200 {
+	if resp.StatusCode != http.StatusOK {
 		data, _ := io.ReadAll(resp.Body)
 		return fmt.Errorf("could not register to server: %s", string(data))
 	}
