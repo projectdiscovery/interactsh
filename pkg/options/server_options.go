@@ -48,6 +48,9 @@ type CLIServerOptions struct {
 	DiskStoragePath          string
 	EnablePprof              bool
 	EnableMetrics            bool
+	JsResp                   bool
+	JsChainLoad              goflags.StringSlice
+	JsCollectPageList        goflags.StringSlice
 }
 
 func (cliServerOptions *CLIServerOptions) AsServerOptions() *server.Options {
@@ -84,5 +87,8 @@ func (cliServerOptions *CLIServerOptions) AsServerOptions() *server.Options {
 		DiskStorage:              cliServerOptions.DiskStorage,
 		DiskStoragePath:          cliServerOptions.DiskStoragePath,
 		EnableMetrics:            cliServerOptions.EnableMetrics,
+		JsResp:                   cliServerOptions.JsResp,
+		JsChainLoad:              cliServerOptions.JsChainLoad,
+		JsCollectPageList:        cliServerOptions.JsCollectPageList,
 	}
 }

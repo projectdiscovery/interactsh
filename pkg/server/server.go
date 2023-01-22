@@ -99,6 +99,12 @@ type Options struct {
 	DynamicResp bool
 	// EnableMetrics enables metrics endpoint
 	EnableMetrics bool
+	// Enables serving xss-hunter like javascript probe
+	JsResp bool
+	// JsChainLoad contains a list of js file to serve merged with base one
+	JsChainLoad []string
+	// JsCollectPageList contains a list of paths to collect from the injected browser side
+	JsCollectPageList []string
 
 	ACMEStore *acme.Provider
 	Stats     *Metrics
