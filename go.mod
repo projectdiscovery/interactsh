@@ -19,8 +19,8 @@ require (
 	github.com/projectdiscovery/goflags v0.0.10-0.20220827133735-3ff03268251a
 	github.com/projectdiscovery/gologger v1.1.7
 	github.com/projectdiscovery/retryabledns v1.0.20
-	github.com/projectdiscovery/retryablehttp-go v1.0.8
-	github.com/projectdiscovery/utils v0.0.4-0.20221201124851-f8524345b6d3
+	github.com/projectdiscovery/retryablehttp-go v1.0.9
+	github.com/projectdiscovery/utils v0.0.4-0.20230117135930-7371ae6a739d
 	github.com/remeh/sizedwaitgroup v1.0.0
 	github.com/rs/xid v1.4.0
 	github.com/stretchr/testify v1.8.1
