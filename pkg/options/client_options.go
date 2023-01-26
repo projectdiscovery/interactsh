@@ -9,6 +9,7 @@ type CLIClientOptions struct {
 	Version                  bool
 	ServerURL                string
 	NumberOfPayloads         int
+	NumberOfJSPayloads       int
 	Output                   string
 	JSON                     bool
 	Verbose                  bool
