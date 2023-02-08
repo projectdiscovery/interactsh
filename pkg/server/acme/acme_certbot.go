@@ -55,22 +55,20 @@ func HandleWildcardCertificates(domain, email string, store *Provider, debug boo
 	var creating bool
 	if !certAlreadyExists(cfg, &certmagic.DefaultACME, domain) {
 		creating = true
-		gologger.Info().Msgf("Requesting SSL Certificate for:  [%s, %s]", domain, strings.TrimPrefix(domain, "*."))
+		gologger.Info().Msgf("Requesting SSL Certificate for:  [%s, %s]", domain, originalDomain)
 	} else {
-		gologger.Info().Msgf("Loading existing SSL Certificate for:  [%s, %s]", domain, strings.TrimPrefix(domain, "*."))
+		gologger.Info().Msgf("Loading existing SSL Certificate for:  [%s, %s]", domain, originalDomain)
 	}
 
 	// this obtains certificates or renews them if necessary
-	if syncerr := cfg.ObtainCertSync(context.Background(), domain); syncerr != nil {
-		return nil, syncerr
+	if syncErr := cfg.ObtainCertSync(context.Background(), domain); syncErr != nil {
+		return nil, syncErr
 	}
+
 	domains := []string{domain, originalDomain}
-	go func() {
-		syncerr := cfg.ManageAsync(context.Background(), domains)
-		if syncerr != nil {
-			gologger.Error().Msgf("Could not manageasync certmagic certs: %s", err)
-		}
-	}()
+	if syncErr := cfg.ManageSync(context.Background(), domains); syncErr != nil {
+		gologger.Error().Msgf("Could not manage certmagic certs: %s", syncErr)
+	}
 
 	if creating {
 		home, _ := os.UserHomeDir()
@@ -130,7 +128,7 @@ func extractCaddyPaths(cfg *certmagic.Config, issuer certmagic.Issuer, domain st
 	return
 }
 
-// BuildTlsConfig with certificates
+// BuildTlsConfigWithCertAndKeyPaths Build TlsConfig with certificates
 func BuildTlsConfigWithCertAndKeyPaths(certPath, privKeyPath, domain string) (*tls.Config, error) {
 	cert, err := tls.LoadX509KeyPair(certPath, privKeyPath)
 	if err != nil {
@@ -139,7 +137,7 @@ func BuildTlsConfigWithCertAndKeyPaths(certPath, privKeyPath, domain string) (*t
 	return BuildTlsConfigWithCerts(domain, cert)
 }
 
-// BuildTlsConfigWithExistingConfig with existing certificates
+// BuildTlsConfigWithCerts Build TlsConfig with existing certificates
 func BuildTlsConfigWithCerts(domain string, certs ...tls.Certificate) (*tls.Config, error) {
 	tlsConfig := &tls.Config{
 		InsecureSkipVerify: true,

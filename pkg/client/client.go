@@ -37,7 +37,8 @@ import (
 )
 
 func init() {
-	mathrand.Seed(time.Now().UnixNano())
+	//todo:automatic with go1.20
+	mathrand.Seed(time.Now().UnixNano()) //nolint
 }
 
 var authError = errors.New("couldn't authenticate to the server")
