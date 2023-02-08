@@ -3,7 +3,6 @@ package server
 import (
 	"bytes"
 	"fmt"
-	"io/ioutil"
 	"net"
 	"os"
 	"os/exec"
@@ -12,10 +11,10 @@ import (
 	"time"
 
 	jsoniter "github.com/json-iterator/go"
-	"github.com/projectdiscovery/fileutil"
 	"github.com/projectdiscovery/gologger"
 	"github.com/projectdiscovery/interactsh/pkg/filewatcher"
-	"github.com/projectdiscovery/stringsutil"
+	fileutil "github.com/projectdiscovery/utils/file"
+	stringsutil "github.com/projectdiscovery/utils/strings"
 )
 
 var smbMonitorList map[string]string = map[string]string{
@@ -47,7 +46,7 @@ func (h *SMBServer) ListenAndServe(smbAlive chan bool) error {
 	defer func() {
 		smbAlive <- false
 	}()
-	tmpFile, err := ioutil.TempFile("", "")
+	tmpFile, err := os.CreateTemp("", "")
 	if err != nil {
 		return err
 	}

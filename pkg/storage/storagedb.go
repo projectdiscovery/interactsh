@@ -14,7 +14,7 @@ import (
 	"github.com/goburrow/cache"
 	"github.com/google/uuid"
 	"github.com/pkg/errors"
-	"github.com/projectdiscovery/fileutil"
+	fileutil "github.com/projectdiscovery/utils/file"
 	"github.com/rs/xid"
 	"github.com/syndtr/goleveldb/leveldb"
 	"github.com/syndtr/goleveldb/leveldb/opt"
@@ -35,7 +35,9 @@ func New(options *Options) (*StorageDB, error) {
 	storageDB := &StorageDB{Options: options}
 	cacheOptions := []cache.Option{
 		cache.WithMaximumSize(options.MaxSize),
-		cache.WithExpireAfterWrite(options.EvictionTTL),
+	}
+	if options.EvictionTTL > 0 {
+		cacheOptions = append(cacheOptions, cache.WithExpireAfterWrite(options.EvictionTTL))
 	}
 	if options.UseDisk() {
 		cacheOptions = append(cacheOptions, cache.WithRemovalListener(storageDB.OnCacheRemovalCallback))

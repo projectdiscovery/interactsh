@@ -16,7 +16,6 @@ import (
 
 	_ "net/http/pprof"
 
-	"github.com/projectdiscovery/folderutil"
 	"github.com/projectdiscovery/goflags"
 	"github.com/projectdiscovery/gologger"
 	"github.com/projectdiscovery/gologger/levels"
@@ -26,8 +25,9 @@ import (
 	"github.com/projectdiscovery/interactsh/pkg/server/acme"
 	"github.com/projectdiscovery/interactsh/pkg/settings"
 	"github.com/projectdiscovery/interactsh/pkg/storage"
-	"github.com/projectdiscovery/iputil"
-	"github.com/projectdiscovery/stringsutil"
+	folderutil "github.com/projectdiscovery/utils/folder"
+	iputil "github.com/projectdiscovery/utils/ip"
+	stringsutil "github.com/projectdiscovery/utils/strings"
 )
 
 var (
@@ -46,6 +46,7 @@ func main() {
 		flagSet.StringVar(&cliOptions.IPAddress, "ip", "", "public ip address to use for interactsh server"),
 		flagSet.StringVarP(&cliOptions.ListenIP, "listen-ip", "lip", "0.0.0.0", "public ip address to listen on"),
 		flagSet.IntVarP(&cliOptions.Eviction, "eviction", "e", 30, "number of days to persist interaction data in memory"),
+		flagSet.BoolVarP(&cliOptions.NoEviction, "no-eviction", "ne", false, "disable periodic data eviction from memory"),
 		flagSet.BoolVarP(&cliOptions.Auth, "auth", "a", false, "enable authentication to server using random generated token"),
 		flagSet.StringVarP(&cliOptions.Token, "token", "t", "", "enable authentication to server using given token"),
 		flagSet.StringVar(&cliOptions.OriginURL, "acao-url", "*", "origin url to send in acao header to use web-client)"), // cli flag set to deprecate
@@ -184,6 +185,9 @@ func main() {
 	}
 
 	evictionTTL := time.Duration(cliOptions.Eviction) * time.Hour * 24
+	if cliOptions.NoEviction {
+		evictionTTL = -1
+	}
 	var store storage.Storage
 	storeOptions := storage.DefaultOptions
 	storeOptions.EvictionTTL = evictionTTL

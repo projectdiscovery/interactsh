@@ -6,8 +6,8 @@ import (
 	"runtime"
 	"strings"
 
-	"github.com/projectdiscovery/fileutil"
 	"github.com/projectdiscovery/interactsh/pkg/options"
+	fileutil "github.com/projectdiscovery/utils/file"
 )
 
 // DoHealthCheck performs healthcheck on server and client

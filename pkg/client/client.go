@@ -13,7 +13,6 @@ import (
 	"encoding/pem"
 	"fmt"
 	"io"
-	"io/ioutil"
 	mathrand "math/rand"
 	"net/http"
 	"net/url"
@@ -29,7 +28,7 @@ import (
 	"github.com/projectdiscovery/interactsh/pkg/server"
 	"github.com/projectdiscovery/interactsh/pkg/settings"
 	"github.com/projectdiscovery/retryablehttp-go"
-	"github.com/projectdiscovery/stringsutil"
+	stringsutil "github.com/projectdiscovery/utils/strings"
 	"github.com/rs/xid"
 	"gopkg.in/corvus-ch/zbase32.v1"
 	"gopkg.in/yaml.v3"
@@ -285,7 +284,7 @@ func (c *Client) getInteractions(callback InteractionCallback) error {
 	defer func() {
 		if resp != nil && resp.Body != nil {
 			_ = resp.Body.Close()
-			_, _ = io.Copy(ioutil.Discard, resp.Body)
+			_, _ = io.Copy(io.Discard, resp.Body)
 		}
 	}()
 	if err != nil {
@@ -295,7 +294,7 @@ func (c *Client) getInteractions(callback InteractionCallback) error {
 		if resp.StatusCode == http.StatusUnauthorized {
 			return authError
 		}
-		data, _ := ioutil.ReadAll(resp.Body)
+		data, _ := io.ReadAll(resp.Body)
 		return fmt.Errorf("could not poll interactions: %s", string(data))
 	}
 	response := &server.PollResponse{}
@@ -371,14 +370,14 @@ func (c *Client) Close() error {
 	defer func() {
 		if resp != nil && resp.Body != nil {
 			_ = resp.Body.Close()
-			_, _ = io.Copy(ioutil.Discard, resp.Body)
+			_, _ = io.Copy(io.Discard, resp.Body)
 		}
 	}()
 	if err != nil {
 		return errors.Wrap(err, "could not make deregister request")
 	}
 	if resp.StatusCode != 200 {
-		data, _ := ioutil.ReadAll(resp.Body)
+		data, _ := io.ReadAll(resp.Body)
 		return fmt.Errorf("could not deregister to server: %s", string(data))
 	}
 	return nil
@@ -405,7 +404,7 @@ func (c *Client) performRegistration(serverURL string, payload []byte) error {
 	defer func() {
 		if resp != nil && resp.Body != nil {
 			_ = resp.Body.Close()
-			_, _ = io.Copy(ioutil.Discard, resp.Body)
+			_, _ = io.Copy(io.Discard, resp.Body)
 		}
 	}()
 	if err != nil {
@@ -415,7 +414,7 @@ func (c *Client) performRegistration(serverURL string, payload []byte) error {
 		return errors.New("invalid token provided for interactsh server")
 	}
 	if resp.StatusCode != 200 {
-		data, _ := ioutil.ReadAll(resp.Body)
+		data, _ := io.ReadAll(resp.Body)
 		return fmt.Errorf("could not register to server: %s", string(data))
 	}
 	response := make(map[string]interface{})
