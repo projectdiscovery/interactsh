@@ -164,7 +164,7 @@ func main() {
 		serverOptions.Auth = true
 	}
 
-	// if root-tld is enabled we enable auth - This ensure that any client has the token
+	// if root-tld is enabled we enable auth - This ensures that any client has the token
 	if serverOptions.RootTLD {
 		serverOptions.Auth = true
 	}
@@ -412,7 +412,7 @@ func getPublicIP() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	externalIP := string(ip)
+	externalIP := ip
 	for _, address := range addresses {
 		if stringsutil.EqualFoldAny(externalIP, address.String()) {
 			return externalIP, nil
