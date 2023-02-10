@@ -18,6 +18,7 @@ import (
 	"net/url"
 	"os"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"github.com/google/uuid"
@@ -45,6 +46,7 @@ var authError = errors.New("couldn't authenticate to the server")
 
 // Client is a client for communicating with interactsh server instance.
 type Client struct {
+	IsPolling                atomic.Bool
 	correlationID            string
 	secretKey                string
 	serverURL                *url.URL
@@ -293,7 +295,10 @@ type InteractionCallback func(*server.Interaction)
 
 // StartPolling starts polling the server each duration and returns any events
 // that may have been captured by the collaborator server.
-func (c *Client) StartPolling(duration time.Duration, callback InteractionCallback) {
+func (c *Client) StartPolling(duration time.Duration, callback InteractionCallback) error {
+	if c.IsPolling.Load() {
+		return errors.New("client is already polling")
+	}
 	ticker := time.NewTicker(duration)
 	c.quitChan = make(chan struct{})
 	go func() {
@@ -314,6 +319,9 @@ func (c *Client) StartPolling(duration time.Duration, callback InteractionCallba
 			}
 		}
 	}()
+
+	c.IsPolling.Store(true)
+	return nil
 }
 
 // getInteractions returns the interactions from the server.
@@ -396,13 +404,21 @@ func (c *Client) getInteractions(callback InteractionCallback) error {
 }
 
 // StopPolling stops the polling to the interactsh server.
-func (c *Client) StopPolling() {
+func (c *Client) StopPolling() error {
+	if !c.IsPolling.Load() {
+		return errors.New("polling didn't start")
+	}
 	close(c.quitChan)
+	c.IsPolling.Store(false)
+	return nil
 }
 
 // Close closes the collaborator client and deregisters from the
 // collaborator server if not explicitly asked by the user.
 func (c *Client) Close() error {
+	if c.IsPolling.Load() {
+		return errors.New("stop polling before closing")
+	}
 	register := server.DeregisterRequest{
 		CorrelationID: c.correlationID,
 		SecretKey:     c.secretKey,
