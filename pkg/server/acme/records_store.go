@@ -24,11 +24,7 @@ func NewProvider() *Provider {
 }
 
 func (p *Provider) getZoneRecords(ctx context.Context, zoneName string) *RecordStore {
-	records, found := p.recordMap[zoneName]
-	if !found {
-		return nil
-	}
-	return records
+	return p.recordMap[zoneName]
 }
 
 func compareRecords(a, b libdns.Record) bool {
