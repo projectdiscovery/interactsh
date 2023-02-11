@@ -422,7 +422,7 @@ func (c *Client) getInteractions(callback InteractionCallback) error {
 
 // StopPolling stops the polling to the interactsh server.
 func (c *Client) StopPolling() error {
-	if c.State.Load() == Polling {
+	if c.State.Load() != Polling {
 		return errors.New("client is not polling")
 	}
 	close(c.quitChan)
