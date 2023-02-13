@@ -140,7 +140,7 @@ func main() {
 		}
 	}
 
-	client.StartPolling(time.Duration(cliOptions.PollInterval)*time.Second, func(interaction *server.Interaction) {
+	_ = client.StartPolling(time.Duration(cliOptions.PollInterval)*time.Second, func(interaction *server.Interaction) {
 		if matcher != nil && !matcher.match(interaction.FullId) {
 			return
 		}
@@ -224,7 +224,7 @@ func main() {
 		if cliOptions.SessionFile != "" {
 			_ = client.SaveSessionTo(cliOptions.SessionFile)
 		}
-		client.StopPolling()
+		_ = client.StopPolling()
 		// whether the session is saved/loaded it shouldn't be destroyed {
 		if cliOptions.SessionFile == "" {
 			client.Close()

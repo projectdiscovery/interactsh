@@ -1,6 +1,6 @@
 module github.com/projectdiscovery/interactsh
 
-go 1.18
+go 1.19
 
 require (
 	git.mills.io/prologic/smtpd v0.0.0-20210710122116-a525b76c287a
@@ -16,12 +16,10 @@ require (
 	github.com/mackerelio/go-osstat v0.2.3
 	github.com/miekg/dns v1.1.50
 	github.com/pkg/errors v0.9.1
-	github.com/projectdiscovery/asnmap v1.0.0
 	github.com/projectdiscovery/goflags v0.1.6
-	github.com/projectdiscovery/gologger v1.1.7
-	github.com/projectdiscovery/retryabledns v1.0.20
-	github.com/projectdiscovery/retryablehttp-go v1.0.8
-	github.com/projectdiscovery/utils v0.0.4-0.20230104202814-954b634edb4f
+	github.com/projectdiscovery/gologger v1.1.8
+	github.com/projectdiscovery/retryabledns v1.0.21
+	github.com/projectdiscovery/utils v0.0.9
 	github.com/remeh/sizedwaitgroup v1.0.0
 	github.com/rs/xid v1.4.0
 	github.com/stretchr/testify v1.8.1
@@ -30,7 +28,6 @@ require (
 	go.uber.org/ratelimit v0.2.0
 	go.uber.org/zap v1.24.0
 	goftp.io/server/v2 v2.0.0
-	gopkg.in/corvus-ch/zbase32.v1 v1.0.0
 	gopkg.in/yaml.v3 v3.0.1
 )
 
@@ -54,9 +51,8 @@ require (
 	github.com/nwaples/rardecode v1.1.0 // indirect
 	github.com/pierrec/lz4 v2.6.0+incompatible // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
-	github.com/projectdiscovery/blackrock v0.0.0-20220628111055-35616c71b2dc // indirect
-	github.com/projectdiscovery/mapcidr v1.0.3 // indirect
-	github.com/projectdiscovery/stringsutil v0.0.2 // indirect
+	github.com/projectdiscovery/retryablehttp-go v1.0.11 // indirect
+	github.com/rogpeppe/go-internal v1.9.0 // indirect
 	github.com/saintfish/chardet v0.0.0-20230101081208-5e3ef4b5456d // indirect
 	github.com/ulikunitz/xz v0.5.8 // indirect
 	github.com/xi2/xz v0.0.0-20171230120015-48954b6210f8 // indirect
