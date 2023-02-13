@@ -4,7 +4,7 @@ RUN apk add build-base
 RUN go install -v github.com/projectdiscovery/interactsh/cmd/interactsh-server@latest
 
 # Release
-FROM alpine:3.17.1
+FROM alpine:3.17.2
 RUN apk -U upgrade --no-cache \
     && apk add --no-cache bind-tools ca-certificates python3 py3-pip build-base curl \
     && python3 -m pip install impacket
