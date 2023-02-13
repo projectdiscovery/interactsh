@@ -18,6 +18,7 @@ import (
 	"net/url"
 	"os"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"github.com/google/uuid"
@@ -43,8 +44,17 @@ func init() {
 
 var authError = errors.New("couldn't authenticate to the server")
 
+type State uint8
+
+const (
+	Idle State = iota
+	Polling
+	Closed
+)
+
 // Client is a client for communicating with interactsh server instance.
 type Client struct {
+	State                    atomic.Value
 	correlationID            string
 	secretKey                string
 	serverURL                *url.URL
@@ -293,11 +303,24 @@ type InteractionCallback func(*server.Interaction)
 
 // StartPolling starts polling the server each duration and returns any events
 // that may have been captured by the collaborator server.
-func (c *Client) StartPolling(duration time.Duration, callback InteractionCallback) {
+func (c *Client) StartPolling(duration time.Duration, callback InteractionCallback) error {
+	switch c.State.Load() {
+	case Polling:
+		return errors.New("client is already polling")
+	case Closed:
+		return errors.New("client is closed")
+	}
+
+	c.State.Store(Polling)
+
 	ticker := time.NewTicker(duration)
 	c.quitChan = make(chan struct{})
 	go func() {
 		for {
+			// exit if the client is not polling
+			if c.State.Load() != Polling {
+				return
+			}
 			select {
 			case <-ticker.C:
 				err := c.getInteractions(callback)
@@ -314,6 +337,8 @@ func (c *Client) StartPolling(duration time.Duration, callback InteractionCallba
 			}
 		}
 	}()
+
+	return nil
 }
 
 // getInteractions returns the interactions from the server.
@@ -396,13 +421,27 @@ func (c *Client) getInteractions(callback InteractionCallback) error {
 }
 
 // StopPolling stops the polling to the interactsh server.
-func (c *Client) StopPolling() {
+func (c *Client) StopPolling() error {
+	if c.State.Load() != Polling {
+		return errors.New("client is not polling")
+	}
 	close(c.quitChan)
+
+	c.State.Store(Idle)
+
+	return nil
 }
 
 // Close closes the collaborator client and deregisters from the
 // collaborator server if not explicitly asked by the user.
 func (c *Client) Close() error {
+	if c.State.Load() == Polling {
+		return errors.New("client should stop polling before closing")
+	}
+	if c.State.Load() == Closed {
+		return errors.New("client is already closed")
+	}
+
 	register := server.DeregisterRequest{
 		CorrelationID: c.correlationID,
 		SecretKey:     c.secretKey,
@@ -436,6 +475,9 @@ func (c *Client) Close() error {
 		data, _ := io.ReadAll(resp.Body)
 		return fmt.Errorf("could not deregister to server: %s", string(data))
 	}
+
+	c.State.Store(Closed)
+
 	return nil
 }
 
@@ -484,11 +526,17 @@ func (c *Client) performRegistration(serverURL string, payload []byte) error {
 	if message.(string) != "registration successful" {
 		return fmt.Errorf("could not get register response: %s", message.(string))
 	}
+
+	c.State.Store(Idle)
+
 	return nil
 }
 
 // URL returns a new URL that can be used for external interaction requests.
 func (c *Client) URL() string {
+	if c.State.Load() == Closed {
+		return ""
+	}
 	data := make([]byte, c.CorrelationIdNonceLength)
 	_, _ = rand.Read(data)
 	randomData := zbase32.StdEncoding.EncodeToString(data)
