@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"errors"
 	"os"
+	"sync"
 	"time"
 
 	"github.com/projectdiscovery/gologger"
@@ -32,7 +33,7 @@ func (f *FileWatcher) Watch() (chan string, error) {
 		return nil, errors.New("file doesn't exist")
 	}
 	go func() {
-		lines := make(map[string]struct{})
+		var seenLines sync.Map
 		for range f.watcher.C {
 			r, err := os.Open(f.Options.File)
 			if err != nil {
@@ -42,9 +43,8 @@ func (f *FileWatcher) Watch() (chan string, error) {
 			sc := bufio.NewScanner(r)
 			for sc.Scan() {
 				data := sc.Text()
-				_, ok := lines[data]
-				if !ok {
-					lines[data] = struct{}{}
+				_, loaded := seenLines.LoadOrStore(data, struct{}{})
+				if !loaded {
 					out <- data
 				}
 
