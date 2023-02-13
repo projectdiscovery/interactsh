@@ -36,7 +36,7 @@ import (
 	iputil "github.com/projectdiscovery/utils/ip"
 	stringsutil "github.com/projectdiscovery/utils/strings"
 	"github.com/rs/xid"
-	"gopkg.in/corvus-ch/zbase32.v1"
+	zbase32 "gopkg.in/corvus-ch/zbase32.v1"
 	"gopkg.in/yaml.v3"
 )
 
