@@ -364,7 +364,7 @@ func (c *Client) TryGetAsnInfo(interaction *server.Interaction) error {
 			}
 		}
 
-		if asnItems := c.asnmapClient.GetData(asnmap.IP(remoteIp)); len(asnItems) > 0 {
+		if asnItems, err := asnmap.DefaultClient.GetData(remoteIp); err == nil && len(asnItems) > 0 {
 			for _, asnItem := range asnItems {
 				// convert to map to prune and turn fields into camel case
 				newOutputAsnItem := make(map[string]string)

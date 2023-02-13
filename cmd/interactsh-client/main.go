@@ -10,7 +10,6 @@ import (
 	"time"
 
 	jsoniter "github.com/json-iterator/go"
-	asnmap "github.com/projectdiscovery/asnmap/libs"
 	"github.com/projectdiscovery/goflags"
 	"github.com/projectdiscovery/gologger"
 	"github.com/projectdiscovery/gologger/levels"
@@ -108,8 +107,6 @@ func main() {
 		_ = fileutil.Unmarshal(fileutil.YAML, []byte(cliOptions.SessionFile), &sessionInfo)
 	}
 
-	asnmapClient := asnmap.NewClient()
-
 	client, err := client.New(&client.Options{
 		ServerURL:                cliOptions.ServerURL,
 		Token:                    cliOptions.Token,
@@ -117,7 +114,6 @@ func main() {
 		CorrelationIdLength:      cliOptions.CorrelationIdLength,
 		CorrelationIdNonceLength: cliOptions.CorrelationIdNonceLength,
 		SessionInfo:              sessionInfo,
-		AsnMapClient:             asnmapClient,
 	})
 	if err != nil {
 		gologger.Fatal().Msgf("Could not create client: %s\n", err)

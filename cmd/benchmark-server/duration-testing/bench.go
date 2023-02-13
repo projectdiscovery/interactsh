@@ -27,7 +27,6 @@ var (
 )
 
 var (
-	errors    int64
 	clients   []*client.Client
 	ctx       context.Context
 	ctxCancel context.CancelFunc
@@ -75,7 +74,6 @@ func startClient(idx int) {
 		ServerURL: *serverURL,
 	})
 	if err != nil {
-		errors++
 		log.Printf("Unexpected register response: %v\n", err)
 		return
 	}

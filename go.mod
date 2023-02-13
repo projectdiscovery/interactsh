@@ -16,10 +16,10 @@ require (
 	github.com/mackerelio/go-osstat v0.2.3
 	github.com/miekg/dns v1.1.50
 	github.com/pkg/errors v0.9.1
-	github.com/projectdiscovery/asnmap v0.0.1
+	github.com/projectdiscovery/asnmap v1.0.0
 	github.com/projectdiscovery/goflags v0.1.6
 	github.com/projectdiscovery/gologger v1.1.7
-	github.com/projectdiscovery/retryabledns v1.0.19
+	github.com/projectdiscovery/retryabledns v1.0.20
 	github.com/projectdiscovery/retryablehttp-go v1.0.8
 	github.com/projectdiscovery/utils v0.0.4-0.20230104202814-954b634edb4f
 	github.com/remeh/sizedwaitgroup v1.0.0
@@ -41,7 +41,7 @@ require (
 	github.com/cnf/structhash v0.0.0-20201127153200-e1b16c1ebc08 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/dsnet/compress v0.0.1 // indirect
-	github.com/golang/snappy v0.0.3 // indirect
+	github.com/golang/snappy v0.0.4 // indirect
 	github.com/gorilla/css v1.0.0 // indirect
 	github.com/klauspost/cpuid/v2 v2.1.1 // indirect
 	github.com/logrusorgru/aurora v2.0.3+incompatible // indirect
@@ -55,12 +55,10 @@ require (
 	github.com/pierrec/lz4 v2.6.0+incompatible // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/projectdiscovery/blackrock v0.0.0-20220628111055-35616c71b2dc // indirect
-	github.com/projectdiscovery/mapcidr v1.0.2 // indirect
-	github.com/projectdiscovery/sliceutil v0.0.1 // indirect
+	github.com/projectdiscovery/mapcidr v1.0.3 // indirect
 	github.com/projectdiscovery/stringsutil v0.0.2 // indirect
-	github.com/rogpeppe/go-internal v1.9.0 // indirect
 	github.com/saintfish/chardet v0.0.0-20230101081208-5e3ef4b5456d // indirect
-	github.com/ulikunitz/xz v0.5.7 // indirect
+	github.com/ulikunitz/xz v0.5.8 // indirect
 	github.com/xi2/xz v0.0.0-20171230120015-48954b6210f8 // indirect
 	go.uber.org/atomic v1.10.0 // indirect
 	golang.org/x/crypto v0.1.0 // indirect
