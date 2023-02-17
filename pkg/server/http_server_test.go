@@ -1,7 +1,8 @@
 package server
 
 import (
-	"io/ioutil"
+	"io"
+	"net/http"
 	"net/http/httptest"
 	"testing"
 	"time"
@@ -16,7 +17,7 @@ func TestWriteResponseFromDynamicRequest(t *testing.T) {
 		writeResponseFromDynamicRequest(w, req)
 
 		resp := w.Result()
-		require.Equal(t, 404, resp.StatusCode, "could not get correct result")
+		require.Equal(t, http.StatusNotFound, resp.StatusCode, "could not get correct result")
 	})
 	t.Run("delay", func(t *testing.T) {
 		req := httptest.NewRequest("GET", "http://example.com/?delay=1", nil)
@@ -33,7 +34,7 @@ func TestWriteResponseFromDynamicRequest(t *testing.T) {
 		writeResponseFromDynamicRequest(w, req)
 
 		resp := w.Result()
-		body, _ := ioutil.ReadAll(resp.Body)
+		body, _ := io.ReadAll(resp.Body)
 		require.Equal(t, "this is example body", string(body), "could not get correct result")
 	})
 	t.Run("header", func(t *testing.T) {

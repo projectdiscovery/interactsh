@@ -461,6 +461,85 @@ While running interactsh server on **Cloud VM**'s like Amazon EC2, Goolge Cloud 
 
 There are more useful capabilities supported by `interactsh-server` that are not enabled by default and are intended to be used only by **self-hosted** servers.
 
+## Interactsh Server behind a reverse proxy
+
+`interactsh-server` might require custom ports for services if the default ones are already busy. If this is the case but still default ports are required as part of the payload, it's possible to configure `interactsh-server` behind a reverse proxy, by port-forwarding HTTP/TCP/UDP based services via `http/stream` proxy directive (`proxy_pass`).
+
+## Nginx
+
+Assuming that `interactsh-server` essential services run on the following ports:
+
+- HTTP: 8080/TCP
+- HTTPS: 8440/TCP
+- SMTP: 8025/TCP
+- DNS: 8053/UDP
+- DNS: 8053/TCP
+
+The nginx configuration file to forward the traffic would look like the following one:
+
+```conf
+# http/https
+http {
+   server {
+      listen 443 ssl;
+      server_name mysite.com;
+      ssl_certificate /etc/nginx/interactsh.pem;
+      ssl_certificate_key /etc/nginx/interactsh.key;
+
+      location / {
+         proxy_pass https://interachsh.mysite.com:80/;
+         proxy_set_header Host $host;
+         proxy_set_header X-Real-IP $remote_addr;
+         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+         proxy_set_header X-Forwarded-Proto $scheme;
+      }        
+   }
+}
+
+stream {
+   # smtp
+   server {
+      listen 25;
+      proxy_pass interachsh.mysite.com:8025;
+   }
+
+   # dns
+   server {
+      listen 53;
+      proxy_pass interachsh.mysite.com:8053;
+   }
+   server {
+      listen 53 udp;
+      proxy_pass interachsh.mysite.com:8053;
+   }
+}
+```
+
+**Configured Domains**
+
+```console
+interactsh-server -d oast.pro,oast.me
+
+    _       __                       __       __
+   (_)___  / /____  _________ ______/ /______/ /_
+  / / __ \/ __/ _ \/ ___/ __ '/ ___/ __/ ___/ __ \
+ / / / / / /_/  __/ /  / /_/ / /__/ /_(__  ) / / /
+/_/_/ /_/\__/\___/_/   \__,_/\___/\__/____/_/ /_/ 1.0.5
+
+                projectdiscovery.io
+
+[INF] Loading existing SSL Certificate for:  [*.oast.pro, oast.pro]
+[INF] Loading existing SSL Certificate for:  [*.oast.me, oast.me]
+[INF] Listening with the following services:
+[HTTPS] Listening on TCP 46.101.25.250:443
+[HTTP] Listening on TCP 46.101.25.250:80
+[SMTPS] Listening on TCP 46.101.25.250:587
+[LDAP] Listening on TCP 46.101.25.250:389
+[SMTP] Listening on TCP 46.101.25.250:25
+[DNS] Listening on TCP 46.101.25.250:53
+[DNS] Listening on UDP 46.101.25.250:53
+```
+
 ## Custom Server Index
 
 Index page for http server can be customized while running custom interactsh server using `-http-index` flag.
@@ -612,8 +691,8 @@ interactsh-client -s hackwithautomation.com -cidl 4 -cidn 6
 [INF] c8rf4e8xm4.hackwithautomation.com
 ```
 
-
 ## Custom SSL Certificate
+
 The [certmagic](https://github.com/caddyserver/certmagic) library is used by default by interactsh server to produce wildcard certificates for requested domain in an automatic way. To use your own SSL certificate with self-hosted interactsh server, `cert` and `privkey` flag can be used to provider required certificate files.
 
 **Note:** To utilize all of the functionality of the SSL protocol, a wildcard certificate is mandatory.
@@ -640,7 +719,59 @@ interactsh-server -d hackwithautomation.com -cert hackwithautomation.com.crt -pr
 [DNS] Listening on UDP 157.230.223.165:53
 ```
 
-# Interactsh Integration
+## Supported Protocols
+
+### FTP
+
+FTP support can be enabled with the `-ftp` flag and is recommended for self-hosted instances only. The FTP agent simulates a fully-functional FTP server agent with authentication that captures authentications with every file operation. By default, the agent listens on port 21 (this can be changed with the `-ftp-port` flag) and lists in read-only mode the content of the OS default temporary directory (customizable with the `-ftp-dir` option).
+Example of starting the FTP daemon and capturing a login interaction:
+
+```console
+$ sudo go run . -ftp -skip-acme -debug -domain localhost
+...
+[INF] Outbound IP: 192.168.1.16
+[INF] Client Token: 6dc07e4a76c3d5e58e4bea13ce073dc403499b128c62397aff7b934a6e4822e3
+[INF] Listening with the following services:
+[DNS] Listening on TCP 192.168.1.16:53
+[SMTP] Listening on TCP 192.168.1.16:25
+[HTTP] Listening on TCP 192.168.1.16:80
+[FTP] Listening on TCP 192.168.1.16:21
+[DNS] Listening on UDP 192.168.1.16:53
+[LDAP] Listening on TCP 192.168.1.16:389
+[DBG] FTP Interaction: 
+{"protocol":"ftp","unique-id":"","full-id":"","raw-request":"USER test\ntest logging in","remote-address":"127.0.0.1:51564","timestamp":"2022-09-29T00:49:42.212323+02:00"}
+```
+
+## External Supported Protocols
+
+### SMB
+
+The `-smb` flag enables the Samba protocol (only for self-hosted instances). The samba protocol uses [impacket](https://github.com/SecureAuthCorp/impacket) `smbserver` class to simulate a samba daemon share listening on port `445` unless changed by the `-smb-port` flag. When enabled, interactsh executes under the hoods the script `smb_server.py`. Hence Python3 and impacket dependencies are required.
+Example of enabling the samba server:
+
+```console
+$ sudo interactsh-server -smb -skip-acme -debug -domain localhost
+```
+
+### Responder
+[Responder](https://github.com/lgandx/Responder) is wrapped in a docker container exposing various service ports via docker port forwarding. The interactions are retrieved by monitoring the shared log file `Responder-Session.log` in the temp folder. To use it on a self-hosted instance, it's necessary first to build the docker container and tag it as `interactsh`(docker daemon must be configured correctly and with port forwarding capabilities):
+
+```console
+docker build . -t interactsh
+```
+
+Then run the service with:
+
+```console
+$ sudo interactsh-server -responder -d localhost
+```
+
+On default settings, the daemon listens on the following ports:
+
+- UDP: 137, 138, 1434
++ TCP: 21 (might collide with FTP daemon if used), 110, 135, 139, 389, 445, 1433, 3141, 3128
+
+## Interactsh Integration
 
 ### Use as library
 

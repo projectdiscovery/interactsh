@@ -4,12 +4,12 @@ import (
 	"bytes"
 	"crypto/tls"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"net"
 	"net/http"
 	"net/http/httptest"
 	"net/http/httputil"
+	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -18,7 +18,7 @@ import (
 
 	jsoniter "github.com/json-iterator/go"
 	"github.com/projectdiscovery/gologger"
-	"github.com/projectdiscovery/stringsutil"
+	stringsutil "github.com/projectdiscovery/utils/strings"
 )
 
 // HTTPServer is a http server instance that listens both
@@ -64,7 +64,7 @@ func NewHTTPServer(options *Options) (*HTTPServer, error) {
 	if options.HTTPIndex != "" {
 		abs, _ := filepath.Abs(options.HTTPDirectory)
 		gologger.Info().Msgf("Using custom server index: %s", abs)
-		if data, err := ioutil.ReadFile(options.HTTPIndex); err == nil {
+		if data, err := os.ReadFile(options.HTTPIndex); err == nil {
 			server.customBanner = string(data)
 		}
 	}
@@ -273,10 +273,11 @@ func (h *HTTPServer) defaultHandler(w http.ResponseWriter, req *http.Request) {
 // based on dynamic data from HTTP URL Query parameters.
 //
 // The following parameters are supported -
-// 	body (response body)
-// 	header (response header)
-// 	status (response status code)
-// 	delay (response time)
+//
+//	body (response body)
+//	header (response header)
+//	status (response status code)
+//	delay (response time)
 func writeResponseFromDynamicRequest(w http.ResponseWriter, req *http.Request) {
 	values := req.URL.Query()
 
@@ -312,14 +313,14 @@ type RegisterRequest struct {
 
 // registerHandler is a handler for client register requests
 func (h *HTTPServer) registerHandler(w http.ResponseWriter, req *http.Request) {
-	atomic.AddInt64(&h.options.Stats.Sessions, 1)
-
 	r := &RegisterRequest{}
 	if err := jsoniter.NewDecoder(req.Body).Decode(r); err != nil {
 		gologger.Warning().Msgf("Could not decode json body: %s\n", err)
 		jsonError(w, fmt.Sprintf("could not decode json body: %s", err), http.StatusBadRequest)
 		return
 	}
+
+	atomic.AddInt64(&h.options.Stats.Sessions, 1)
 
 	if err := h.options.Storage.SetIDPublicKey(r.CorrelationID, r.SecretKey, r.PublicKey); err != nil {
 		gologger.Warning().Msgf("Could not set id and public key for %s: %s\n", r.CorrelationID, err)
@@ -392,6 +393,8 @@ func (h *HTTPServer) pollHandler(w http.ResponseWriter, req *http.Request) {
 		for _, domain := range h.options.Domains {
 			tlddata, _ = h.options.Storage.GetInteractionsWithId(domain)
 		}
+	}
+	if h.options.Token != "" {
 		extradata, _ = h.options.Storage.GetInteractionsWithId(h.options.Token)
 	}
 	response := &PollResponse{Data: data, AESKey: aesKey, TLDData: tlddata, Extra: extradata}

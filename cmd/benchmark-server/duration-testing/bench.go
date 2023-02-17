@@ -27,7 +27,6 @@ var (
 )
 
 var (
-	errors    int64
 	clients   []*client.Client
 	ctx       context.Context
 	ctxCancel context.CancelFunc
@@ -48,8 +47,8 @@ func main() {
 	for range c {
 		ctxCancel()
 		for _, client := range clients {
-			client.StopPolling()
-			client.Close()
+			_ = client.StopPolling()
+			_ = client.Close()
 		}
 	}
 }
@@ -75,7 +74,6 @@ func startClient(idx int) {
 		ServerURL: *serverURL,
 	})
 	if err != nil {
-		errors++
 		log.Printf("Unexpected register response: %v\n", err)
 		return
 	}
@@ -83,7 +81,7 @@ func startClient(idx int) {
 	clients[idx] = client
 
 	log.Printf("client %d registered, sample url: %s\n", idx, client.URL())
-	client.StartPolling(time.Duration(*pollintInterval)*time.Second, func(interaction *server.Interaction) {
+	_ = client.StartPolling(time.Duration(*pollintInterval)*time.Second, func(interaction *server.Interaction) {
 		log.Printf("Client %d polled interaction: %s\n", idx, interaction.FullId)
 	})
 

@@ -10,8 +10,6 @@ import (
 	"regexp"
 	"time"
 
-	"github.com/projectdiscovery/fileutil"
-	"github.com/projectdiscovery/folderutil"
 	"github.com/projectdiscovery/goflags"
 	"github.com/projectdiscovery/gologger"
 	"github.com/projectdiscovery/gologger/levels"
@@ -20,6 +18,8 @@ import (
 	"github.com/projectdiscovery/interactsh/pkg/options"
 	"github.com/projectdiscovery/interactsh/pkg/server"
 	"github.com/projectdiscovery/interactsh/pkg/settings"
+	fileutil "github.com/projectdiscovery/utils/file"
+	folderutil "github.com/projectdiscovery/utils/folder"
 )
 
 var (
@@ -140,7 +140,7 @@ func main() {
 		}
 	}
 
-	client.StartPolling(time.Duration(cliOptions.PollInterval)*time.Second, func(interaction *server.Interaction) {
+	_ = client.StartPolling(time.Duration(cliOptions.PollInterval)*time.Second, func(interaction *server.Interaction) {
 		if matcher != nil && !matcher.match(interaction.FullId) {
 			return
 		}
@@ -221,7 +221,7 @@ func main() {
 		if cliOptions.SessionFile != "" {
 			_ = client.SaveSessionTo(cliOptions.SessionFile)
 		}
-		client.StopPolling()
+		_ = client.StopPolling()
 		// whether the session is saved/loaded it shouldn't be destroyed {
 		if cliOptions.SessionFile == "" {
 			client.Close()

@@ -6,7 +6,7 @@ import (
 	"github.com/projectdiscovery/gologger"
 )
 
-const Version = "1.0.7"
+const Version = "1.1.0"
 
 var banner = fmt.Sprintf(`
     _       __                       __       __  
@@ -19,7 +19,4 @@ var banner = fmt.Sprintf(`
 func ShowBanner() {
 	gologger.Print().Msgf("%s\n", banner)
 	gologger.Print().Msgf("\t\tprojectdiscovery.io\n\n")
-
-	gologger.Warning().Msgf("Use with caution. You are responsible for your actions\n")
-	gologger.Warning().Msgf("Developers assume no liability and are not responsible for any misuse or damage.\n")
 }

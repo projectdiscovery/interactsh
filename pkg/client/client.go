@@ -13,12 +13,12 @@ import (
 	"encoding/pem"
 	"fmt"
 	"io"
-	"io/ioutil"
 	mathrand "math/rand"
 	"net/http"
 	"net/url"
 	"os"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"github.com/google/uuid"
@@ -28,26 +28,39 @@ import (
 	"github.com/projectdiscovery/interactsh/pkg/options"
 	"github.com/projectdiscovery/interactsh/pkg/server"
 	"github.com/projectdiscovery/interactsh/pkg/settings"
+	"github.com/projectdiscovery/interactsh/pkg/storage"
 	"github.com/projectdiscovery/retryablehttp-go"
-	"github.com/projectdiscovery/stringsutil"
+	errorutil "github.com/projectdiscovery/utils/errors"
+	stringsutil "github.com/projectdiscovery/utils/strings"
 	"github.com/rs/xid"
 	"gopkg.in/corvus-ch/zbase32.v1"
 	"gopkg.in/yaml.v3"
 )
 
 func init() {
-	mathrand.Seed(time.Now().UnixNano())
+	//todo:automatic with go1.20
+	mathrand.Seed(time.Now().UnixNano()) //nolint
 }
 
 var authError = errors.New("couldn't authenticate to the server")
 
+type State uint8
+
+const (
+	Idle State = iota
+	Polling
+	Closed
+)
+
 // Client is a client for communicating with interactsh server instance.
 type Client struct {
+	State                    atomic.Value
 	correlationID            string
 	secretKey                string
 	serverURL                *url.URL
 	httpClient               *retryablehttp.Client
 	privKey                  *rsa.PrivateKey
+	pubKey                   *rsa.PublicKey
 	quitChan                 chan struct{}
 	disableHTTPFallback      bool
 	token                    string
@@ -129,9 +142,20 @@ func New(options *Options) (*Client, error) {
 		if err == nil {
 			client.privKey = privKey
 		}
+		pubKey, err := decodePublicKey(options.SessionInfo.PublicKey)
+		if err == nil {
+			client.pubKey = pubKey
+		}
 		if serverURL, err := url.Parse(options.SessionInfo.ServerURL); err == nil {
 			client.serverURL = serverURL
 		}
+		// attempts to re-register - server will reject is already existing
+		registrationRequest, err := encodeRegistrationRequest(options.SessionInfo.PublicKey, options.SessionInfo.SecretKey, options.SessionInfo.CorrelationID)
+		if err != nil {
+			return nil, err
+		}
+		// silently fails to re-register if the session is still alive
+		_ = client.performRegistration(options.SessionInfo.ServerURL, registrationRequest)
 	} else {
 		payload, err := client.initializeRSAKeys()
 		if err != nil {
@@ -155,11 +179,34 @@ func (c *Client) initializeRSAKeys() ([]byte, error) {
 		return nil, errors.Wrap(err, "could not generate rsa private key")
 	}
 	c.privKey = priv
-	pub := priv.Public()
+	c.pubKey = &priv.PublicKey
 
-	pubkeyBytes, err := x509.MarshalPKIXPublicKey(pub)
+	pubKeyData, err := encodePublicKey(c.pubKey)
 	if err != nil {
-		return nil, errors.Wrap(err, "could not marshal public key")
+		return nil, err
+	}
+
+	return encodeRegistrationRequest(pubKeyData, c.secretKey, c.correlationID)
+}
+
+func encodeRegistrationRequest(publicKey, secretkey, correlationID string) ([]byte, error) {
+	register := server.RegisterRequest{
+		PublicKey:     publicKey,
+		SecretKey:     secretkey,
+		CorrelationID: correlationID,
+	}
+
+	data, err := jsoniter.Marshal(register)
+	if err != nil {
+		return nil, errors.Wrap(err, "could not marshal register request")
+	}
+	return data, nil
+}
+
+func encodePublicKey(pubKey *rsa.PublicKey) (string, error) {
+	pubkeyBytes, err := x509.MarshalPKIXPublicKey(pubKey)
+	if err != nil {
+		return "", errors.Wrap(err, "could not marshal public key")
 	}
 	pubkeyPem := pem.EncodeToMemory(&pem.Block{
 		Type:  "RSA PUBLIC KEY",
@@ -167,16 +214,27 @@ func (c *Client) initializeRSAKeys() ([]byte, error) {
 	})
 
 	encoded := base64.StdEncoding.EncodeToString(pubkeyPem)
-	register := server.RegisterRequest{
-		PublicKey:     encoded,
-		SecretKey:     c.secretKey,
-		CorrelationID: c.correlationID,
-	}
-	data, err := jsoniter.Marshal(register)
+	return encoded, nil
+}
+
+func decodePublicKey(data string) (*rsa.PublicKey, error) {
+	decodedBytes, err := base64.StdEncoding.DecodeString(data)
 	if err != nil {
-		return nil, errors.Wrap(err, "could not marshal register request")
+		return nil, err
 	}
-	return data, nil
+
+	pubkeyPem, _ := pem.Decode(decodedBytes)
+
+	pubKey, err := x509.ParsePKIXPublicKey(pubkeyPem.Bytes)
+	if err != nil {
+		return nil, err
+	}
+
+	if rsaPubKey, ok := pubKey.(*rsa.PublicKey); ok {
+		return rsaPubKey, nil
+	}
+
+	return nil, errors.New("unsupported public key")
 }
 
 // parseServerURLs parses server url string. Multiple URLs are supported
@@ -245,16 +303,33 @@ type InteractionCallback func(*server.Interaction)
 
 // StartPolling starts polling the server each duration and returns any events
 // that may have been captured by the collaborator server.
-func (c *Client) StartPolling(duration time.Duration, callback InteractionCallback) {
+func (c *Client) StartPolling(duration time.Duration, callback InteractionCallback) error {
+	switch c.State.Load() {
+	case Polling:
+		return errors.New("client is already polling")
+	case Closed:
+		return errors.New("client is closed")
+	}
+
+	c.State.Store(Polling)
+
 	ticker := time.NewTicker(duration)
 	c.quitChan = make(chan struct{})
 	go func() {
 		for {
+			// exit if the client is not polling
+			if c.State.Load() != Polling {
+				return
+			}
 			select {
 			case <-ticker.C:
 				err := c.getInteractions(callback)
-				if err != nil && err.Error() == authError.Error() {
-					gologger.Fatal().Msgf("Could not authenticate to the server")
+				if err != nil {
+					if errorutil.IsAny(err, authError) {
+						gologger.Fatal().Msgf("Could not authenticate to the server")
+					} else if errorutil.IsAny(err, storage.ErrCorrelationIdNotFound) {
+						gologger.Fatal().Msgf("The correlation id was not found (probably evicted due to inactivity)")
+					}
 				}
 			case <-c.quitChan:
 				ticker.Stop()
@@ -262,6 +337,8 @@ func (c *Client) StartPolling(duration time.Duration, callback InteractionCallba
 			}
 		}
 	}()
+
+	return nil
 }
 
 // getInteractions returns the interactions from the server.
@@ -285,17 +362,20 @@ func (c *Client) getInteractions(callback InteractionCallback) error {
 	defer func() {
 		if resp != nil && resp.Body != nil {
 			_ = resp.Body.Close()
-			_, _ = io.Copy(ioutil.Discard, resp.Body)
+			_, _ = io.Copy(io.Discard, resp.Body)
 		}
 	}()
 	if err != nil {
 		return err
 	}
-	if resp.StatusCode != 200 {
+	if resp.StatusCode != http.StatusOK {
 		if resp.StatusCode == http.StatusUnauthorized {
 			return authError
 		}
-		data, _ := ioutil.ReadAll(resp.Body)
+		data, _ := io.ReadAll(resp.Body)
+		if stringsutil.ContainsAny(string(data), storage.ErrCorrelationIdNotFound.Error()) {
+			return storage.ErrCorrelationIdNotFound
+		}
 		return fmt.Errorf("could not poll interactions: %s", string(data))
 	}
 	response := &server.PollResponse{}
@@ -341,13 +421,27 @@ func (c *Client) getInteractions(callback InteractionCallback) error {
 }
 
 // StopPolling stops the polling to the interactsh server.
-func (c *Client) StopPolling() {
+func (c *Client) StopPolling() error {
+	if c.State.Load() != Polling {
+		return errors.New("client is not polling")
+	}
 	close(c.quitChan)
+
+	c.State.Store(Idle)
+
+	return nil
 }
 
 // Close closes the collaborator client and deregisters from the
 // collaborator server if not explicitly asked by the user.
 func (c *Client) Close() error {
+	if c.State.Load() == Polling {
+		return errors.New("client should stop polling before closing")
+	}
+	if c.State.Load() == Closed {
+		return errors.New("client is already closed")
+	}
+
 	register := server.DeregisterRequest{
 		CorrelationID: c.correlationID,
 		SecretKey:     c.secretKey,
@@ -371,16 +465,19 @@ func (c *Client) Close() error {
 	defer func() {
 		if resp != nil && resp.Body != nil {
 			_ = resp.Body.Close()
-			_, _ = io.Copy(ioutil.Discard, resp.Body)
+			_, _ = io.Copy(io.Discard, resp.Body)
 		}
 	}()
 	if err != nil {
 		return errors.Wrap(err, "could not make deregister request")
 	}
-	if resp.StatusCode != 200 {
-		data, _ := ioutil.ReadAll(resp.Body)
+	if resp.StatusCode != http.StatusOK {
+		data, _ := io.ReadAll(resp.Body)
 		return fmt.Errorf("could not deregister to server: %s", string(data))
 	}
+
+	c.State.Store(Closed)
+
 	return nil
 }
 
@@ -405,17 +502,17 @@ func (c *Client) performRegistration(serverURL string, payload []byte) error {
 	defer func() {
 		if resp != nil && resp.Body != nil {
 			_ = resp.Body.Close()
-			_, _ = io.Copy(ioutil.Discard, resp.Body)
+			_, _ = io.Copy(io.Discard, resp.Body)
 		}
 	}()
 	if err != nil {
 		return errors.Wrap(err, "could not make register request")
 	}
-	if resp.StatusCode == 401 {
+	if resp.StatusCode == http.StatusUnauthorized {
 		return errors.New("invalid token provided for interactsh server")
 	}
-	if resp.StatusCode != 200 {
-		data, _ := ioutil.ReadAll(resp.Body)
+	if resp.StatusCode != http.StatusOK {
+		data, _ := io.ReadAll(resp.Body)
 		return fmt.Errorf("could not register to server: %s", string(data))
 	}
 	response := make(map[string]interface{})
@@ -429,11 +526,17 @@ func (c *Client) performRegistration(serverURL string, payload []byte) error {
 	if message.(string) != "registration successful" {
 		return fmt.Errorf("could not get register response: %s", message.(string))
 	}
+
+	c.State.Store(Idle)
+
 	return nil
 }
 
 // URL returns a new URL that can be used for external interaction requests.
 func (c *Client) URL() string {
+	if c.State.Load() == Closed {
+		return ""
+	}
 	data := make([]byte, c.CorrelationIdNonceLength)
 	_, _ = rand.Read(data)
 	randomData := zbase32.StdEncoding.EncodeToString(data)
@@ -491,12 +594,17 @@ func (c *Client) decryptMessage(key string, secureMessage string) ([]byte, error
 
 func (c *Client) SaveSessionTo(filename string) error {
 	privateKeyData := x509.MarshalPKCS1PrivateKey(c.privKey)
+	publicKeyData, err := encodePublicKey(c.pubKey)
+	if err != nil {
+		return err
+	}
 	sessionInfo := &options.SessionInfo{
 		ServerURL:     c.serverURL.String(),
 		Token:         c.token,
 		PrivateKey:    string(privateKeyData),
 		CorrelationID: c.correlationID,
 		SecretKey:     c.secretKey,
+		PublicKey:     publicKeyData,
 	}
 	data, err := yaml.Marshal(sessionInfo)
 	if err != nil {

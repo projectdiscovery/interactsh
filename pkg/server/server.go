@@ -6,7 +6,7 @@ import (
 
 	"github.com/projectdiscovery/interactsh/pkg/server/acme"
 	"github.com/projectdiscovery/interactsh/pkg/storage"
-	"github.com/projectdiscovery/stringsutil"
+	stringsutil "github.com/projectdiscovery/utils/strings"
 )
 
 // Interaction is an interaction received to the server.
@@ -102,7 +102,9 @@ type Options struct {
 
 	ACMEStore *acme.Provider
 	Stats     *Metrics
+	OnResult  OnResultCallback
 }
+type OnResultCallback func(out interface{})
 
 func (options *Options) GetIdLength() int {
 	return options.CorrelationIdLength + options.CorrelationIdNonceLength
