@@ -308,6 +308,7 @@ INPUT:
    -ip string                               public ip address to use for interactsh server
    -lip, -listen-ip string                  public ip address to listen on (default "0.0.0.0")
    -e, -eviction int                        number of days to persist interaction data in memory (default 30)
+   -ne, -no-eviction                        disable periodic data eviction from memory
    -a, -auth                                enable authentication to server using random generated token
    -t, -token string                        enable authentication to server using given token
    -acao-url string                         origin url to send in acao header to use web-client) (default "*")
