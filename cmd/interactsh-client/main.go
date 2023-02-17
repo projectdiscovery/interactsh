@@ -57,6 +57,7 @@ func main() {
 		flagSet.BoolVar(&cliOptions.DNSOnly, "dns-only", false, "display only dns interaction in CLI output"),
 		flagSet.BoolVar(&cliOptions.HTTPOnly, "http-only", false, "display only http interaction in CLI output"),
 		flagSet.BoolVar(&cliOptions.SmtpOnly, "smtp-only", false, "display only smtp interactions in CLI output"),
+		flagSet.BoolVar(&cliOptions.Asn, "asn", false, " include asn information of remote ip in json output"),
 	)
 
 	flagSet.CreateGroup("output", "Output",
@@ -148,7 +149,9 @@ func main() {
 			return
 		}
 
-		_ = client.TryGetAsnInfo(interaction)
+		if cliOptions.Asn {
+			_ = client.TryGetAsnInfo(interaction)
+		}
 
 		if !cliOptions.JSON {
 			builder := &bytes.Buffer{}
