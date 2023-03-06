@@ -16,7 +16,7 @@ require (
 	github.com/mackerelio/go-osstat v0.2.3
 	github.com/miekg/dns v1.1.51
 	github.com/pkg/errors v0.9.1
-	github.com/projectdiscovery/asnmap v1.0.0
+	github.com/projectdiscovery/asnmap v1.0.1
 	github.com/projectdiscovery/goflags v0.1.8
 	github.com/projectdiscovery/gologger v1.1.8
 	github.com/projectdiscovery/retryabledns v1.0.21
@@ -54,9 +54,8 @@ require (
 	github.com/nwaples/rardecode v1.1.0 // indirect
 	github.com/pierrec/lz4 v2.6.0+incompatible // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
-	github.com/projectdiscovery/blackrock v0.0.0-20220628111055-35616c71b2dc // indirect
-	github.com/projectdiscovery/mapcidr v1.0.3 // indirect
-	github.com/projectdiscovery/stringsutil v0.0.2 // indirect
+	github.com/projectdiscovery/blackrock v0.0.0-20221025011524-9e4efe804fb4 // indirect
+	github.com/projectdiscovery/mapcidr v1.1.0 // indirect
 	github.com/saintfish/chardet v0.0.0-20230101081208-5e3ef4b5456d // indirect
 	github.com/ulikunitz/xz v0.5.8 // indirect
 	github.com/xi2/xz v0.0.0-20171230120015-48954b6210f8 // indirect
