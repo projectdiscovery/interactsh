@@ -20,7 +20,7 @@ require (
 	github.com/projectdiscovery/goflags v0.1.7
 	github.com/projectdiscovery/gologger v1.1.8
 	github.com/projectdiscovery/retryabledns v1.0.21
-	github.com/projectdiscovery/retryablehttp-go v1.0.11
+	github.com/projectdiscovery/retryablehttp-go v1.0.12
 	github.com/projectdiscovery/utils v0.0.13
 	github.com/remeh/sizedwaitgroup v1.0.0
 	github.com/rs/xid v1.4.0
