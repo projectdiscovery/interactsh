@@ -3,6 +3,7 @@ package acme
 import (
 	"context"
 	"crypto/tls"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -78,18 +79,28 @@ func HandleWildcardCertificates(domain, email string, store *Provider, debug boo
 	// attempts to extract certificates from caddy
 	var certs []tls.Certificate
 	for _, domain := range domains {
-		var retried bool
+		var retried, retriedWildcard bool
 	retry_cert:
 		certPath, privKeyPath, err := extractCaddyPaths(cfg, &certmagic.DefaultACME, domain)
 		if err != nil {
 			return nil, err
 		}
 		cert, err := tls.LoadX509KeyPair(certPath, privKeyPath)
-		if err != nil && !retried {
-			retried = true
-			// wait I/O to sync
-			time.Sleep(5 * time.Second)
-			goto retry_cert
+		if err != nil {
+			if !retried {
+				retried = true
+				// wait I/O to sync
+				time.Sleep(5 * time.Second)
+				goto retry_cert
+			}
+			if !retriedWildcard {
+				retriedWildcard = true
+				// wait I/O to sync
+				time.Sleep(5 * time.Second)
+				// attempt to load the domain as wildcard
+				domain = fmt.Sprintf("wildcard_.%s", domain)
+				goto retry_cert
+			}
 		}
 		if err != nil {
 			return nil, err
