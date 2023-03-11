@@ -1,7 +1,11 @@
-# Build
-FROM golang:1.20.1-alpine AS build-env
-RUN apk add build-base
-RUN go install -v github.com/projectdiscovery/interactsh/cmd/interactsh-server@latest
+# Base
+FROM golang:1.20.1-alpine AS builder
+RUN apk add --no-cache git build-base gcc musl-dev
+WORKDIR /app
+COPY . /app
+RUN go mod download
+RUN go build ./cmd/interactsh-server
+
 
 # Release
 FROM alpine:3.17.2
@@ -13,6 +17,6 @@ RUN apk -U upgrade --no-cache \
     && apk del .build-deps
 RUN curl -o /usr/local/bin/smb_server.py https://raw.githubusercontent.com/projectdiscovery/interactsh/main/cmd/interactsh-server/smb_server.py
 WORKDIR "/usr/local/bin"
-COPY --from=build-env /go/bin/interactsh-server /usr/local/bin/interactsh-server
+COPY --from=builder /app/interactsh-server /usr/local/bin/
 
 ENTRYPOINT ["interactsh-server"]
