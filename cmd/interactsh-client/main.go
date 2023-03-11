@@ -2,7 +2,6 @@ package main
 
 import (
 	"bytes"
-	jsonpkg "encoding/json"
 	"fmt"
 	"os"
 	"os/signal"
@@ -10,6 +9,7 @@ import (
 	"regexp"
 	"time"
 
+	jsoniter "github.com/json-iterator/go"
 	"github.com/projectdiscovery/goflags"
 	"github.com/projectdiscovery/gologger"
 	"github.com/projectdiscovery/gologger/levels"
@@ -57,6 +57,7 @@ func main() {
 		flagSet.BoolVar(&cliOptions.DNSOnly, "dns-only", false, "display only dns interaction in CLI output"),
 		flagSet.BoolVar(&cliOptions.HTTPOnly, "http-only", false, "display only http interaction in CLI output"),
 		flagSet.BoolVar(&cliOptions.SmtpOnly, "smtp-only", false, "display only smtp interactions in CLI output"),
+		flagSet.BoolVar(&cliOptions.Asn, "asn", false, " include asn information of remote ip in json output"),
 	)
 
 	flagSet.CreateGroup("output", "Output",
@@ -77,7 +78,7 @@ func main() {
 	options.ShowBanner()
 
 	if healthcheck {
-		cfgFilePath, _ := goflags.GetConfigFilePath()
+		cfgFilePath, _ := flagSet.GetConfigFilePath()
 		gologger.Print().Msgf("%s\n", runner.DoHealthCheck(cfgFilePath))
 		os.Exit(0)
 	}
@@ -147,6 +148,11 @@ func main() {
 		if filter != nil && filter.match(interaction.FullId) {
 			return
 		}
+
+		if cliOptions.Asn {
+			_ = client.TryGetAsnInfo(interaction)
+		}
+
 		if !cliOptions.JSON {
 			builder := &bytes.Buffer{}
 
@@ -201,7 +207,7 @@ func main() {
 				}
 			}
 		} else {
-			b, err := jsonpkg.Marshal(interaction)
+			b, err := jsoniter.Marshal(interaction)
 			if err != nil {
 				gologger.Error().Msgf("Could not marshal json output: %s\n", err)
 			} else {

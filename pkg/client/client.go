@@ -14,6 +14,7 @@ import (
 	"fmt"
 	"io"
 	mathrand "math/rand"
+	"net"
 	"net/http"
 	"net/url"
 	"os"
@@ -24,6 +25,7 @@ import (
 	"github.com/google/uuid"
 	jsoniter "github.com/json-iterator/go"
 	"github.com/pkg/errors"
+	asnmap "github.com/projectdiscovery/asnmap/libs"
 	"github.com/projectdiscovery/gologger"
 	"github.com/projectdiscovery/interactsh/pkg/options"
 	"github.com/projectdiscovery/interactsh/pkg/server"
@@ -31,9 +33,10 @@ import (
 	"github.com/projectdiscovery/interactsh/pkg/storage"
 	"github.com/projectdiscovery/retryablehttp-go"
 	errorutil "github.com/projectdiscovery/utils/errors"
+	iputil "github.com/projectdiscovery/utils/ip"
 	stringsutil "github.com/projectdiscovery/utils/strings"
 	"github.com/rs/xid"
-	"gopkg.in/corvus-ch/zbase32.v1"
+	zbase32 "gopkg.in/corvus-ch/zbase32.v1"
 	"gopkg.in/yaml.v3"
 )
 
@@ -137,6 +140,7 @@ func New(options *Options) (*Client, error) {
 		correlationIdLength:      options.CorrelationIdLength,
 		CorrelationIdNonceLength: options.CorrelationIdNonceLength,
 	}
+
 	if options.SessionInfo != nil {
 		privKey, err := x509.ParsePKCS1PrivateKey([]byte(options.SessionInfo.PrivateKey))
 		if err == nil {
@@ -417,6 +421,34 @@ func (c *Client) getInteractions(callback InteractionCallback) error {
 		callback(interaction)
 	}
 
+	return nil
+}
+
+// TryGetAsnInfo attempts to enrich interaction with asn data
+func (c *Client) TryGetAsnInfo(interaction *server.Interaction) error {
+	var remoteIp string
+	if iputil.IsIP(interaction.RemoteAddress) {
+		remoteIp = interaction.RemoteAddress
+	} else {
+		var err error
+		remoteIp, _, err = net.SplitHostPort(interaction.RemoteAddress)
+		if err != nil {
+			return err
+		}
+	}
+
+	if asnItems, err := asnmap.DefaultClient.GetData(remoteIp); err == nil && len(asnItems) > 0 {
+		for _, asnItem := range asnItems {
+			// convert to map to prune and turn fields into camel case
+			newOutputAsnItem := make(map[string]string)
+			newOutputAsnItem["first-ip"] = asnItem.FirstIp
+			newOutputAsnItem["last-ip"] = asnItem.LastIp
+			newOutputAsnItem["asn"] = fmt.Sprintf("AS%d", asnItem.ASN)
+			newOutputAsnItem["country"] = asnItem.Country
+			newOutputAsnItem["org"] = asnItem.Org
+			interaction.AsnInfo = append(interaction.AsnInfo, newOutputAsnItem)
+		}
+	}
 	return nil
 }
 
