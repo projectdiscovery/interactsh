@@ -28,6 +28,7 @@ import (
 	folderutil "github.com/projectdiscovery/utils/folder"
 	iputil "github.com/projectdiscovery/utils/ip"
 	stringsutil "github.com/projectdiscovery/utils/strings"
+	updateutils "github.com/projectdiscovery/utils/update"
 )
 
 var (
@@ -69,6 +70,11 @@ func main() {
 		flagSet.StringVarP(&cliOptions.DiskStoragePath, "disk-path", "dsp", "", "disk storage path"),
 	)
 
+	flagSet.CreateGroup("update", "Update",
+		flagSet.CallbackVarP(options.GetUpdateCallback("interactsh-server"), "update", "up", "update interactsh to latest version"),
+		flagSet.BoolVarP(&cliOptions.DisableUpdateCheck, "disable-update-check", "duc", false, "disable automatic interactsh update check"),
+	)
+
 	flagSet.CreateGroup("services", "Services",
 		flagSet.IntVar(&cliOptions.DnsPort, "dns-port", 53, "port to use for dns service"),
 		flagSet.IntVar(&cliOptions.HttpPort, "http-port", 80, "port to use for http service"),
@@ -86,12 +92,14 @@ func main() {
 		flagSet.IntVar(&cliOptions.FtpPort, "ftp-port", 21, "port to use for ftp service"),
 		flagSet.StringVar(&cliOptions.FTPDirectory, "ftp-dir", "", "ftp directory - temporary if not specified"),
 	)
+
 	flagSet.CreateGroup("debug", "Debug",
 		flagSet.BoolVar(&cliOptions.Version, "version", false, "show version of the project"),
 		flagSet.BoolVar(&cliOptions.Debug, "debug", false, "start interactsh server in debug mode"),
 		flagSet.BoolVarP(&cliOptions.EnablePprof, "enable-pprof", "ep", false, "enable pprof debugging server"),
 		flagSet.BoolVarP(&healthcheck, "hc", "health-check", false, "run diagnostic check up"),
 		flagSet.BoolVar(&cliOptions.EnableMetrics, "metrics", false, "enable metrics endpoint"),
+		flagSet.BoolVar(&cliOptions.Verbose, "v", false, "display verbose interaction"),
 	)
 
 	if err := flagSet.Parse(); err != nil {
@@ -107,6 +115,17 @@ func main() {
 	if cliOptions.Version {
 		gologger.Info().Msgf("Current Version: %s\n", options.Version)
 		os.Exit(0)
+	}
+
+	if !cliOptions.DisableUpdateCheck {
+		latestVersion, err := updateutils.GetVersionCheckCallback("interactsh-client")()
+		if err != nil {
+			if cliOptions.Verbose {
+				gologger.Error().Msgf("interactsh version check failed: %v", err.Error())
+			}
+		} else {
+			gologger.Info().Msgf("Current interactsh version %v %v", options.Version, updateutils.GetVersionDescription(options.Version, latestVersion))
+		}
 	}
 
 	if cliOptions.Config != defaultConfigLocation {

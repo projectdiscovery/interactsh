@@ -20,6 +20,7 @@ import (
 	"github.com/projectdiscovery/interactsh/pkg/settings"
 	fileutil "github.com/projectdiscovery/utils/file"
 	folderutil "github.com/projectdiscovery/utils/folder"
+	updateutils "github.com/projectdiscovery/utils/update"
 )
 
 var (
@@ -60,6 +61,11 @@ func main() {
 		flagSet.BoolVar(&cliOptions.Asn, "asn", false, " include asn information of remote ip in json output"),
 	)
 
+	flagSet.CreateGroup("update", "Update",
+		flagSet.CallbackVarP(options.GetUpdateCallback("interactsh-client"), "update", "up", "update interactsh to latest version"),
+		flagSet.BoolVarP(&cliOptions.DisableUpdateCheck, "disable-update-check", "duc", false, "disable automatic interactsh update check"),
+	)
+
 	flagSet.CreateGroup("output", "Output",
 		flagSet.StringVar(&cliOptions.Output, "o", "", "output file to write interaction data"),
 		flagSet.BoolVar(&cliOptions.JSON, "json", false, "write output in JSONL(ines) format"),
@@ -85,6 +91,17 @@ func main() {
 	if cliOptions.Version {
 		gologger.Info().Msgf("Current Version: %s\n", options.Version)
 		os.Exit(0)
+	}
+
+	if !cliOptions.DisableUpdateCheck {
+		latestVersion, err := updateutils.GetVersionCheckCallback("interactsh-client")()
+		if err != nil {
+			if cliOptions.Verbose {
+				gologger.Error().Msgf("interactsh version check failed: %v", err.Error())
+			}
+		} else {
+			gologger.Info().Msgf("Current interactsh version %v %v", options.Version, updateutils.GetVersionDescription(options.Version, latestVersion))
+		}
 	}
 
 	if cliOptions.Config != defaultConfigLocation {

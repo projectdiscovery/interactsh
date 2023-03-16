@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/projectdiscovery/gologger"
+	updateutils "github.com/projectdiscovery/utils/update"
 )
 
 const Version = "1.1.1"
@@ -19,4 +20,13 @@ var banner = fmt.Sprintf(`
 func ShowBanner() {
 	gologger.Print().Msgf("%s\n", banner)
 	gologger.Print().Msgf("\t\tprojectdiscovery.io\n\n")
+}
+
+// GetUpdateCallback returns a callback function that updates interactsh
+func GetUpdateCallback(assetName string) func() {
+	return func() {
+		ShowBanner()
+		updateutils.GHAssetName = assetName
+		updateutils.GetUpdateToolCallback("interactsh", Version)()
+	}
 }

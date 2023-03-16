@@ -22,4 +22,5 @@ type CLIClientOptions struct {
 	CorrelationIdNonceLength int
 	SessionFile              string
 	Asn                      bool
+	DisableUpdateCheck       bool
 }
