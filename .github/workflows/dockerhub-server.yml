@@ -37,6 +37,6 @@ jobs:
         with:
           context: .
           file: .github/docker/server/Dockerfile
-          platforms: linux/amd64,linux/arm64,linux/arm
+          platforms: linux/amd64,linux/arm64
           push: true
           tags: projectdiscovery/interactsh-server:latest,projectdiscovery/interactsh-server:${{ steps.meta.outputs.TAG }}
