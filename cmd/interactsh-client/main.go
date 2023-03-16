@@ -62,8 +62,8 @@ func main() {
 	)
 
 	flagSet.CreateGroup("update", "Update",
-		flagSet.CallbackVarP(options.GetUpdateCallback("interactsh-client"), "update", "up", "update interactsh to latest version"),
-		flagSet.BoolVarP(&cliOptions.DisableUpdateCheck, "disable-update-check", "duc", false, "disable automatic interactsh update check"),
+		flagSet.CallbackVarP(options.GetUpdateCallback("interactsh-client"), "update", "up", "update interactsh-client to latest version"),
+		flagSet.BoolVarP(&cliOptions.DisableUpdateCheck, "disable-update-check", "duc", false, "disable automatic interactsh-client update check"),
 	)
 
 	flagSet.CreateGroup("output", "Output",

@@ -71,8 +71,8 @@ func main() {
 	)
 
 	flagSet.CreateGroup("update", "Update",
-		flagSet.CallbackVarP(options.GetUpdateCallback("interactsh-server"), "update", "up", "update interactsh to latest version"),
-		flagSet.BoolVarP(&cliOptions.DisableUpdateCheck, "disable-update-check", "duc", false, "disable automatic interactsh update check"),
+		flagSet.CallbackVarP(options.GetUpdateCallback("interactsh-server"), "update", "up", "update interactsh-server to latest version"),
+		flagSet.BoolVarP(&cliOptions.DisableUpdateCheck, "disable-update-check", "duc", false, "disable automatic interactsh-server update check"),
 	)
 
 	flagSet.CreateGroup("services", "Services",
@@ -99,7 +99,7 @@ func main() {
 		flagSet.BoolVarP(&cliOptions.EnablePprof, "enable-pprof", "ep", false, "enable pprof debugging server"),
 		flagSet.BoolVarP(&healthcheck, "hc", "health-check", false, "run diagnostic check up"),
 		flagSet.BoolVar(&cliOptions.EnableMetrics, "metrics", false, "enable metrics endpoint"),
-		flagSet.BoolVar(&cliOptions.Verbose, "v", false, "display verbose interaction"),
+		flagSet.BoolVarP(&cliOptions.Verbose, "verbose", "v", false, "display verbose interaction"),
 	)
 
 	if err := flagSet.Parse(); err != nil {
