@@ -76,6 +76,10 @@ FILTER:
    -http-only            display only http interaction in CLI output
    -smtp-only            display only smtp interactions in CLI output
 
+UPDATE:
+   -up, -update                 update interactsh-client to latest version
+   -duc, -disable-update-check  disable automatic interactsh-client update check
+   
 OUTPUT:
    -o string  output file to write interaction data
    -json      write output in JSONL(ines) format
@@ -329,6 +333,10 @@ CONFIG:
    -ds, -disk                   disk based storage
    -dsp, -disk-path string      disk storage path
 
+UPDATE:
+   -up, -update                 update interactsh-server to latest version
+   -duc, -disable-update-check  disable automatic interactsh-server update check
+   
 SERVICES:
    -dns-port int           port to use for dns service (default 53)
    -http-port int          port to use for http service (default 80)
@@ -352,6 +360,7 @@ DEBUG:
    -ep, -enable-pprof  enable pprof debugging server
    -health-check, -hc  run diagnostic check up
    -metrics            enable metrics endpoint
+   -v, -verbose        display verbose interaction
 ```
 
 We are using GoDaddy for domain name and DigitalOcean droplet for the server, a basic $5 droplet should be sufficient to run self-hosted Interactsh server. If you are not using GoDaddy, follow your registrar's process for creating / updating DNS entries.
