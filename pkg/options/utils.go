@@ -1,15 +1,13 @@
 package options
 
 import (
-	"fmt"
-
 	"github.com/projectdiscovery/gologger"
 	updateutils "github.com/projectdiscovery/utils/update"
 )
 
 const Version = "1.1.2"
 
-var banner = fmt.Sprintf(`
+var banner = (`
     _       __                       __       __  
    (_)___  / /____  _________ ______/ /______/ /_ 
   / / __ \/ __/ _ \/ ___/ __ '/ ___/ __/ ___/ __ \
