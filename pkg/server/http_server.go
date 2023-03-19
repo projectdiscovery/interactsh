@@ -108,7 +108,7 @@ func (h *HTTPServer) logger(handler http.Handler) http.HandlerFunc {
 		req, _ := httputil.DumpRequest(r, true)
 		reqString := string(req)
 
-		gologger.Debug().Msgf("New HTTP request: %s\n", reqString)
+		gologger.Debug().Msgf("New HTTP request: \n\n%s\n", reqString)
 		rec := httptest.NewRecorder()
 		handler.ServeHTTP(rec, r)
 

@@ -48,6 +48,8 @@ type CLIServerOptions struct {
 	DiskStoragePath          string
 	EnablePprof              bool
 	EnableMetrics            bool
+	Verbose                  bool
+	DisableUpdateCheck       bool
 }
 
 func (cliServerOptions *CLIServerOptions) AsServerOptions() *server.Options {
