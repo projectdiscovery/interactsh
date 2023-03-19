@@ -7,15 +7,15 @@ import (
 	updateutils "github.com/projectdiscovery/utils/update"
 )
 
-const Version = "1.1.1"
+const Version = "1.1.2"
 
 var banner = fmt.Sprintf(`
     _       __                       __       __  
    (_)___  / /____  _________ ______/ /______/ /_ 
   / / __ \/ __/ _ \/ ___/ __ '/ ___/ __/ ___/ __ \
  / / / / / /_/  __/ /  / /_/ / /__/ /_(__  ) / / /
-/_/_/ /_/\__/\___/_/   \__,_/\___/\__/____/_/ /_/ %s
-`, Version)
+/_/_/ /_/\__/\___/_/   \__,_/\___/\__/____/_/ /_/
+`)
 
 func ShowBanner() {
 	gologger.Print().Msgf("%s\n", banner)
