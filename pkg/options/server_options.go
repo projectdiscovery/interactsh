@@ -50,6 +50,8 @@ type CLIServerOptions struct {
 	EnableMetrics            bool
 	Verbose                  bool
 	DisableUpdateCheck       bool
+	ServerToken              bool
+	HeaderServer             string
 }
 
 func (cliServerOptions *CLIServerOptions) AsServerOptions() *server.Options {

@@ -332,6 +332,7 @@ CONFIG:
    -hd, -http-directory string  directory with files to serve with http server
    -ds, -disk                   disk based storage
    -dsp, -disk-path string      disk storage path
+   -header-server string        custom value of Server header in response
 
 UPDATE:
    -up, -update                 update interactsh-server to latest version
@@ -361,6 +362,7 @@ DEBUG:
    -health-check, -hc  run diagnostic check up
    -metrics            enable metrics endpoint
    -v, -verbose        display verbose interaction
+   -server-token       show version of Interactsh in response HTTP headers
 ```
 
 We are using GoDaddy for domain name and DigitalOcean droplet for the server, a basic $5 droplet should be sufficient to run self-hosted Interactsh server. If you are not using GoDaddy, follow your registrar's process for creating / updating DNS entries.
@@ -466,8 +468,8 @@ interactsh-server -d oast.pro,oast.me
 
 While running interactsh server on **Cloud VM**'s like Amazon EC2, Goolge Cloud Platform (GCP), it is required to update the security rules to allow **"all traffic"** for inbound connections.
 
-</table>
 </td>
+</table>
 
 There are more useful capabilities supported by `interactsh-server` that are not enabled by default and are intended to be used only by **self-hosted** servers.
 
