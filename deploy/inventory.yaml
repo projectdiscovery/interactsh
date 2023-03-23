@@ -1,0 +1,36 @@
+interactsh:
+  hosts:
+    interact.sh:
+        ansible_host: 46.101.25.250
+        ansible_user: root
+        domain_name: "interact.sh"
+
+    oast.site:
+      ansible_host: 178.128.16.97
+      ansible_user: root
+      domain_name: "oast.site"
+      
+    oast.pro:
+      ansible_host: 178.128.212.209
+      ansible_user: root
+      domain_name: "oast.pro"
+
+    oast.live:
+      ansible_host: 178.128.210.172
+      ansible_user: root
+      domain_name: "oast.live"
+
+    oast.fun:
+      ansible_host: 206.189.156.69
+      ansible_user: root
+      domain_name: "oast.fun"
+    
+    oast.online:
+      ansible_host: 167.99.69.236
+      ansible_user: root
+      domain_name: "oast.online"
+    
+    oast.me:
+      ansible_host: 178.128.209.14
+      ansible_user: root
+      domain_name: "oast.me"

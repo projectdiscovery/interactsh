@@ -1,0 +1,105 @@
+- hosts: all
+  become: true
+  vars:
+    container_name: "interactsh"
+    container_tag: "v1.1.2"
+    container_image: "projectdiscovery/interactsh-server:{{container_tag}}"
+    container_command: "-dr -d {{domain_name}} -metrics"
+    certmagic_host_path: "/root/.local/share/certmagic"
+    grafana_cloud_url: "{{ lookup('env', 'GRAFANA_CLOUD') }}"
+  tasks:
+  - name: Install aptitude
+    apt:
+      name: aptitude
+      state: latest
+      update_cache: true
+    tags: apt
+
+  - name: Install required system packages
+    apt:
+      pkg:
+      - apt-transport-https
+      - ca-certificates
+      - curl
+      - software-properties-common
+      - python3-pip
+      - virtualenv
+      - python3-setuptools
+      - lsb-release
+      - gnupg
+      state: latest
+      update_cache: true
+    tags: apt
+
+
+  - name: Add Docker GPG apt Key
+    apt_key:
+      url: https://download.docker.com/linux/{{ ansible_distribution | lower }}/gpg
+      state: present
+    tags: docker
+
+  - name: Add Docker Repository
+    apt_repository:
+      repo: deb https://download.docker.com/linux/{{ ansible_distribution | lower }}  {{ ansible_distribution_release }} stable
+      state: present
+    tags: docker
+
+  - name: Update apt and install docker-ce
+    apt:
+      name: docker-ce
+      state: latest
+      update_cache: true
+    tags: docker
+
+  - name: Install Docker Module for Python
+    pip:
+      name: docker
+    tags: docker
+    
+  - name: Make sure certmagic directory is created
+    file:
+      path: "{{ item }}"
+      state: directory
+    loop:
+      - "{{ certmagic_host_path }}"
+      - /etc/promtail/
+    tags: dir
+
+  - name: Copy promtail config file
+    template:
+        src: promtail.yml.j2
+        dest: "/etc/promtail/promtail.yml"
+    tags: promtail
+
+  - name: Launch promtail container
+    community.docker.docker_container:
+      name: "promtail"
+      image: "grafana/promtail:k88-c660a7e"
+      command: "--config.file=/etc/promtail/promtail.yml"
+      restart: true
+      restart_policy: "unless-stopped"
+      volumes:
+      - "/var/lib/docker/containers:/var/lib/docker/containers:ro"
+      - "/var/run/docker.sock:/var/run/docker.sock:ro"
+      - "/etc/promtail:/etc/promtail"
+      state: started
+    tags: promtail
+
+  - name: Pull Docker image
+    community.docker.docker_image:
+      name: "{{ container_image }}"
+      source: pull
+    tags: deploy
+
+  - name: Launch docker container
+    community.docker.docker_container:
+      name: "{{ container_name }}"
+      image: "{{ container_image }}"
+      command: "{{ container_command }}"
+      network_mode: host
+      restart: true
+      restart_policy: "unless-stopped"
+      volumes:
+      - "{{certmagic_host_path}}:{{certmagic_host_path}}"
+      state: started
+    tags: deploy
