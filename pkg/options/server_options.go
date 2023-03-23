@@ -88,5 +88,7 @@ func (cliServerOptions *CLIServerOptions) AsServerOptions() *server.Options {
 		DiskStorage:              cliServerOptions.DiskStorage,
 		DiskStoragePath:          cliServerOptions.DiskStoragePath,
 		EnableMetrics:            cliServerOptions.EnableMetrics,
+		ServerToken:              cliServerOptions.ServerToken,
+		HeaderServer:             cliServerOptions.HeaderServer,
 	}
 }
