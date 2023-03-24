@@ -10,6 +10,7 @@ jobs:
   build:
     name: Ansible Deploy 
     runs-on: ubuntu-latest
+    environment: oast
 
     steps:
     - uses: actions/checkout@v3
