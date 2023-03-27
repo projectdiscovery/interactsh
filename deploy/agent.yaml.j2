@@ -1,0 +1,48 @@
+metrics:
+  wal_directory: /tmp/agent
+  global:
+    scrape_interval: 30s
+    external_labels: 
+      env: "{{ domain_name }}"
+    remote_write:
+    - url: {{ prometheus_cloud_url }}
+      basic_auth:
+        password: {{ prometheus_cloud_password  | trim }}                     
+        username: {{ prometheus_cloud_username }}
+
+logs:
+  positions_directory: /tmp/positions/
+  configs:
+  - name: "{{ domain_name }}"
+    clients:
+      - url: {{ grafana_cloud_url }}
+        external_labels: {"server_name" : "{{ domain_name }}"}
+    scrape_configs:
+      - job_name: flog_scrape 
+        docker_sd_configs:
+          - host: unix:///var/run/docker.sock
+            refresh_interval: 5s
+            filters:
+              - name: name
+                values: ["{{ container_name }}"] 
+        relabel_configs:
+          - source_labels: ['__meta_docker_container_name']
+            regex: '/(.*)'
+            target_label: 'container'
+            replacement: "{{ domain_name }}"
+
+integrations:
+  node_exporter:
+    enabled: true
+    instance: "{{ domain_name }}"
+    rootfs_path: /rootfs
+    sysfs_path: /sys
+    procfs_path: /host/proc
+  cadvisor:
+    enabled: true
+    docker_only: true
+    instance: "{{ domain_name }}"
+    disabled_metrics:
+    - disk
+    enabled_metrics:
+    - memory
