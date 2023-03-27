@@ -6,7 +6,6 @@
     container_image: "projectdiscovery/interactsh-server:{{container_tag}}"
     container_command: "-dr -d {{domain_name}} -metrics"
     certmagic_host_path: "/root/.local/share/certmagic"
-    grafana_cloud_url: "{{ lookup('env', 'GRAFANA_CLOUD') }}"
   tasks:
   - name: Install aptitude
     apt:
@@ -62,28 +61,7 @@
       state: directory
     loop:
       - "{{ certmagic_host_path }}"
-      - /etc/promtail/
     tags: dir
-
-  - name: Copy promtail config file
-    template:
-        src: promtail.yml.j2
-        dest: "/etc/promtail/promtail.yml"
-    tags: promtail
-
-  - name: Launch promtail container
-    community.docker.docker_container:
-      name: "promtail"
-      image: "grafana/promtail:k88-c660a7e"
-      command: "--config.file=/etc/promtail/promtail.yml"
-      restart: true
-      restart_policy: "unless-stopped"
-      volumes:
-      - "/var/lib/docker/containers:/var/lib/docker/containers:ro"
-      - "/var/run/docker.sock:/var/run/docker.sock:ro"
-      - "/etc/promtail:/etc/promtail"
-      state: started
-    tags: promtail
 
   - name: Pull Docker image
     community.docker.docker_image:
@@ -91,7 +69,7 @@
       source: pull
     tags: deploy
 
-  - name: Launch docker container
+  - name: Launch interactsh docker container
     community.docker.docker_container:
       name: "{{ container_name }}"
       image: "{{ container_image }}"
