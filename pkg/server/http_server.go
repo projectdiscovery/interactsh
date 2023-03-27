@@ -250,7 +250,7 @@ func (h *HTTPServer) defaultHandler(w http.ResponseWriter, req *http.Request) {
 
 	domain := extractServerDomain(h, req)
 	w.Header().Set("Server", domain)
-	if h.options.ServerToken {
+	if !h.options.NoVersionHeader {
 		w.Header().Set("X-Interactsh-Version", h.options.Version)
 	}
 

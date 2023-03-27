@@ -101,7 +101,7 @@ func main() {
 		flagSet.BoolVarP(&healthcheck, "hc", "health-check", false, "run diagnostic check up"),
 		flagSet.BoolVar(&cliOptions.EnableMetrics, "metrics", false, "enable metrics endpoint"),
 		flagSet.BoolVarP(&cliOptions.Verbose, "verbose", "v", false, "display verbose interaction"),
-		flagSet.BoolVar(&cliOptions.ServerToken, "server-token", false, "show version of Interactsh in response HTTP headers"),
+		flagSet.BoolVar(&cliOptions.NoVersionHeader, "no-version-header", false, "hide version of Interactsh in response HTTP headers"),
 	)
 
 	if err := flagSet.Parse(); err != nil {

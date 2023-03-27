@@ -362,7 +362,7 @@ DEBUG:
    -health-check, -hc  run diagnostic check up
    -metrics            enable metrics endpoint
    -v, -verbose        display verbose interaction
-   -server-token       show version of Interactsh in response HTTP headers
+   -no-version-header  hide version of Interactsh in response HTTP headers
 ```
 
 We are using GoDaddy for domain name and DigitalOcean droplet for the server, a basic $5 droplet should be sufficient to run self-hosted Interactsh server. If you are not using GoDaddy, follow your registrar's process for creating / updating DNS entries.

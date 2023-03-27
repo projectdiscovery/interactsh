@@ -100,8 +100,8 @@ type Options struct {
 	DynamicResp bool
 	// EnableMetrics enables metrics endpoint
 	EnableMetrics bool
-	// ServerToken enables show server version in HTTP response X-Interactsh-Version header
-	ServerToken bool
+	// ServerToken hide server version in HTTP response X-Interactsh-Version header
+	NoVersionHeader bool
 	// HeaderServer use custom string in HTTP response Server header instead of domain
 	HeaderServer string
 
