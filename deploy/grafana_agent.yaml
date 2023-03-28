@@ -17,19 +17,19 @@
       - /etc/grafana/
     tags: dir
 
-  - name: Copy grafana agent config file
+  - name: copy grafana agent config file
     template:
         src: agent.yaml.j2
         dest: "/etc/grafana/agent.yaml"
     tags: agent
 
-  - name: Pull Docker image of grafana agent
+  - name: pull Docker image of grafana agent
     community.docker.docker_image:
       name: "{{ grafana_agent_image }}"
       source: pull
     tags: agent
 
-  - name: Create Grafana agent container
+  - name: create Grafana agent container
     community.docker.docker_container:
       name: grafana_agent
       image: "{{ grafana_agent_image }}"
