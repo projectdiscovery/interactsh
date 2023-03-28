@@ -1,6 +1,7 @@
 - hosts: all
   become: true
   vars:
+    env_name: "oast"
     container_name: "interactsh"
     grafana_agent_image: "grafana/agent:latest"
     grafana_cloud_url: "{{ lookup('env', 'GRAFANA_CLOUD') }}"
