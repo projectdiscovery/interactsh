@@ -332,7 +332,8 @@ CONFIG:
    -hd, -http-directory string  directory with files to serve with http server
    -ds, -disk                   disk based storage
    -dsp, -disk-path string      disk storage path
-   -header-server string        custom value of Server header in response
+   -csh, -server-header string  custom value of Server header in response
+   -dv, -disable-version        disable publishing interactsh version in response header
 
 UPDATE:
    -up, -update                 update interactsh-server to latest version
@@ -362,7 +363,6 @@ DEBUG:
    -health-check, -hc  run diagnostic check up
    -metrics            enable metrics endpoint
    -v, -verbose        display verbose interaction
-   -no-version-header  hide version of Interactsh in response HTTP headers
 ```
 
 We are using GoDaddy for domain name and DigitalOcean droplet for the server, a basic $5 droplet should be sufficient to run self-hosted Interactsh server. If you are not using GoDaddy, follow your registrar's process for creating / updating DNS entries.

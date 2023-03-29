@@ -68,7 +68,8 @@ func main() {
 		flagSet.StringVarP(&cliOptions.HTTPDirectory, "http-directory", "hd", "", "directory with files to serve with http server"),
 		flagSet.BoolVarP(&cliOptions.DiskStorage, "disk", "ds", false, "disk based storage"),
 		flagSet.StringVarP(&cliOptions.DiskStoragePath, "disk-path", "dsp", "", "disk storage path"),
-		flagSet.StringVar(&cliOptions.HeaderServer, "header-server", "", "custom value of Server header in response"),
+		flagSet.StringVarP(&cliOptions.HeaderServer, "server-header", "csh", "", "custom value of Server header in response"),
+		flagSet.BoolVarP(&cliOptions.NoVersionHeader, "disable-version", "dv", false, "disable publishing interactsh version in response header"),
 	)
 
 	flagSet.CreateGroup("update", "Update",
@@ -101,7 +102,6 @@ func main() {
 		flagSet.BoolVarP(&healthcheck, "hc", "health-check", false, "run diagnostic check up"),
 		flagSet.BoolVar(&cliOptions.EnableMetrics, "metrics", false, "enable metrics endpoint"),
 		flagSet.BoolVarP(&cliOptions.Verbose, "verbose", "v", false, "display verbose interaction"),
-		flagSet.BoolVar(&cliOptions.NoVersionHeader, "no-version-header", false, "hide version of Interactsh in response HTTP headers"),
 	)
 
 	if err := flagSet.Parse(); err != nil {
