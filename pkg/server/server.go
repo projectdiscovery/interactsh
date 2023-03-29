@@ -100,6 +100,10 @@ type Options struct {
 	DynamicResp bool
 	// EnableMetrics enables metrics endpoint
 	EnableMetrics bool
+	// ServerToken hide server version in HTTP response X-Interactsh-Version header
+	NoVersionHeader bool
+	// HeaderServer use custom string in HTTP response Server header instead of domain
+	HeaderServer string
 
 	ACMEStore *acme.Provider
 	Stats     *Metrics

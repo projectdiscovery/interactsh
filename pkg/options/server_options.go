@@ -50,6 +50,8 @@ type CLIServerOptions struct {
 	EnableMetrics            bool
 	Verbose                  bool
 	DisableUpdateCheck       bool
+	NoVersionHeader          bool
+	HeaderServer             string
 }
 
 func (cliServerOptions *CLIServerOptions) AsServerOptions() *server.Options {
@@ -86,5 +88,7 @@ func (cliServerOptions *CLIServerOptions) AsServerOptions() *server.Options {
 		DiskStorage:              cliServerOptions.DiskStorage,
 		DiskStoragePath:          cliServerOptions.DiskStoragePath,
 		EnableMetrics:            cliServerOptions.EnableMetrics,
+		NoVersionHeader:          cliServerOptions.NoVersionHeader,
+		HeaderServer:             cliServerOptions.HeaderServer,
 	}
 }

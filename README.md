@@ -332,6 +332,8 @@ CONFIG:
    -hd, -http-directory string  directory with files to serve with http server
    -ds, -disk                   disk based storage
    -dsp, -disk-path string      disk storage path
+   -csh, -server-header string  custom value of Server header in response
+   -dv, -disable-version        disable publishing interactsh version in response header
 
 UPDATE:
    -up, -update                 update interactsh-server to latest version
@@ -466,8 +468,8 @@ interactsh-server -d oast.pro,oast.me
 
 While running interactsh server on **Cloud VM**'s like Amazon EC2, Goolge Cloud Platform (GCP), it is required to update the security rules to allow **"all traffic"** for inbound connections.
 
-</table>
 </td>
+</table>
 
 There are more useful capabilities supported by `interactsh-server` that are not enabled by default and are intended to be used only by **self-hosted** servers.
 

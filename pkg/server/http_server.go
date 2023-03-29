@@ -221,13 +221,13 @@ If you notice any interactions from <b>*.%s</b> in your logs, it's possible that
 You should investigate the sites where these interactions were generated from, and if a vulnerability exists, examine the root cause and take the necessary steps to mitigate the issue.
 `
 
-// defaultHandler is a handler for default collaborator requests
-func (h *HTTPServer) defaultHandler(w http.ResponseWriter, req *http.Request) {
-	atomic.AddUint64(&h.options.Stats.Http, 1)
+func extractServerDomain(h *HTTPServer, req *http.Request) string {
+	if h.options.HeaderServer != "" {
+		return h.options.HeaderServer
+	}
 
-	reflection := h.options.URLReflection(req.Host)
-	// use first domain as default (todo: should be extracted from certificate)
 	var domain string
+	// use first domain as default (todo: should be extracted from certificate)
 	if len(h.options.Domains) > 0 {
 		// attempts to extract the domain name from host header
 		for _, configuredDomain := range h.options.Domains {
@@ -241,9 +241,20 @@ func (h *HTTPServer) defaultHandler(w http.ResponseWriter, req *http.Request) {
 			domain = h.options.Domains[0]
 		}
 	}
-	w.Header().Set("Server", domain)
-	w.Header().Set("X-Interactsh-Version", h.options.Version)
+	return domain
+}
 
+// defaultHandler is a handler for default collaborator requests
+func (h *HTTPServer) defaultHandler(w http.ResponseWriter, req *http.Request) {
+	atomic.AddUint64(&h.options.Stats.Http, 1)
+
+	domain := extractServerDomain(h, req)
+	w.Header().Set("Server", domain)
+	if !h.options.NoVersionHeader {
+		w.Header().Set("X-Interactsh-Version", h.options.Version)
+	}
+
+	reflection := h.options.URLReflection(req.Host)
 	if stringsutil.HasPrefixI(req.URL.Path, "/s/") && h.staticHandler != nil {
 		h.staticHandler.ServeHTTP(w, req)
 	} else if req.URL.Path == "/" && reflection == "" {
