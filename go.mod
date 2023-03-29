@@ -14,7 +14,7 @@ require (
 	github.com/karlseguin/ccache/v2 v2.0.8
 	github.com/libdns/libdns v0.2.1
 	github.com/mackerelio/go-osstat v0.2.4
-	github.com/miekg/dns v1.1.52
+	github.com/miekg/dns v1.1.53
 	github.com/pkg/errors v0.9.1
 	github.com/projectdiscovery/asnmap v1.0.2
 	github.com/projectdiscovery/goflags v0.1.8
