@@ -36,8 +36,8 @@ jobs:
 
     - name: run playbook
       env:
-        GRAFANA_CLOUD: ${{ secrets.GRAFANA_CLOUD }}
         ANSIBLE_FORCE_COLOR: '1'
       run: |
+        ansible all -m ping
         ansible-playbook deploy.yaml --tags deploy --extra-vars "container_tag=${{ inputs.tags }}"
       working-directory: ./deploy
