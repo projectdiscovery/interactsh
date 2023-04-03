@@ -330,9 +330,9 @@ func (c *Client) StartPolling(duration time.Duration, callback InteractionCallba
 				err := c.getInteractions(callback)
 				if err != nil {
 					if errorutil.IsAny(err, authError) {
-						gologger.Fatal().Msgf("Could not authenticate to the server")
+						gologger.Error().Msgf("Could not authenticate to the server")
 					} else if errorutil.IsAny(err, storage.ErrCorrelationIdNotFound) {
-						gologger.Fatal().Msgf("The correlation id was not found (probably evicted due to inactivity)")
+						gologger.Error().Msgf("The correlation id was not found (probably evicted due to inactivity) got: %v", err)
 					}
 				}
 			case <-c.quitChan:
