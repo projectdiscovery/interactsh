@@ -376,7 +376,10 @@ func (c *Client) getInteractions(callback InteractionCallback) error {
 		if resp.StatusCode == http.StatusUnauthorized {
 			return authError
 		}
-		data, _ := io.ReadAll(resp.Body)
+		data, err := io.ReadAll(resp.Body)
+		if err != nil {
+			return errorutil.NewWithErr(err).Msgf("failed to read response body")
+		}
 		if stringsutil.ContainsAny(string(data), storage.ErrCorrelationIdNotFound.Error()) {
 			return storage.ErrCorrelationIdNotFound
 		}
