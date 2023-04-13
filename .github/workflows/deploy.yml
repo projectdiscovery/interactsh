@@ -1,0 +1,43 @@
+name: 🖥 Deploy
+on:
+  workflow_dispatch:
+    inputs:
+      tags:
+        description: 'Interactsh docker tag to deploy'
+        required: true
+        type: string
+jobs:
+  build:
+    name: Ansible Deploy 
+    runs-on: ubuntu-latest
+    environment: oast
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Setup Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: 3.9
+
+    - name: Install dependencies
+      run: |
+        sudo apt install ansible-core
+        sudo -H pip install -Iv 'resolvelib<0.6.0'
+        ansible-galaxy collection install community.docker
+
+    - name: set ansible config secrets
+      env:
+        DO_SSH_KEY: ${{ secrets.DO_SSH_KEY }}
+      run: |
+        mkdir ~/.ssh
+        echo "$DO_SSH_KEY" >  ~/.ssh/oast
+        chmod 600  ~/.ssh/oast
+
+    - name: run playbook
+      env:
+        ANSIBLE_FORCE_COLOR: '1'
+      run: |
+        ansible all -m ping
+        ansible-playbook deploy.yaml --tags deploy --extra-vars "container_tag=${{ inputs.tags }}"
+      working-directory: ./deploy

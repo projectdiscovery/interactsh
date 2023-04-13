@@ -1,0 +1,83 @@
+- hosts: all
+  become: true
+  vars:
+    container_name: "interactsh"
+    container_tag: "v1.1.2"
+    container_image: "projectdiscovery/interactsh-server:{{container_tag}}"
+    container_command: "-dr -d {{domain_name}} -metrics"
+    certmagic_host_path: "/root/.local/share/certmagic"
+  tasks:
+  - name: Install aptitude
+    apt:
+      name: aptitude
+      state: latest
+      update_cache: true
+    tags: apt
+
+  - name: Install required system packages
+    apt:
+      pkg:
+      - apt-transport-https
+      - ca-certificates
+      - curl
+      - software-properties-common
+      - python3-pip
+      - virtualenv
+      - python3-setuptools
+      - lsb-release
+      - gnupg
+      state: latest
+      update_cache: true
+    tags: apt
+
+
+  - name: Add Docker GPG apt Key
+    apt_key:
+      url: https://download.docker.com/linux/{{ ansible_distribution | lower }}/gpg
+      state: present
+    tags: docker
+
+  - name: Add Docker Repository
+    apt_repository:
+      repo: deb https://download.docker.com/linux/{{ ansible_distribution | lower }}  {{ ansible_distribution_release }} stable
+      state: present
+    tags: docker
+
+  - name: Update apt and install docker-ce
+    apt:
+      name: docker-ce
+      state: latest
+      update_cache: true
+    tags: docker
+
+  - name: Install Docker Module for Python
+    pip:
+      name: docker
+    tags: docker
+    
+  - name: Make sure certmagic directory is created
+    file:
+      path: "{{ item }}"
+      state: directory
+    loop:
+      - "{{ certmagic_host_path }}"
+    tags: dir
+
+  - name: Pull Docker image
+    community.docker.docker_image:
+      name: "{{ container_image }}"
+      source: pull
+    tags: deploy
+
+  - name: Launch interactsh docker container
+    community.docker.docker_container:
+      name: "{{ container_name }}"
+      image: "{{ container_image }}"
+      command: "{{ container_command }}"
+      network_mode: host
+      restart: true
+      restart_policy: "unless-stopped"
+      volumes:
+      - "{{certmagic_host_path}}:{{certmagic_host_path}}"
+      state: started
+    tags: deploy
