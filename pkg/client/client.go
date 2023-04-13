@@ -305,7 +305,7 @@ func removeIndex(s []string, index int) []string {
 // InteractionCallback is a callback function for a reported interaction
 type InteractionCallback func(*server.Interaction)
 
-// StartPolling starts polling the server each duration and returns any events
+// StartPolling the server each duration and returns any events
 // that may have been captured by the collaborator server.
 func (c *Client) StartPolling(duration time.Duration, callback InteractionCallback) error {
 	switch c.State.Load() {
@@ -319,30 +319,27 @@ func (c *Client) StartPolling(duration time.Duration, callback InteractionCallba
 
 	ticker := time.NewTicker(duration)
 	c.quitChan = make(chan struct{})
-	go func() {
-		for {
-			// exit if the client is not polling
-			if c.State.Load() != Polling {
-				return
-			}
-			select {
-			case <-ticker.C:
-				err := c.getInteractions(callback)
-				if err != nil {
-					if errorutil.IsAny(err, authError) {
-						gologger.Fatal().Msgf("Could not authenticate to the server")
-					} else if errorutil.IsAny(err, storage.ErrCorrelationIdNotFound) {
-						gologger.Fatal().Msgf("The correlation id was not found (probably evicted due to inactivity)")
-					}
-				}
-			case <-c.quitChan:
-				ticker.Stop()
-				return
-			}
+	for {
+		// exit if the client is not polling
+		if c.State.Load() != Polling {
+			return nil
 		}
-	}()
-
-	return nil
+		select {
+		case <-ticker.C:
+			err := c.getInteractions(callback)
+			if err != nil {
+				if errorutil.IsAny(err, authError) {
+					return errorutil.NewWithErr(err).Msgf("Could not authenticate to the server")
+				} else if errorutil.IsAny(err, storage.ErrCorrelationIdNotFound) {
+					return errorutil.NewWithErr(err).Msgf("The correlation id was not found (probably evicted due to inactivity)")
+				}
+				return err
+			}
+		case <-c.quitChan:
+			ticker.Stop()
+			return nil
+		}
+	}
 }
 
 // getInteractions returns the interactions from the server.
@@ -452,7 +449,7 @@ func (c *Client) TryGetAsnInfo(interaction *server.Interaction) error {
 	return nil
 }
 
-// StopPolling stops the polling to the interactsh server.
+// StopPolling the interactsh server.
 func (c *Client) StopPolling() error {
 	if c.State.Load() != Polling {
 		return errors.New("client is not polling")
