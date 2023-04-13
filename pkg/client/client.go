@@ -19,6 +19,7 @@ import (
 	"net/url"
 	"os"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -57,6 +58,7 @@ const (
 
 // Client is a client for communicating with interactsh server instance.
 type Client struct {
+	busy                     sync.RWMutex
 	State                    atomic.Value
 	correlationID            string
 	secretKey                string
@@ -344,6 +346,9 @@ func (c *Client) StartPolling(duration time.Duration, callback InteractionCallba
 
 // getInteractions returns the interactions from the server.
 func (c *Client) getInteractions(callback InteractionCallback) error {
+	c.busy.RLock()
+	defer c.busy.RUnlock()
+
 	builder := &strings.Builder{}
 	builder.WriteString(c.serverURL.String())
 	builder.WriteString("/poll?id=")
@@ -451,6 +456,9 @@ func (c *Client) TryGetAsnInfo(interaction *server.Interaction) error {
 
 // StopPolling the interactsh server.
 func (c *Client) StopPolling() error {
+	c.busy.Lock()
+	defer c.busy.Unlock()
+
 	if c.State.Load() != Polling {
 		return errors.New("client is not polling")
 	}
@@ -464,6 +472,9 @@ func (c *Client) StopPolling() error {
 // Close closes the collaborator client and deregisters from the
 // collaborator server if not explicitly asked by the user.
 func (c *Client) Close() error {
+	c.busy.Lock()
+	defer c.busy.Unlock()
+
 	if c.State.Load() == Polling {
 		return errors.New("client should stop polling before closing")
 	}
