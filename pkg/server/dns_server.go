@@ -14,6 +14,7 @@ import (
 	"github.com/miekg/dns"
 	"github.com/pkg/errors"
 	"github.com/projectdiscovery/gologger"
+	"github.com/projectdiscovery/interactsh/pkg/server/acme"
 	stringsutil "github.com/projectdiscovery/utils/strings"
 	"gopkg.in/yaml.v3"
 )
@@ -71,11 +72,6 @@ func (h *DNSServer) ListenAndServe(dnsAlive chan bool) {
 	}
 }
 
-const (
-	dnsChallengeString   = "_acme-challenge."
-	certificateAuthority = "letsencrypt.org."
-)
-
 // ServeDNS is the default handler for DNS queries.
 func (h *DNSServer) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 	atomic.AddUint64(&h.options.Stats.Dns, 1)
@@ -94,7 +90,7 @@ func (h *DNSServer) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 		domain := question.Name
 
 		// Handle DNS server cases for ACME server
-		if strings.HasPrefix(strings.ToLower(domain), dnsChallengeString) {
+		if strings.HasPrefix(strings.ToLower(domain), acme.DNSChallengeString) {
 			isDNSChallenge = true
 
 			gologger.Debug().Msgf("Got acme dns request: \n%s\n", r.String())
@@ -216,7 +212,7 @@ func (h *DNSServer) handleSOA(zone string, m *dns.Msg) {
 	for _, dotDomain := range dotDomains {
 		if nsDomains, ok := h.nsDomains[dotDomain]; ok {
 			for _, nsDomain := range nsDomains {
-				m.Answer = append(m.Answer, &dns.SOA{Hdr: nsHdr, Ns: nsDomain, Mbox: certificateAuthority, Serial: 1, Expire: 60, Minttl: 60})
+				m.Answer = append(m.Answer, &dns.SOA{Hdr: nsHdr, Ns: nsDomain, Mbox: acme.CertificateAuthority, Serial: 1, Expire: 60, Minttl: 60})
 				return
 			}
 		}
