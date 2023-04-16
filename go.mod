@@ -23,7 +23,7 @@ require (
 	github.com/projectdiscovery/retryablehttp-go v1.0.14
 	github.com/projectdiscovery/utils v0.0.19
 	github.com/remeh/sizedwaitgroup v1.0.0
-	github.com/rs/xid v1.4.0
+	github.com/rs/xid v1.5.0
 	github.com/stretchr/testify v1.8.2
 	github.com/syndtr/goleveldb v1.0.0
 	go.uber.org/multierr v1.11.0
