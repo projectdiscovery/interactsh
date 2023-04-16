@@ -5,6 +5,7 @@ package acme
 import (
 	"context"
 	"fmt"
+	"strings"
 	"sync"
 
 	"github.com/libdns/libdns"
@@ -23,7 +24,7 @@ func NewProvider() *Provider {
 	return &Provider{Mutex: sync.Mutex{}, recordMap: make(map[string]*RecordStore)}
 }
 
-func (p *Provider) getZoneRecords(ctx context.Context, zoneName string) *RecordStore {
+func (p *Provider) getZoneRecords(_ context.Context, zoneName string) *RecordStore {
 	return p.recordMap[zoneName]
 }
 
@@ -32,7 +33,7 @@ func compareRecords(a, b libdns.Record) bool {
 }
 
 func (r *RecordStore) deleteRecords(recs []libdns.Record) []libdns.Record {
-	deletedRecords := []libdns.Record{}
+	var deletedRecords []libdns.Record
 	for i, entry := range r.entries {
 		for _, record := range recs {
 			if compareRecords(entry, record) {
@@ -52,7 +53,14 @@ func (p *Provider) AppendRecords(ctx context.Context, zoneName string, recs []li
 		zoneRecordStore = new(RecordStore)
 		p.recordMap[zoneName] = zoneRecordStore
 	}
-	zoneRecordStore.entries = append(zoneRecordStore.entries, recs...)
+
+	// ACME DNS challenge need only one record, old record should be deleted
+	if strings.HasPrefix(strings.ToLower(zoneName), DNSChallengeString) {
+		zoneRecordStore.entries = recs
+	} else {
+		zoneRecordStore.entries = append(zoneRecordStore.entries, recs...)
+	}
+
 	return zoneRecordStore.entries, nil
 }
 
@@ -81,4 +89,9 @@ var (
 	_ libdns.RecordGetter   = (*Provider)(nil)
 	_ libdns.RecordAppender = (*Provider)(nil)
 	_ libdns.RecordDeleter  = (*Provider)(nil)
+)
+
+const (
+	DNSChallengeString   = "_acme-challenge."
+	CertificateAuthority = "letsencrypt.org."
 )
