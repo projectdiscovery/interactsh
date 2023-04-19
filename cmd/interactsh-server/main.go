@@ -28,6 +28,7 @@ import (
 	folderutil "github.com/projectdiscovery/utils/folder"
 	iputil "github.com/projectdiscovery/utils/ip"
 	stringsutil "github.com/projectdiscovery/utils/strings"
+	updateutils "github.com/projectdiscovery/utils/update"
 )
 
 var (
@@ -70,6 +71,13 @@ func main() {
 		flagSet.BoolVarP(&cliOptions.JsResp, "js-resp", "js", false, "enable js serving at specific path /js"),
 		flagSet.StringSliceVarP(&cliOptions.JsChainLoad, "js-chain-load", "jscl", nil, "load and execute the specified js file(s)", goflags.CommaSeparatedStringSliceOptions),
 		flagSet.StringSliceVarP(&cliOptions.JsCollectPageList, "js-collect-page-list", "jscp", nil, "the injected js code will attempt to collect also these paths from browser context", goflags.CommaSeparatedStringSliceOptions),
+		flagSet.StringVarP(&cliOptions.HeaderServer, "server-header", "csh", "", "custom value of Server header in response"),
+		flagSet.BoolVarP(&cliOptions.NoVersionHeader, "disable-version", "dv", false, "disable publishing interactsh version in response header"),
+	)
+
+	flagSet.CreateGroup("update", "Update",
+		flagSet.CallbackVarP(options.GetUpdateCallback("interactsh-server"), "update", "up", "update interactsh-server to latest version"),
+		flagSet.BoolVarP(&cliOptions.DisableUpdateCheck, "disable-update-check", "duc", false, "disable automatic interactsh-server update check"),
 	)
 
 	flagSet.CreateGroup("services", "Services",
@@ -89,12 +97,14 @@ func main() {
 		flagSet.IntVar(&cliOptions.FtpPort, "ftp-port", 21, "port to use for ftp service"),
 		flagSet.StringVar(&cliOptions.FTPDirectory, "ftp-dir", "", "ftp directory - temporary if not specified"),
 	)
+
 	flagSet.CreateGroup("debug", "Debug",
 		flagSet.BoolVar(&cliOptions.Version, "version", false, "show version of the project"),
 		flagSet.BoolVar(&cliOptions.Debug, "debug", false, "start interactsh server in debug mode"),
 		flagSet.BoolVarP(&cliOptions.EnablePprof, "enable-pprof", "ep", false, "enable pprof debugging server"),
 		flagSet.BoolVarP(&healthcheck, "hc", "health-check", false, "run diagnostic check up"),
 		flagSet.BoolVar(&cliOptions.EnableMetrics, "metrics", false, "enable metrics endpoint"),
+		flagSet.BoolVarP(&cliOptions.Verbose, "verbose", "v", false, "display verbose interaction"),
 	)
 
 	if err := flagSet.Parse(); err != nil {
@@ -103,13 +113,24 @@ func main() {
 	options.ShowBanner()
 
 	if healthcheck {
-		cfgFilePath, _ := goflags.GetConfigFilePath()
+		cfgFilePath, _ := flagSet.GetConfigFilePath()
 		gologger.Print().Msgf("%s\n", runner.DoHealthCheck(cfgFilePath))
 		os.Exit(0)
 	}
 	if cliOptions.Version {
 		gologger.Info().Msgf("Current Version: %s\n", options.Version)
 		os.Exit(0)
+	}
+
+	if !cliOptions.DisableUpdateCheck {
+		latestVersion, err := updateutils.GetVersionCheckCallback("interactsh-client")()
+		if err != nil {
+			if cliOptions.Verbose {
+				gologger.Error().Msgf("interactsh version check failed: %v", err.Error())
+			}
+		} else {
+			gologger.Info().Msgf("Current interactsh version %v %v", options.Version, updateutils.GetVersionDescription(options.Version, latestVersion))
+		}
 	}
 
 	if cliOptions.Config != defaultConfigLocation {
@@ -175,7 +196,7 @@ func main() {
 		serverOptions.Auth = true
 	}
 
-	// if root-tld is enabled we enable auth - This ensure that any client has the token
+	// if root-tld is enabled we enable auth - This ensures that any client has the token
 	if serverOptions.RootTLD {
 		serverOptions.Auth = true
 	}
@@ -426,7 +447,7 @@ func getPublicIP() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	externalIP := string(ip)
+	externalIP := ip
 	for _, address := range addresses {
 		if stringsutil.EqualFoldAny(externalIP, address.String()) {
 			return externalIP, nil

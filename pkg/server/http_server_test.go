@@ -2,6 +2,7 @@ package server
 
 import (
 	"io"
+	"net/http"
 	"net/http/httptest"
 	"testing"
 	"time"
@@ -16,7 +17,7 @@ func TestWriteResponseFromDynamicRequest(t *testing.T) {
 		writeResponseFromDynamicRequest(w, req)
 
 		resp := w.Result()
-		require.Equal(t, 404, resp.StatusCode, "could not get correct result")
+		require.Equal(t, http.StatusNotFound, resp.StatusCode, "could not get correct result")
 	})
 	t.Run("delay", func(t *testing.T) {
 		req := httptest.NewRequest("GET", "http://example.com/?delay=1", nil)

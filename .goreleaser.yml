@@ -12,13 +12,6 @@ builds:
 
   goos: [windows,linux,darwin]
   goarch: [amd64,386,arm,arm64]
-  ignore:
-    - goos: darwin
-      goarch: 386
-    - goos: windows
-      goarch: arm
-    - goos: windows
-      goarch: arm64
 
 - main: cmd/interactsh-server/main.go
   binary: interactsh-server
@@ -29,13 +22,6 @@ builds:
 
   goos: [windows,linux,darwin]
   goarch: [amd64,386,arm,arm64]
-  ignore:
-    - goos: darwin
-      goarch: 386
-    - goos: windows
-      goarch: arm
-    - goos: windows
-      goarch: arm64
 
 archives:
 - format: zip
@@ -44,10 +30,6 @@ archives:
   name_template: "{{ .Binary }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
   replacements:
       darwin: macOS
-      linux: Linux
-      windows: Windows
-      386: i386
-      amd64: x86_64
 
 - format: zip
   id: server
@@ -55,10 +37,6 @@ archives:
   name_template: "{{ .Binary }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
   replacements:
       darwin: macOS
-      linux: Linux
-      windows: Windows
-      386: i386
-      amd64: x86_64
 
 checksum:
   algorithm: sha256
@@ -68,4 +46,8 @@ announce:
     enabled: true
     channel: '#release'
     username: GoReleaser
-    message_template: '{{ .ProjectName }} {{ .Tag }} is out! Check it out at {{ .ReleaseURL }}'
+    message_template: 'New Release: {{ .ProjectName }} {{.Tag}} is published! Check it out at {{ .ReleaseURL }}'
+
+  discord:
+    enabled: true
+    message_template: '**New Release: {{ .ProjectName }} {{.Tag}}** is published! Check it out at {{ .ReleaseURL }}'

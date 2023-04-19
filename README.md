@@ -76,6 +76,10 @@ FILTER:
    -http-only            display only http interaction in CLI output
    -smtp-only            display only smtp interactions in CLI output
 
+UPDATE:
+   -up, -update                 update interactsh-client to latest version
+   -duc, -disable-update-check  disable automatic interactsh-client update check
+   
 OUTPUT:
    -o string  output file to write interaction data
    -json      write output in JSONL(ines) format
@@ -308,6 +312,7 @@ INPUT:
    -ip string                               public ip address to use for interactsh server
    -lip, -listen-ip string                  public ip address to listen on (default "0.0.0.0")
    -e, -eviction int                        number of days to persist interaction data in memory (default 30)
+   -ne, -no-eviction                        disable periodic data eviction from memory
    -a, -auth                                enable authentication to server using random generated token
    -t, -token string                        enable authentication to server using given token
    -acao-url string                         origin url to send in acao header to use web-client) (default "*")
@@ -327,7 +332,13 @@ CONFIG:
    -hd, -http-directory string  directory with files to serve with http server
    -ds, -disk                   disk based storage
    -dsp, -disk-path string      disk storage path
+   -csh, -server-header string  custom value of Server header in response
+   -dv, -disable-version        disable publishing interactsh version in response header
 
+UPDATE:
+   -up, -update                 update interactsh-server to latest version
+   -duc, -disable-update-check  disable automatic interactsh-server update check
+   
 SERVICES:
    -dns-port int           port to use for dns service (default 53)
    -http-port int          port to use for http service (default 80)
@@ -351,6 +362,7 @@ DEBUG:
    -ep, -enable-pprof  enable pprof debugging server
    -health-check, -hc  run diagnostic check up
    -metrics            enable metrics endpoint
+   -v, -verbose        display verbose interaction
 ```
 
 We are using GoDaddy for domain name and DigitalOcean droplet for the server, a basic $5 droplet should be sufficient to run self-hosted Interactsh server. If you are not using GoDaddy, follow your registrar's process for creating / updating DNS entries.
@@ -456,8 +468,8 @@ interactsh-server -d oast.pro,oast.me
 
 While running interactsh server on **Cloud VM**'s like Amazon EC2, Goolge Cloud Platform (GCP), it is required to update the security rules to allow **"all traffic"** for inbound connections.
 
-</table>
 </td>
+</table>
 
 There are more useful capabilities supported by `interactsh-server` that are not enabled by default and are intended to be used only by **self-hosted** servers.
 

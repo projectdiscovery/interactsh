@@ -3,6 +3,7 @@ package acme
 import (
 	"context"
 	"crypto/tls"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -55,22 +56,20 @@ func HandleWildcardCertificates(domain, email string, store *Provider, debug boo
 	var creating bool
 	if !certAlreadyExists(cfg, &certmagic.DefaultACME, domain) {
 		creating = true
-		gologger.Info().Msgf("Requesting SSL Certificate for:  [%s, %s]", domain, strings.TrimPrefix(domain, "*."))
+		gologger.Info().Msgf("Requesting SSL Certificate for:  [%s, %s]", domain, originalDomain)
 	} else {
-		gologger.Info().Msgf("Loading existing SSL Certificate for:  [%s, %s]", domain, strings.TrimPrefix(domain, "*."))
+		gologger.Info().Msgf("Loading existing SSL Certificate for:  [%s, %s]", domain, originalDomain)
 	}
 
 	// this obtains certificates or renews them if necessary
-	if syncerr := cfg.ObtainCertSync(context.Background(), domain); syncerr != nil {
-		return nil, syncerr
+	if syncErr := cfg.ObtainCertSync(context.Background(), domain); syncErr != nil {
+		return nil, syncErr
 	}
+
 	domains := []string{domain, originalDomain}
-	go func() {
-		syncerr := cfg.ManageAsync(context.Background(), domains)
-		if syncerr != nil {
-			gologger.Error().Msgf("Could not manageasync certmagic certs: %s", err)
-		}
-	}()
+	if syncErr := cfg.ManageSync(context.Background(), domains); syncErr != nil {
+		gologger.Error().Msgf("Could not manage certmagic certs: %s", syncErr)
+	}
 
 	if creating {
 		home, _ := os.UserHomeDir()
@@ -80,18 +79,28 @@ func HandleWildcardCertificates(domain, email string, store *Provider, debug boo
 	// attempts to extract certificates from caddy
 	var certs []tls.Certificate
 	for _, domain := range domains {
-		var retried bool
+		var retried, retriedWildcard bool
 	retry_cert:
 		certPath, privKeyPath, err := extractCaddyPaths(cfg, &certmagic.DefaultACME, domain)
 		if err != nil {
 			return nil, err
 		}
 		cert, err := tls.LoadX509KeyPair(certPath, privKeyPath)
-		if err != nil && !retried {
-			retried = true
-			// wait I/O to sync
-			time.Sleep(5 * time.Second)
-			goto retry_cert
+		if err != nil {
+			if !retried {
+				retried = true
+				// wait I/O to sync
+				time.Sleep(5 * time.Second)
+				goto retry_cert
+			}
+			if !retriedWildcard {
+				retriedWildcard = true
+				// wait I/O to sync
+				time.Sleep(5 * time.Second)
+				// attempt to load the domain as wildcard
+				domain = fmt.Sprintf("wildcard_.%s", domain)
+				goto retry_cert
+			}
 		}
 		if err != nil {
 			return nil, err
@@ -130,7 +139,7 @@ func extractCaddyPaths(cfg *certmagic.Config, issuer certmagic.Issuer, domain st
 	return
 }
 
-// BuildTlsConfig with certificates
+// BuildTlsConfigWithCertAndKeyPaths Build TlsConfig with certificates
 func BuildTlsConfigWithCertAndKeyPaths(certPath, privKeyPath, domain string) (*tls.Config, error) {
 	cert, err := tls.LoadX509KeyPair(certPath, privKeyPath)
 	if err != nil {
@@ -139,7 +148,7 @@ func BuildTlsConfigWithCertAndKeyPaths(certPath, privKeyPath, domain string) (*t
 	return BuildTlsConfigWithCerts(domain, cert)
 }
 
-// BuildTlsConfigWithExistingConfig with existing certificates
+// BuildTlsConfigWithCerts Build TlsConfig with existing certificates
 func BuildTlsConfigWithCerts(domain string, certs ...tls.Certificate) (*tls.Config, error) {
 	tlsConfig := &tls.Config{
 		InsecureSkipVerify: true,

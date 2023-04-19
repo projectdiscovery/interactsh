@@ -1,0 +1,59 @@
+- hosts: all
+  become: true
+  vars:
+    env_name: "oast"
+    container_name: "interactsh"
+    grafana_agent_image: "grafana/agent:latest"
+    grafana_cloud_url: "{{ lookup('env', 'GRAFANA_CLOUD') }}"
+    prometheus_cloud_url: "{{ lookup('env', 'PROM_URL') }}"
+    prometheus_cloud_password: "{{ lookup('env', 'PROM_PASS') }}"
+    prometheus_cloud_username: "{{ lookup('env', 'PROM_USERNAME') }}"
+  tasks:
+  - name: create grafana directory for config
+    file:
+      path: "{{ item }}"
+      state: directory
+    loop:
+      - /etc/grafana/
+    tags: dir
+
+  - name: copy grafana agent config file
+    template:
+        src: agent.yaml.j2
+        dest: "/etc/grafana/agent.yaml"
+    tags: agent
+
+  - name: pull Docker image of grafana agent
+    community.docker.docker_image:
+      name: "{{ grafana_agent_image }}"
+      source: pull
+    tags: agent
+
+  - name: create Grafana agent container
+    community.docker.docker_container:
+      name: grafana_agent
+      image: "{{ grafana_agent_image }}"
+      restart_policy: always
+      restart: true
+      state: started
+      volumes:
+        - "/etc/grafana/agent.yaml:/etc/agent-config/agent.yaml:ro"
+        - "/proc:/host/proc:ro"
+        - "/tmp/agent:/etc/agent"
+        - "/var/lib/docker/:/var/lib/docker:ro"
+        - "/var/run/docker.sock:/var/run/docker.sock:ro"
+        - "/run/containerd/containerd.sock:/run/containerd/containerd.sock:ro"
+        - "/var/lib/docker/containers:/var/lib/docker/containers:ro"
+        - "/:/rootfs:ro"
+        - "/var/run:/var/run:ro"
+        - "/sys:/sys:ro"
+      devices:
+        - "/dev/kmsg:/dev/kmsg"
+      privileged: true
+      entrypoint:
+        - "/bin/agent"
+        - "-config.file=/etc/agent-config/agent.yaml"
+        - "-metrics.wal-directory=/tmp/agent/wal"
+        - "-server.register-instrumentation=false"
+      network_mode: "host"
+      pid_mode: "host"

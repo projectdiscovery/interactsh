@@ -2,7 +2,6 @@ package main
 
 import (
 	"bytes"
-	jsonpkg "encoding/json"
 	"fmt"
 	"os"
 	"os/signal"
@@ -10,6 +9,7 @@ import (
 	"regexp"
 	"time"
 
+	jsoniter "github.com/json-iterator/go"
 	"github.com/projectdiscovery/goflags"
 	"github.com/projectdiscovery/gologger"
 	"github.com/projectdiscovery/gologger/levels"
@@ -20,6 +20,7 @@ import (
 	"github.com/projectdiscovery/interactsh/pkg/settings"
 	fileutil "github.com/projectdiscovery/utils/file"
 	folderutil "github.com/projectdiscovery/utils/folder"
+	updateutils "github.com/projectdiscovery/utils/update"
 )
 
 var (
@@ -58,6 +59,12 @@ func main() {
 		flagSet.BoolVar(&cliOptions.DNSOnly, "dns-only", false, "display only dns interaction in CLI output"),
 		flagSet.BoolVar(&cliOptions.HTTPOnly, "http-only", false, "display only http interaction in CLI output"),
 		flagSet.BoolVar(&cliOptions.SmtpOnly, "smtp-only", false, "display only smtp interactions in CLI output"),
+		flagSet.BoolVar(&cliOptions.Asn, "asn", false, " include asn information of remote ip in json output"),
+	)
+
+	flagSet.CreateGroup("update", "Update",
+		flagSet.CallbackVarP(options.GetUpdateCallback("interactsh-client"), "update", "up", "update interactsh-client to latest version"),
+		flagSet.BoolVarP(&cliOptions.DisableUpdateCheck, "disable-update-check", "duc", false, "disable automatic interactsh-client update check"),
 	)
 
 	flagSet.CreateGroup("output", "Output",
@@ -78,13 +85,24 @@ func main() {
 	options.ShowBanner()
 
 	if healthcheck {
-		cfgFilePath, _ := goflags.GetConfigFilePath()
+		cfgFilePath, _ := flagSet.GetConfigFilePath()
 		gologger.Print().Msgf("%s\n", runner.DoHealthCheck(cfgFilePath))
 		os.Exit(0)
 	}
 	if cliOptions.Version {
 		gologger.Info().Msgf("Current Version: %s\n", options.Version)
 		os.Exit(0)
+	}
+
+	if !cliOptions.DisableUpdateCheck {
+		latestVersion, err := updateutils.GetVersionCheckCallback("interactsh-client")()
+		if err != nil {
+			if cliOptions.Verbose {
+				gologger.Error().Msgf("interactsh version check failed: %v", err.Error())
+			}
+		} else {
+			gologger.Info().Msgf("Current interactsh version %v %v", options.Version, updateutils.GetVersionDescription(options.Version, latestVersion))
+		}
 	}
 
 	if cliOptions.Config != defaultConfigLocation {
@@ -144,13 +162,18 @@ func main() {
 		}
 	}
 
-	client.StartPolling(time.Duration(cliOptions.PollInterval)*time.Second, func(interaction *server.Interaction) {
+	_ = client.StartPolling(time.Duration(cliOptions.PollInterval)*time.Second, func(interaction *server.Interaction) {
 		if matcher != nil && !matcher.match(interaction.FullId) {
 			return
 		}
 		if filter != nil && filter.match(interaction.FullId) {
 			return
 		}
+
+		if cliOptions.Asn {
+			_ = client.TryGetAsnInfo(interaction)
+		}
+
 		if !cliOptions.JSON {
 			builder := &bytes.Buffer{}
 
@@ -205,7 +228,7 @@ func main() {
 				}
 			}
 		} else {
-			b, err := jsonpkg.Marshal(interaction)
+			b, err := jsoniter.Marshal(interaction)
 			if err != nil {
 				gologger.Error().Msgf("Could not marshal json output: %s\n", err)
 			} else {
@@ -225,7 +248,7 @@ func main() {
 		if cliOptions.SessionFile != "" {
 			_ = client.SaveSessionTo(cliOptions.SessionFile)
 		}
-		client.StopPolling()
+		_ = client.StopPolling()
 		// whether the session is saved/loaded it shouldn't be destroyed {
 		if cliOptions.SessionFile == "" {
 			client.Close()

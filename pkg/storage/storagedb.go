@@ -37,7 +37,7 @@ func New(options *Options) (*StorageDB, error) {
 		cache.WithMaximumSize(options.MaxSize),
 	}
 	if options.EvictionTTL > 0 {
-		cacheOptions = append(cacheOptions, cache.WithExpireAfterWrite(options.EvictionTTL))
+		cacheOptions = append(cacheOptions, cache.WithExpireAfterAccess(options.EvictionTTL))
 	}
 	if options.UseDisk() {
 		cacheOptions = append(cacheOptions, cache.WithRemovalListener(storageDB.OnCacheRemovalCallback))
@@ -126,7 +126,7 @@ func (s *StorageDB) SetID(ID string) error {
 func (s *StorageDB) AddInteraction(correlationID string, data []byte) error {
 	item, found := s.cache.GetIfPresent(correlationID)
 	if !found {
-		return errors.New("could not get correlation-id from cache")
+		return ErrCorrelationIdNotFound
 	}
 	value, ok := item.(*CorrelationData)
 	if !ok {
@@ -155,7 +155,7 @@ func (s *StorageDB) AddInteraction(correlationID string, data []byte) error {
 func (s *StorageDB) AddInteractionWithId(id string, data []byte) error {
 	item, ok := s.cache.GetIfPresent(id)
 	if !ok {
-		return errors.New("could not get correlation-id from cache")
+		return ErrCorrelationIdNotFound
 	}
 	value, ok := item.(*CorrelationData)
 	if !ok {
@@ -185,7 +185,7 @@ func (s *StorageDB) AddInteractionWithId(id string, data []byte) error {
 func (s *StorageDB) GetInteractions(correlationID, secret string) ([]string, string, error) {
 	item, ok := s.cache.GetIfPresent(correlationID)
 	if !ok {
-		return nil, "", errors.New("could not get correlation-id from cache")
+		return nil, "", ErrCorrelationIdNotFound
 	}
 	value, ok := item.(*CorrelationData)
 	if !ok {
@@ -215,7 +215,7 @@ func (s *StorageDB) GetInteractionsWithId(id string) ([]string, error) {
 func (s *StorageDB) RemoveID(correlationID, secret string) error {
 	item, ok := s.cache.GetIfPresent(correlationID)
 	if !ok {
-		return errors.New("could not get correlation-id from cache")
+		return ErrCorrelationIdNotFound
 	}
 	value, ok := item.(*CorrelationData)
 	if !ok {

@@ -1,4 +1,5 @@
 name: 🎉 Release Binary
+
 on:
   push:
     tags:
@@ -7,7 +8,7 @@ on:
 
 jobs:
   release:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-latest-16-cores
     steps:
       - name: "Check out code"
         uses: actions/checkout@v3
@@ -15,9 +16,9 @@ jobs:
           fetch-depth: 0
       
       - name: "Set up Go"
-        uses: actions/setup-go@v3
+        uses: actions/setup-go@v4
         with: 
-          go-version: 1.18
+          go-version: 1.19
       - name: "Create release on GitHub"
         uses: goreleaser/goreleaser-action@v4
         with: 
@@ -27,3 +28,5 @@ jobs:
         env:
           GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
           SLACK_WEBHOOK: "${{ secrets.RELEASE_SLACK_WEBHOOK }}"
+          DISCORD_WEBHOOK_ID: "${{ secrets.DISCORD_WEBHOOK_ID }}"
+          DISCORD_WEBHOOK_TOKEN: "${{ secrets.DISCORD_WEBHOOK_TOKEN }}"

@@ -51,6 +51,10 @@ type CLIServerOptions struct {
 	JsResp                   bool
 	JsChainLoad              goflags.StringSlice
 	JsCollectPageList        goflags.StringSlice
+	Verbose                  bool
+	DisableUpdateCheck       bool
+	NoVersionHeader          bool
+	HeaderServer             string
 }
 
 func (cliServerOptions *CLIServerOptions) AsServerOptions() *server.Options {
@@ -90,5 +94,7 @@ func (cliServerOptions *CLIServerOptions) AsServerOptions() *server.Options {
 		JsResp:                   cliServerOptions.JsResp,
 		JsChainLoad:              cliServerOptions.JsChainLoad,
 		JsCollectPageList:        cliServerOptions.JsCollectPageList,
+		NoVersionHeader:          cliServerOptions.NoVersionHeader,
+		HeaderServer:             cliServerOptions.HeaderServer,
 	}
 }
