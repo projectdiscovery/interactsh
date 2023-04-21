@@ -120,7 +120,7 @@ func main() {
 	}
 
 	if !cliOptions.DisableUpdateCheck {
-		latestVersion, err := updateutils.GetToolVersionCallback("interactsh-client", options.Version)()
+		latestVersion, err := updateutils.GetToolVersionCallback("interactsh-server", options.Version)()
 		if err != nil {
 			if cliOptions.Verbose {
 				gologger.Error().Msgf("interactsh version check failed: %v", err.Error())
