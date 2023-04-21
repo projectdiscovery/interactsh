@@ -24,7 +24,6 @@ func ShowBanner() {
 func GetUpdateCallback(assetName string) func() {
 	return func() {
 		ShowBanner()
-		updateutils.GHAssetName = assetName
-		updateutils.GetUpdateToolCallback("interactsh", Version)()
+		updateutils.GetUpdateToolFromRepoCallback(assetName, Version, "interactsh")()
 	}
 }
