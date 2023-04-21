@@ -190,7 +190,6 @@ func (h *HTTPServer) logger(handler http.Handler) http.HandlerFunc {
 func (h *HTTPServer) handleInteraction(uniqueID, fullID, reqString, respString, hostPort string) {
 	correlationID := uniqueID[:h.options.CorrelationIdLength]
 
-	// host, _, _ := net.SplitHostPort(hostPort)
 	interaction := &Interaction{
 		Protocol:      "http",
 		UniqueID:      uniqueID,
@@ -402,10 +401,13 @@ func (h *HTTPServer) pollHandler(w http.ResponseWriter, req *http.Request) {
 	var tlddata, extradata []string
 	if h.options.RootTLD {
 		for _, domain := range h.options.Domains {
-			tlddata, _ = h.options.Storage.GetInteractionsWithId(domain)
+			interactions, _ := h.options.Storage.GetInteractionsWithId(domain)
+			// root domains interaction are not encrypted
+			tlddata = append(tlddata, interactions...)
 		}
 	}
 	if h.options.Token != "" {
+		// auth token interactions are not encrypted
 		extradata, _ = h.options.Storage.GetInteractionsWithId(h.options.Token)
 	}
 	response := &PollResponse{Data: data, AESKey: aesKey, TLDData: tlddata, Extra: extradata}
