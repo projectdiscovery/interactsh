@@ -280,9 +280,10 @@ func (s *StorageDB) getInteractions(correlationData *CorrelationData, id string)
 			encryptedDataItem, err := AESEncrypt(correlationData.AESKey, []byte(dataItem))
 			if err != nil {
 				errs = append(errs, errors.Wrap(err, "could not encrypt event data"))
-				continue
+				data[i] = dataItem
+			} else {
+				data[i] = encryptedDataItem
 			}
-			data[i] = encryptedDataItem
 		}
 		return data, multierr.Combine(errs...)
 	}
