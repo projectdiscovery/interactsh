@@ -330,9 +330,9 @@ func (c *Client) StartPolling(duration time.Duration, callback InteractionCallba
 				err := c.getInteractions(callback)
 				if err != nil {
 					if errorutil.IsAny(err, authError) {
-						gologger.Fatal().Msgf("Could not authenticate to the server")
+						gologger.Error().Msgf("Could not authenticate to the server %v", err)
 					} else if errorutil.IsAny(err, storage.ErrCorrelationIdNotFound) {
-						gologger.Fatal().Msgf("The correlation id was not found (probably evicted due to inactivity)")
+						gologger.Error().Msgf("The correlation id was not found (probably evicted due to inactivity): %v", err)
 					}
 				}
 			case <-c.quitChan:
@@ -376,7 +376,10 @@ func (c *Client) getInteractions(callback InteractionCallback) error {
 		if resp.StatusCode == http.StatusUnauthorized {
 			return authError
 		}
-		data, _ := io.ReadAll(resp.Body)
+		data, err := io.ReadAll(resp.Body)
+		if err != nil {
+			return errors.Wrap(err, "could not read response body")
+		}
 		if stringsutil.ContainsAny(string(data), storage.ErrCorrelationIdNotFound.Error()) {
 			return storage.ErrCorrelationIdNotFound
 		}
