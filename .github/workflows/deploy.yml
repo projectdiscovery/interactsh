@@ -16,7 +16,7 @@ jobs:
     - uses: actions/checkout@v3
 
     - name: Setup Python
-      uses: actions/setup-python@v2
+      uses: actions/setup-python@v4
       with:
         python-version: 3.9
 
@@ -36,8 +36,8 @@ jobs:
 
     - name: run playbook
       env:
-        GRAFANA_CLOUD: ${{ secrets.GRAFANA_CLOUD }}
         ANSIBLE_FORCE_COLOR: '1'
       run: |
+        ansible all -m ping
         ansible-playbook deploy.yaml --tags deploy --extra-vars "container_tag=${{ inputs.tags }}"
       working-directory: ./deploy

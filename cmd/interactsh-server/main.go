@@ -68,6 +68,8 @@ func main() {
 		flagSet.StringVarP(&cliOptions.HTTPDirectory, "http-directory", "hd", "", "directory with files to serve with http server"),
 		flagSet.BoolVarP(&cliOptions.DiskStorage, "disk", "ds", false, "disk based storage"),
 		flagSet.StringVarP(&cliOptions.DiskStoragePath, "disk-path", "dsp", "", "disk storage path"),
+		flagSet.StringVarP(&cliOptions.HeaderServer, "server-header", "csh", "", "custom value of Server header in response"),
+		flagSet.BoolVarP(&cliOptions.NoVersionHeader, "disable-version", "dv", false, "disable publishing interactsh version in response header"),
 	)
 
 	flagSet.CreateGroup("update", "Update",
@@ -118,7 +120,7 @@ func main() {
 	}
 
 	if !cliOptions.DisableUpdateCheck {
-		latestVersion, err := updateutils.GetVersionCheckCallback("interactsh-client")()
+		latestVersion, err := updateutils.GetToolVersionCallback("interactsh-server", options.Version)()
 		if err != nil {
 			if cliOptions.Verbose {
 				gologger.Error().Msgf("interactsh version check failed: %v", err.Error())

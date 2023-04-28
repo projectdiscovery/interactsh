@@ -1,0 +1,55 @@
+metrics:
+  wal_directory: /tmp/agent
+  global:
+    scrape_interval: 30s
+    external_labels: 
+      env: "{{ env_name }}"
+    remote_write:
+    - url: {{ prometheus_cloud_url }}
+      basic_auth:
+        password: {{ prometheus_cloud_password  | trim }}                     
+        username: {{ prometheus_cloud_username }}
+
+logs:
+  positions_directory: /tmp/positions/
+  configs:
+  - name: "{{ domain_name }}"
+    clients:
+      - url: {{ grafana_cloud_url }}
+        external_labels: {"server_name" : "{{ domain_name }}"}
+    scrape_configs:
+      - job_name: flog_scrape 
+        docker_sd_configs:
+          - host: unix:///var/run/docker.sock
+            refresh_interval: 5s
+            filters:
+              - name: name
+                values: ["{{ container_name }}"] 
+        relabel_configs:
+          - source_labels: ['__meta_docker_container_name']
+            regex: '/(.*)'
+            target_label: 'container'
+            replacement: "{{ domain_name }}"
+
+integrations:
+  node_exporter:
+    enabled: true
+    instance: "{{ domain_name }}"
+    rootfs_path: /rootfs
+    sysfs_path: /sys
+    procfs_path: /host/proc
+    metric_relabel_configs:
+      - source_labels: [__name__]
+        regex: '(node_arp_entries|node_context_switches_total|node_cooling_device_cur_state|node_cooling_device_max_state|node_cpu_guest_seconds_total|node_cpu_seconds_total|node_disk_discards_completed_total|node_disk_discards_merged_total|node_disk_discard_time_seconds_total|node_disk_io_now|node_disk_io_time_seconds_total|node_disk_io_time_weighted_seconds_total|node_disk_read_bytes_total|node_disk_reads_completed_total|node_disk_reads_merged_total|node_disk_read_time_seconds_total|node_disk_writes_completed_total|node_disk_writes_merged_total|node_disk_write_time_seconds_total|node_disk_written_bytes_total|node_entropy_available_bits|node_filefd_allocated|node_filefd_maximum|node_filesystem_avail_bytes|node_filesystem_device_error|node_filesystem_files|node_filesystem_files_free|node_filesystem_free_bytes|node_filesystem_readonly|node_filesystem_size_bytes|node_forks_total|node_hwmon_temp_celsius|node_hwmon_temp_crit_alarm_celsius|node_hwmon_temp_crit_celsius|node_hwmon_temp_crit_hyst_celsius|node_hwmon_temp_max_celsius|node_interrupts_total|node_intr_total|node_load1|node_load15|node_load5|node_memory_Active_anon_bytes|node_memory_Active_bytes|node_memory_Active_file_bytes|node_memory_AnonHugePages_bytes|node_memory_AnonPages_bytes|node_memory_Bounce_bytes|node_memory_Buffers_bytes|node_memory_Cached_bytes|node_memory_CommitLimit_bytes|node_memory_Committed_AS_bytes|node_memory_DirectMap1G_bytes|node_memory_DirectMap2M_bytes|node_memory_DirectMap4k_bytes|node_memory_Dirty_bytes|node_memory_HardwareCorrupted_bytes|node_memory_HugePages_Free|node_memory_Hugepagesize_bytes|node_memory_HugePages_Rsvd|node_memory_HugePages_Surp|node_memory_HugePages_Total|node_memory_Inactive_anon_bytes|node_memory_Inactive_bytes|node_memory_Inactive_file_bytes|node_memory_KernelStack_bytes|node_memory_Mapped_bytes|node_memory_MemAvailable_bytes|node_memory_MemFree_bytes|node_memory_MemTotal_bytes|node_memory_Mlocked_bytes|node_memory_NFS_Unstable_bytes|node_memory_PageTables_bytes|node_memory_Percpu_bytes|node_memory_Shmem_bytes|node_memory_ShmemHugePages_bytes|node_memory_ShmemPmdMapped_bytes|node_memory_Slab_bytes|node_memory_SReclaimable_bytes|node_memory_SUnreclaim_bytes|node_memory_SwapCached_bytes|node_memory_SwapTotal_bytes|node_memory_Unevictable_bytes|node_memory_VmallocChunk_bytes|node_memory_VmallocTotal_bytes|node_memory_VmallocUsed_bytes|node_memory_Writeback_bytes|node_memory_WritebackTmp_bytes|node_netstat_Icmp_InErrors|node_netstat_Icmp_InMsgs|node_netstat_Icmp_OutMsgs|node_netstat_IpExt_InOctets|node_netstat_IpExt_OutOctets|node_netstat_Ip_Forwarding|node_netstat_Tcp_ActiveOpens|node_netstat_Tcp_CurrEstab|node_netstat_TcpExt_ListenDrops|node_netstat_TcpExt_ListenOverflows|node_netstat_TcpExt_SyncookiesFailed|node_netstat_TcpExt_SyncookiesRecv|node_netstat_TcpExt_SyncookiesSent|node_netstat_TcpExt_TCPSynRetrans|node_netstat_Tcp_InErrs|node_netstat_Tcp_InSegs|node_netstat_Tcp_MaxConn|node_netstat_Tcp_OutRsts|node_netstat_Tcp_OutSegs|node_netstat_Tcp_PassiveOpens|node_netstat_Tcp_RetransSegs|node_netstat_Udp_InDatagrams|node_netstat_Udp_InErrors|node_netstat_UdpLite_InErrors|node_netstat_Udp_NoPorts|node_netstat_Udp_OutDatagrams|node_netstat_Udp_RcvbufErrors|node_netstat_Udp_SndbufErrors|node_network_carrier|node_network_mtu_bytes|node_network_receive_bytes_total|node_network_receive_compressed_total|node_network_receive_drop_total|node_network_receive_errs_total|node_network_receive_fifo_total|node_network_receive_frame_total|node_network_receive_multicast_total|node_network_receive_packets_total|node_network_speed_bytes|node_network_transmit_bytes_total|node_network_transmit_carrier_total|node_network_transmit_colls_total|node_network_transmit_compressed_total|node_network_transmit_drop_total|node_network_transmit_errs_total|node_network_transmit_fifo_total|node_network_transmit_packets_total|node_network_transmit_queue_length|node_network_up|node_nf_conntrack_entries|node_nf_conntrack_entries_limit|node_power_supply_online|node_processes_max_processes|node_processes_max_threads|node_processes_pids|node_processes_state|node_processes_threads|node_procs_blocked|node_procs_running|node_schedstat_running_seconds_total|node_schedstat_timeslices_total|node_schedstat_waiting_seconds_total|node_scrape_collector_duration_seconds|node_scrape_collector_success|node_sockstat_FRAG_inuse|node_sockstat_FRAG_memory|node_sockstat_RAW_inuse|node_sockstat_sockets_used|node_sockstat_TCP_alloc|node_sockstat_TCP_inuse|node_sockstat_TCP_mem|node_sockstat_TCP_mem_bytes|node_sockstat_TCP_orphan|node_sockstat_TCP_tw|node_sockstat_UDP_inuse|node_sockstat_UDPLITE_inuse|node_sockstat_UDP_mem|node_sockstat_UDP_mem_bytes|node_softnet_dropped_total|node_softnet_processed_total|node_softnet_times_squeezed_total|node_systemd_socket_accepted_connections_total|node_systemd_units|node_textfile_scrape_error|node_time_seconds|node_timex_estimated_error_seconds|node_timex_frequency_adjustment_ratio|node_timex_loop_time_constant|node_timex_maxerror_seconds|node_timex_offset_seconds|node_timex_sync_status|node_timex_tai_offset_seconds|node_timex_tick_seconds|node_vmstat_oom_kill|node_vmstat_pgfault|node_vmstat_pgmajfault|node_vmstat_pgpgin|node_vmstat_pgpgout|node_vmstat_pswpin|node_vmstat_pswpout|process_cpu_seconds_total|process_max_fds|process_open_fds|process_resident_memory_max_bytes|process_virtual_memory_bytes|process_virtual_memory_max_bytes)'
+        action: keep
+      - source_labels: [__name__]
+        regex: '(^go_.*|^promhttp_metric_.*)'
+        action: drop
+  cadvisor:
+    enabled: true
+    docker_only: true
+    instance: "{{ domain_name }}"
+    disabled_metrics:
+    - disk
+    enabled_metrics:
+    - memory

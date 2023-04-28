@@ -5,7 +5,7 @@ import (
 	updateutils "github.com/projectdiscovery/utils/update"
 )
 
-const Version = "1.1.2"
+const Version = "1.1.3"
 
 var banner = (`
     _       __                       __       __  
@@ -24,7 +24,6 @@ func ShowBanner() {
 func GetUpdateCallback(assetName string) func() {
 	return func() {
 		ShowBanner()
-		updateutils.GHAssetName = assetName
-		updateutils.GetUpdateToolCallback("interactsh", Version)()
+		updateutils.GetUpdateToolFromRepoCallback(assetName, Version, "interactsh")()
 	}
 }
