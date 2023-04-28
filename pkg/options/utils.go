@@ -5,7 +5,7 @@ import (
 	updateutils "github.com/projectdiscovery/utils/update"
 )
 
-const Version = "1.1.2"
+const Version = "1.1.3"
 
 var banner = (`
     _       __                       __       __  
