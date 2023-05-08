@@ -18,7 +18,7 @@ require (
 	github.com/pkg/errors v0.9.1
 	github.com/projectdiscovery/asnmap v1.0.3
 	github.com/projectdiscovery/goflags v0.1.8
-	github.com/projectdiscovery/gologger v1.1.8
+	github.com/projectdiscovery/gologger v1.1.9
 	github.com/projectdiscovery/retryabledns v1.0.23
 	github.com/projectdiscovery/retryablehttp-go v1.0.15
 	github.com/projectdiscovery/utils v0.0.25
