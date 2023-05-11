@@ -16,12 +16,12 @@ require (
 	github.com/mackerelio/go-osstat v0.2.4
 	github.com/miekg/dns v1.1.54
 	github.com/pkg/errors v0.9.1
-	github.com/projectdiscovery/asnmap v1.0.3
+	github.com/projectdiscovery/asnmap v1.0.4
 	github.com/projectdiscovery/goflags v0.1.8
-	github.com/projectdiscovery/gologger v1.1.8
+	github.com/projectdiscovery/gologger v1.1.9
 	github.com/projectdiscovery/retryabledns v1.0.24
 	github.com/projectdiscovery/retryablehttp-go v1.0.15
-	github.com/projectdiscovery/utils v0.0.26
+	github.com/projectdiscovery/utils v0.0.29
 	github.com/remeh/sizedwaitgroup v1.0.0
 	github.com/rs/xid v1.5.0
 	github.com/stretchr/testify v1.8.2
@@ -88,7 +88,7 @@ require (
 	golang.org/x/mod v0.9.0 // indirect
 	golang.org/x/net v0.9.0 // indirect
 	golang.org/x/oauth2 v0.7.0 // indirect
-	golang.org/x/sys v0.7.0 // indirect
+	golang.org/x/sys v0.8.0 // indirect
 	golang.org/x/text v0.9.0 // indirect
 	golang.org/x/tools v0.7.0 // indirect
 	google.golang.org/appengine v1.6.7 // indirect
