@@ -321,27 +321,30 @@ func (c *Client) StartPolling(duration time.Duration, callback InteractionCallba
 
 	ticker := time.NewTicker(duration)
 	c.quitChan = make(chan struct{})
-	for {
-		// exit if the client is not polling
-		if c.State.Load() != Polling {
-			return nil
-		}
-		select {
-		case <-ticker.C:
-			err := c.getInteractions(callback)
-			if err != nil {
-				if errorutil.IsAny(err, authError) {
-					return errorutil.NewWithErr(err).Msgf("Could not authenticate to the server")
-				} else if errorutil.IsAny(err, storage.ErrCorrelationIdNotFound) {
-					return errorutil.NewWithErr(err).Msgf("The correlation id was not found (probably evicted due to inactivity)")
-				}
-				return err
+	go func() {
+		for {
+			// exit if the client is not polling
+			if c.State.Load() != Polling {
+				return
 			}
-		case <-c.quitChan:
-			ticker.Stop()
-			return nil
+			select {
+			case <-ticker.C:
+				err := c.getInteractions(callback)
+				if err != nil {
+					if errorutil.IsAny(err, authError) {
+						gologger.Error().Msgf("Could not authenticate to the server %v", err)
+					} else if errorutil.IsAny(err, storage.ErrCorrelationIdNotFound) {
+						gologger.Error().Msgf("The correlation id was not found (probably evicted due to inactivity): %v", err)
+					}
+				}
+			case <-c.quitChan:
+				ticker.Stop()
+				return
+			}
 		}
-	}
+	}()
+
+	return nil
 }
 
 // getInteractions returns the interactions from the server.
@@ -378,7 +381,10 @@ func (c *Client) getInteractions(callback InteractionCallback) error {
 		if resp.StatusCode == http.StatusUnauthorized {
 			return authError
 		}
-		data, _ := io.ReadAll(resp.Body)
+		data, err := io.ReadAll(resp.Body)
+		if err != nil {
+			return errors.Wrap(err, "could not read response body")
+		}
 		if stringsutil.ContainsAny(string(data), storage.ErrCorrelationIdNotFound.Error()) {
 			return storage.ErrCorrelationIdNotFound
 		}
