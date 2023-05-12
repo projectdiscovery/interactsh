@@ -158,90 +158,88 @@ func main() {
 		}
 	}
 
-	go func() {
-		err = client.StartPolling(time.Duration(cliOptions.PollInterval)*time.Second, func(interaction *server.Interaction) {
-			if matcher != nil && !matcher.match(interaction.FullId) {
-				return
-			}
-			if filter != nil && filter.match(interaction.FullId) {
-				return
-			}
-
-			if cliOptions.Asn {
-				_ = client.TryGetAsnInfo(interaction)
-			}
-
-			if !cliOptions.JSON {
-				builder := &bytes.Buffer{}
-
-				switch interaction.Protocol {
-				case "dns":
-					if noFilter || cliOptions.DNSOnly {
-						builder.WriteString(fmt.Sprintf("[%s] Received DNS interaction (%s) from %s at %s", interaction.FullId, interaction.QType, interaction.RemoteAddress, interaction.Timestamp.Format("2006-01-02 15:04:05")))
-						if cliOptions.Verbose {
-							builder.WriteString(fmt.Sprintf("\n-----------\nDNS Request\n-----------\n\n%s\n\n------------\nDNS Response\n------------\n\n%s\n\n", interaction.RawRequest, interaction.RawResponse))
-						}
-						writeOutput(outputFile, builder)
-					}
-				case "http":
-					if noFilter || cliOptions.HTTPOnly {
-						builder.WriteString(fmt.Sprintf("[%s] Received HTTP interaction from %s at %s", interaction.FullId, interaction.RemoteAddress, interaction.Timestamp.Format("2006-01-02 15:04:05")))
-						if cliOptions.Verbose {
-							builder.WriteString(fmt.Sprintf("\n------------\nHTTP Request\n------------\n\n%s\n\n-------------\nHTTP Response\n-------------\n\n%s\n\n", interaction.RawRequest, interaction.RawResponse))
-						}
-						writeOutput(outputFile, builder)
-					}
-				case "smtp":
-					if noFilter || cliOptions.SmtpOnly {
-						builder.WriteString(fmt.Sprintf("[%s] Received SMTP interaction from %s at %s", interaction.FullId, interaction.RemoteAddress, interaction.Timestamp.Format("2006-01-02 15:04:05")))
-						if cliOptions.Verbose {
-							builder.WriteString(fmt.Sprintf("\n------------\nSMTP Interaction\n------------\n\n%s\n\n", interaction.RawRequest))
-						}
-						writeOutput(outputFile, builder)
-					}
-				case "ftp":
-					if noFilter {
-						builder.WriteString(fmt.Sprintf("Received FTP interaction from %s at %s", interaction.RemoteAddress, interaction.Timestamp.Format("2006-01-02 15:04:05")))
-						if cliOptions.Verbose {
-							builder.WriteString(fmt.Sprintf("\n------------\nFTP Interaction\n------------\n\n%s\n\n", interaction.RawRequest))
-						}
-						writeOutput(outputFile, builder)
-					}
-				case "responder", "smb":
-					if noFilter {
-						builder.WriteString(fmt.Sprintf("Received Responder/Smb interaction at %s", interaction.Timestamp.Format("2006-01-02 15:04:05")))
-						if cliOptions.Verbose {
-							builder.WriteString(fmt.Sprintf("\n------------\nResponder/SMB Interaction\n------------\n\n%s\n\n", interaction.RawRequest))
-						}
-						writeOutput(outputFile, builder)
-					}
-				case "ldap":
-					if noFilter {
-						builder.WriteString(fmt.Sprintf("[%s] Received LDAP interaction from %s at %s", interaction.FullId, interaction.RemoteAddress, interaction.Timestamp.Format("2006-01-02 15:04:05")))
-						if cliOptions.Verbose {
-							builder.WriteString(fmt.Sprintf("\n------------\nLDAP Interaction\n------------\n\n%s\n\n", interaction.RawRequest))
-						}
-						writeOutput(outputFile, builder)
-					}
-				}
-			} else {
-				b, err := jsoniter.Marshal(interaction)
-				if err != nil {
-					gologger.Error().Msgf("Could not marshal json output: %s\n", err)
-				} else {
-					os.Stdout.Write(b)
-					os.Stdout.Write([]byte("\n"))
-				}
-				if outputFile != nil {
-					_, _ = outputFile.Write(b)
-					_, _ = outputFile.Write([]byte("\n"))
-				}
-			}
-		})
-		if err != nil {
-			gologger.Error().Msgf(err.Error())
+	err = client.StartPolling(time.Duration(cliOptions.PollInterval)*time.Second, func(interaction *server.Interaction) {
+		if matcher != nil && !matcher.match(interaction.FullId) {
+			return
 		}
-	}()
+		if filter != nil && filter.match(interaction.FullId) {
+			return
+		}
+
+		if cliOptions.Asn {
+			_ = client.TryGetAsnInfo(interaction)
+		}
+
+		if !cliOptions.JSON {
+			builder := &bytes.Buffer{}
+
+			switch interaction.Protocol {
+			case "dns":
+				if noFilter || cliOptions.DNSOnly {
+					builder.WriteString(fmt.Sprintf("[%s] Received DNS interaction (%s) from %s at %s", interaction.FullId, interaction.QType, interaction.RemoteAddress, interaction.Timestamp.Format("2006-01-02 15:04:05")))
+					if cliOptions.Verbose {
+						builder.WriteString(fmt.Sprintf("\n-----------\nDNS Request\n-----------\n\n%s\n\n------------\nDNS Response\n------------\n\n%s\n\n", interaction.RawRequest, interaction.RawResponse))
+					}
+					writeOutput(outputFile, builder)
+				}
+			case "http":
+				if noFilter || cliOptions.HTTPOnly {
+					builder.WriteString(fmt.Sprintf("[%s] Received HTTP interaction from %s at %s", interaction.FullId, interaction.RemoteAddress, interaction.Timestamp.Format("2006-01-02 15:04:05")))
+					if cliOptions.Verbose {
+						builder.WriteString(fmt.Sprintf("\n------------\nHTTP Request\n------------\n\n%s\n\n-------------\nHTTP Response\n-------------\n\n%s\n\n", interaction.RawRequest, interaction.RawResponse))
+					}
+					writeOutput(outputFile, builder)
+				}
+			case "smtp":
+				if noFilter || cliOptions.SmtpOnly {
+					builder.WriteString(fmt.Sprintf("[%s] Received SMTP interaction from %s at %s", interaction.FullId, interaction.RemoteAddress, interaction.Timestamp.Format("2006-01-02 15:04:05")))
+					if cliOptions.Verbose {
+						builder.WriteString(fmt.Sprintf("\n------------\nSMTP Interaction\n------------\n\n%s\n\n", interaction.RawRequest))
+					}
+					writeOutput(outputFile, builder)
+				}
+			case "ftp":
+				if noFilter {
+					builder.WriteString(fmt.Sprintf("Received FTP interaction from %s at %s", interaction.RemoteAddress, interaction.Timestamp.Format("2006-01-02 15:04:05")))
+					if cliOptions.Verbose {
+						builder.WriteString(fmt.Sprintf("\n------------\nFTP Interaction\n------------\n\n%s\n\n", interaction.RawRequest))
+					}
+					writeOutput(outputFile, builder)
+				}
+			case "responder", "smb":
+				if noFilter {
+					builder.WriteString(fmt.Sprintf("Received Responder/Smb interaction at %s", interaction.Timestamp.Format("2006-01-02 15:04:05")))
+					if cliOptions.Verbose {
+						builder.WriteString(fmt.Sprintf("\n------------\nResponder/SMB Interaction\n------------\n\n%s\n\n", interaction.RawRequest))
+					}
+					writeOutput(outputFile, builder)
+				}
+			case "ldap":
+				if noFilter {
+					builder.WriteString(fmt.Sprintf("[%s] Received LDAP interaction from %s at %s", interaction.FullId, interaction.RemoteAddress, interaction.Timestamp.Format("2006-01-02 15:04:05")))
+					if cliOptions.Verbose {
+						builder.WriteString(fmt.Sprintf("\n------------\nLDAP Interaction\n------------\n\n%s\n\n", interaction.RawRequest))
+					}
+					writeOutput(outputFile, builder)
+				}
+			}
+		} else {
+			b, err := jsoniter.Marshal(interaction)
+			if err != nil {
+				gologger.Error().Msgf("Could not marshal json output: %s\n", err)
+			} else {
+				os.Stdout.Write(b)
+				os.Stdout.Write([]byte("\n"))
+			}
+			if outputFile != nil {
+				_, _ = outputFile.Write(b)
+				_, _ = outputFile.Write([]byte("\n"))
+			}
+		}
+	})
+	if err != nil {
+		gologger.Error().Msgf(err.Error())
+	}
 
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt)
