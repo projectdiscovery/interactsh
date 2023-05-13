@@ -1,6 +1,10 @@
 package options
 
-import "github.com/projectdiscovery/goflags"
+import (
+	"time"
+
+	"github.com/projectdiscovery/goflags"
+)
 
 type CLIClientOptions struct {
 	Match                    goflags.StringSlice
@@ -23,4 +27,5 @@ type CLIClientOptions struct {
 	SessionFile              string
 	Asn                      bool
 	DisableUpdateCheck       bool
+	KeepAliveInterval        time.Duration
 }
