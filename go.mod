@@ -11,7 +11,6 @@ require (
 	github.com/goburrow/cache v0.1.4
 	github.com/google/uuid v1.3.0
 	github.com/json-iterator/go v1.1.12
-	github.com/karlseguin/ccache/v2 v2.0.8
 	github.com/libdns/libdns v0.2.1
 	github.com/mackerelio/go-osstat v0.2.4
 	github.com/miekg/dns v1.1.54
