@@ -22,9 +22,10 @@ import (
 	"sync/atomic"
 	"time"
 
+	"errors"
+
 	"github.com/google/uuid"
 	jsoniter "github.com/json-iterator/go"
-	"github.com/pkg/errors"
 	asnmap "github.com/projectdiscovery/asnmap/libs"
 	"github.com/projectdiscovery/gologger"
 	"github.com/projectdiscovery/interactsh/pkg/options"
@@ -34,6 +35,7 @@ import (
 	"github.com/projectdiscovery/retryablehttp-go"
 	errorutil "github.com/projectdiscovery/utils/errors"
 	iputil "github.com/projectdiscovery/utils/ip"
+	sliceutil "github.com/projectdiscovery/utils/slice"
 	stringsutil "github.com/projectdiscovery/utils/strings"
 	"github.com/rs/xid"
 	zbase32 "gopkg.in/corvus-ch/zbase32.v1"
@@ -163,11 +165,11 @@ func New(options *Options) (*Client, error) {
 	} else {
 		payload, err := client.initializeRSAKeys()
 		if err != nil {
-			return nil, errors.Wrap(err, "could not initialize rsa keys")
+			return nil, errorutil.NewWithErr(err).Msgf("could not initialize rsa keys")
 		}
 
 		if err := client.parseServerURLs(options.ServerURL, payload); err != nil {
-			return nil, errors.Wrap(err, "could not register to servers")
+			return nil, errorutil.NewWithErr(err).Msgf("could not register to servers")
 		}
 	}
 
@@ -180,7 +182,7 @@ func (c *Client) initializeRSAKeys() ([]byte, error) {
 	// Generate a 2048-bit private-key
 	priv, err := rsa.GenerateKey(rand.Reader, 2048)
 	if err != nil {
-		return nil, errors.Wrap(err, "could not generate rsa private key")
+		return nil, errorutil.NewWithErr(err).Msgf("could not generate rsa private key")
 	}
 	c.privKey = priv
 	c.pubKey = &priv.PublicKey
@@ -202,7 +204,7 @@ func encodeRegistrationRequest(publicKey, secretkey, correlationID string) ([]by
 
 	data, err := jsoniter.Marshal(register)
 	if err != nil {
-		return nil, errors.Wrap(err, "could not marshal register request")
+		return nil, errorutil.NewWithErr(err).Msgf("could not marshal register request")
 	}
 	return data, nil
 }
@@ -210,7 +212,7 @@ func encodeRegistrationRequest(publicKey, secretkey, correlationID string) ([]by
 func encodePublicKey(pubKey *rsa.PublicKey) (string, error) {
 	pubkeyBytes, err := x509.MarshalPKIXPublicKey(pubKey)
 	if err != nil {
-		return "", errors.Wrap(err, "could not marshal public key")
+		return "", errorutil.NewWithErr(err).Msgf("could not marshal public key")
 	}
 	pubkeyPem := pem.EncodeToMemory(&pem.Block{
 		Type:  "RSA PUBLIC KEY",
@@ -255,16 +257,13 @@ func (c *Client) parseServerURLs(serverURL string, payload []byte) error {
 	}
 
 	values := strings.Split(serverURL, ",")
-	firstIdx := mathrand.Intn(len(values))
-	gotValue := values[firstIdx]
-
-	registerFunc := func(got string) error {
-		if !stringsutil.HasPrefixAny(got, "http://", "https://") {
-			got = fmt.Sprintf("https://%s", got)
+	registerFunc := func(idx int, value string) error {
+		if !stringsutil.HasPrefixAny(value, "http://", "https://") {
+			value = fmt.Sprintf("https://%s", value)
 		}
-		parsed, err := url.Parse(got)
+		parsed, err := url.Parse(value)
 		if err != nil {
-			return errors.Wrap(err, "could not parse server URL")
+			return errorutil.NewWithErr(err).Msgf("could not parse server URL")
 		}
 	makeReq:
 		if err := c.performRegistration(parsed.String(), payload); err != nil {
@@ -278,24 +277,26 @@ func (c *Client) parseServerURLs(serverURL string, payload []byte) error {
 		c.serverURL = parsed
 		return nil
 	}
-	err := registerFunc(gotValue)
-	if err != nil {
-		gologger.Verbose().Msgf("Could not register to %s: %s, retrying with remaining\n", gotValue, err)
-		values = removeIndex(values, firstIdx)
-		mathrand.Shuffle(len(values), func(i, j int) { values[i], values[j] = values[j], values[i] })
 
-		for _, value := range values {
-			if err = registerFunc(value); err != nil {
-				gologger.Verbose().Msgf("Could not register to %s: %s, retrying with remaining\n", gotValue, err)
-				continue
-			}
-			break
+	var registerErrors []error
+
+	sliceutil.VisitRandom(values, func(index int, item string) error {
+		if c.serverURL != nil {
+			return errors.New("already registered")
 		}
-	}
-	if c.serverURL != nil {
+		err := registerFunc(index, item)
+		if err != nil {
+			gologger.Verbose().Msgf("Could not register to %s: %s, retrying with remaining\n", item, err)
+			registerErrors = append(registerErrors, err)
+		}
 		return nil
+	})
+
+	if c.serverURL == nil {
+		return errors.Join(registerErrors...)
 	}
-	return err // return errors if any.
+
+	return nil
 }
 
 func removeIndex(s []string, index int) []string {
@@ -378,7 +379,7 @@ func (c *Client) getInteractions(callback InteractionCallback) error {
 		}
 		data, err := io.ReadAll(resp.Body)
 		if err != nil {
-			return errors.Wrap(err, "could not read response body")
+			return errorutil.NewWithErr(err).Msgf("could not read response body")
 		}
 		if stringsutil.ContainsAny(string(data), storage.ErrCorrelationIdNotFound.Error()) {
 			return storage.ErrCorrelationIdNotFound
@@ -483,12 +484,12 @@ func (c *Client) Close() error {
 	}
 	data, err := jsoniter.Marshal(register)
 	if err != nil {
-		return errors.Wrap(err, "could not marshal deregister request")
+		return errorutil.NewWithErr(err).Msgf("could not marshal deregister request")
 	}
 	URL := c.serverURL.String() + "/deregister"
 	req, err := retryablehttp.NewRequest("POST", URL, bytes.NewReader(data))
 	if err != nil {
-		return errors.Wrap(err, "could not create new request")
+		return errorutil.NewWithErr(err).Msgf("could not create new request")
 	}
 	req.ContentLength = int64(len(data))
 
@@ -504,7 +505,7 @@ func (c *Client) Close() error {
 		}
 	}()
 	if err != nil {
-		return errors.Wrap(err, "could not make deregister request")
+		return errorutil.NewWithErr(err).Msgf("could not make deregister request")
 	}
 	if resp.StatusCode != http.StatusOK {
 		data, _ := io.ReadAll(resp.Body)
@@ -525,7 +526,7 @@ func (c *Client) performRegistration(serverURL string, payload []byte) error {
 	URL := serverURL + "/register"
 	req, err := retryablehttp.NewRequestWithContext(ctx, "POST", URL, bytes.NewReader(payload))
 	if err != nil {
-		return errors.Wrap(err, "could not create new request")
+		return errorutil.NewWithErr(err).Msgf("could not create new request")
 	}
 	req.ContentLength = int64(len(payload))
 
@@ -541,7 +542,7 @@ func (c *Client) performRegistration(serverURL string, payload []byte) error {
 		}
 	}()
 	if err != nil {
-		return errors.Wrap(err, "could not make register request")
+		return errorutil.NewWithErr(err).Msgf("could not make register request")
 	}
 	if resp.StatusCode == http.StatusUnauthorized {
 		return errors.New("invalid token provided for interactsh server")
@@ -551,8 +552,8 @@ func (c *Client) performRegistration(serverURL string, payload []byte) error {
 		return fmt.Errorf("could not register to server: %s", string(data))
 	}
 	response := make(map[string]interface{})
-	if jsonErr := jsoniter.NewDecoder(resp.Body).Decode(&response); jsonErr != nil {
-		return errors.Wrap(jsonErr, "could not register to server")
+	if err := jsoniter.NewDecoder(resp.Body).Decode(&response); err != nil {
+		return errorutil.NewWithErr(err).Msgf("could not register to server")
 	}
 	message, ok := response["message"]
 	if !ok {
