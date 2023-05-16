@@ -8,7 +8,7 @@ RUN go build ./cmd/interactsh-server
 
 
 # Release
-FROM alpine:3.17.3
+FROM alpine:3.18.0
 RUN apk -U upgrade --no-cache \
     && apk add --no-cache bind-tools ca-certificates python3 libffi curl \
     && apk add --no-cache --virtual .build-deps python3-dev py3-pip py3-wheel libffi-dev build-base \
