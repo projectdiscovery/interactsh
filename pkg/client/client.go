@@ -293,10 +293,6 @@ func (c *Client) parseServerURLs(serverURL string, payload []byte) error {
 	return nil
 }
 
-func removeIndex(s []string, index int) []string {
-	return append(s[:index], s[index+1:]...)
-}
-
 // InteractionCallback is a callback function for a reported interaction
 type InteractionCallback func(*server.Interaction)
 
