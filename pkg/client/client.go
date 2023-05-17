@@ -13,7 +13,6 @@ import (
 	"encoding/pem"
 	"fmt"
 	"io"
-	mathrand "math/rand"
 	"net"
 	"net/http"
 	"net/url"
@@ -41,11 +40,6 @@ import (
 	zbase32 "gopkg.in/corvus-ch/zbase32.v1"
 	"gopkg.in/yaml.v3"
 )
-
-func init() {
-	//todo:automatic with go1.20
-	mathrand.Seed(time.Now().UnixNano()) //nolint
-}
 
 var authError = errors.New("couldn't authenticate to the server")
 
