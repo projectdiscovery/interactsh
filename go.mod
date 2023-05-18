@@ -21,7 +21,7 @@ require (
 	github.com/projectdiscovery/gologger v1.1.10
 	github.com/projectdiscovery/retryabledns v1.0.24
 	github.com/projectdiscovery/retryablehttp-go v1.0.16
-	github.com/projectdiscovery/utils v0.0.31
+	github.com/projectdiscovery/utils v0.0.32
 	github.com/remeh/sizedwaitgroup v1.0.0
 	github.com/rs/xid v1.5.0
 	github.com/stretchr/testify v1.8.2
@@ -74,7 +74,7 @@ require (
 	github.com/olekukonko/tablewriter v0.0.5 // indirect
 	github.com/pierrec/lz4 v2.6.0+incompatible // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
-	github.com/projectdiscovery/blackrock v0.0.0-20221025011524-9e4efe804fb4 // indirect
+	github.com/projectdiscovery/blackrock v0.0.1 // indirect
 	github.com/projectdiscovery/mapcidr v1.1.1 // indirect
 	github.com/rivo/uniseg v0.4.4 // indirect
 	github.com/saintfish/chardet v0.0.0-20230101081208-5e3ef4b5456d // indirect
