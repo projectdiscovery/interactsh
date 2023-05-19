@@ -92,7 +92,7 @@ DEBUG:
 
 ## Interactsh CLI Client
 
-Interactsh Cli client requires **go1.17+** to install successfully. Run the following command to get the repo - 
+Interactsh Cli client requires **go1.20+** to install successfully. Run the following command to get the repo - 
 
 ```sh
 go install -v github.com/projectdiscovery/interactsh/cmd/interactsh-client@latest
@@ -787,44 +787,7 @@ On default settings, the daemon listens on the following ports:
 
 ### Use as library
 
-The below example uses interactsh client library to get external interactions for a generated URL by making a http request to the URL.
-
-```go
-package main
-
-import (
-	"fmt"
-	"net/http"
-	"time"
-
-	"github.com/projectdiscovery/interactsh/pkg/client"
-	"github.com/projectdiscovery/interactsh/pkg/server"
-)
-
-func main() {
-	client, err := client.New(client.DefaultOptions)
-	if err != nil {
-		panic(err)
-	}
-	defer client.Close()
-
-	client.StartPolling(time.Duration(1*time.Second), func(interaction *server.Interaction) {
-		fmt.Printf("Got Interaction: %v => %v\n", interaction.Protocol, interaction.FullId)
-	})
-	defer client.StopPolling()
-
-	URL := client.URL()
-
-	resp, err := http.Get("https://" + URL)
-	if err != nil {
-		panic(err)
-	}
-	resp.Body.Close()
-
-	fmt.Printf("Got URL: %v => %v\n", URL, resp)
-	time.Sleep(5 * time.Second)
-}
-```
+The [examples](examples/) uses interactsh client library to get external interactions for a generated URL by making a http request to the URL.
 
 ### Nuclei - OAST
 
