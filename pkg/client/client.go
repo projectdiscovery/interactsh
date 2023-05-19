@@ -19,6 +19,7 @@ import (
 	"net/url"
 	"os"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -57,6 +58,7 @@ const (
 
 // Client is a client for communicating with interactsh server instance.
 type Client struct {
+	busy                     sync.RWMutex
 	State                    atomic.Value
 	correlationID            string
 	secretKey                string
@@ -65,6 +67,7 @@ type Client struct {
 	privKey                  *rsa.PrivateKey
 	pubKey                   *rsa.PublicKey
 	quitChan                 chan struct{}
+	quitKeepAliveChan        chan struct{}
 	disableHTTPFallback      bool
 	token                    string
 	correlationIdLength      int
@@ -87,6 +90,8 @@ type Options struct {
 	HTTPClient *retryablehttp.Client
 	// SessionInfo to resume an existing session
 	SessionInfo *options.SessionInfo
+	// keepAliveInterval to renew the session
+	KeepAliveInterval time.Duration
 }
 
 // DefaultOptions is the default options for the interact client
@@ -169,6 +174,38 @@ func New(options *Options) (*Client, error) {
 		if err := client.parseServerURLs(options.ServerURL, payload); err != nil {
 			return nil, errors.Wrap(err, "could not register to servers")
 		}
+	}
+
+	// start a keep alive routine
+	client.quitKeepAliveChan = make(chan struct{})
+	if options.KeepAliveInterval > 0 {
+		ticker := time.NewTicker(options.KeepAliveInterval)
+		go func() {
+			for {
+				// exit if the client is closed
+				if client.State.Load() == Closed {
+					return
+				}
+				select {
+				case <-ticker.C:
+					// todo: internal logic needs a complete redesign
+					pubKeyData, err := encodePublicKey(client.pubKey)
+					if err != nil {
+						return
+					}
+					// attempts to re-register - server will reject is already existing
+					registrationRequest, err := encodeRegistrationRequest(pubKeyData, client.secretKey, client.correlationID)
+					if err != nil {
+						return
+					}
+					// silently fails to re-register if the session is still alive
+					_ = client.performRegistration(client.serverURL.String(), registrationRequest)
+				case <-client.quitKeepAliveChan:
+					ticker.Stop()
+					return
+				}
+			}
+		}()
 	}
 
 	return client, nil
@@ -305,7 +342,7 @@ func removeIndex(s []string, index int) []string {
 // InteractionCallback is a callback function for a reported interaction
 type InteractionCallback func(*server.Interaction)
 
-// StartPolling starts polling the server each duration and returns any events
+// StartPolling the server each duration and returns any events
 // that may have been captured by the collaborator server.
 func (c *Client) StartPolling(duration time.Duration, callback InteractionCallback) error {
 	switch c.State.Load() {
@@ -347,6 +384,9 @@ func (c *Client) StartPolling(duration time.Duration, callback InteractionCallba
 
 // getInteractions returns the interactions from the server.
 func (c *Client) getInteractions(callback InteractionCallback) error {
+	c.busy.RLock()
+	defer c.busy.RUnlock()
+
 	builder := &strings.Builder{}
 	builder.WriteString(c.serverURL.String())
 	builder.WriteString("/poll?id=")
@@ -455,8 +495,11 @@ func (c *Client) TryGetAsnInfo(interaction *server.Interaction) error {
 	return nil
 }
 
-// StopPolling stops the polling to the interactsh server.
+// StopPolling the interactsh server.
 func (c *Client) StopPolling() error {
+	c.busy.Lock()
+	defer c.busy.Unlock()
+
 	if c.State.Load() != Polling {
 		return errors.New("client is not polling")
 	}
@@ -470,12 +513,17 @@ func (c *Client) StopPolling() error {
 // Close closes the collaborator client and deregisters from the
 // collaborator server if not explicitly asked by the user.
 func (c *Client) Close() error {
+	c.busy.Lock()
+	defer c.busy.Unlock()
+
 	if c.State.Load() == Polling {
 		return errors.New("client should stop polling before closing")
 	}
 	if c.State.Load() == Closed {
 		return errors.New("client is already closed")
 	}
+
+	close(c.quitKeepAliveChan)
 
 	register := server.DeregisterRequest{
 		CorrelationID: c.correlationID,

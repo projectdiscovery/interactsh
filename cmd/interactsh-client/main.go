@@ -50,6 +50,7 @@ func main() {
 		flagSet.IntVarP(&cliOptions.CorrelationIdLength, "correlation-id-length", "cidl", settings.CorrelationIdLengthDefault, "length of the correlation id preamble"),
 		flagSet.IntVarP(&cliOptions.CorrelationIdNonceLength, "correlation-id-nonce-length", "cidn", settings.CorrelationIdNonceLengthDefault, "length of the correlation id nonce"),
 		flagSet.StringVarP(&cliOptions.SessionFile, "session-file", "sf", "", "store/read from session file"),
+		flagSet.DurationVarP(&cliOptions.KeepAliveInterval, "keep-alive-interval", "kai", time.Minute, "keep alive interval"),
 	)
 
 	flagSet.CreateGroup("filter", "Filter",
@@ -158,7 +159,7 @@ func main() {
 		}
 	}
 
-	_ = client.StartPolling(time.Duration(cliOptions.PollInterval)*time.Second, func(interaction *server.Interaction) {
+	err = client.StartPolling(time.Duration(cliOptions.PollInterval)*time.Second, func(interaction *server.Interaction) {
 		if matcher != nil && !matcher.match(interaction.FullId) {
 			return
 		}
@@ -237,6 +238,9 @@ func main() {
 			}
 		}
 	})
+	if err != nil {
+		gologger.Error().Msgf(err.Error())
+	}
 
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt)

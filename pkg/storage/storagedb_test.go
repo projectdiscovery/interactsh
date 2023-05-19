@@ -15,7 +15,6 @@ import (
 
 	"github.com/goburrow/cache"
 	"github.com/google/uuid"
-	"github.com/karlseguin/ccache/v2"
 	"github.com/rs/xid"
 	"github.com/stretchr/testify/require"
 )
@@ -118,17 +117,6 @@ func TestStorageAddGetInteractions(t *testing.T) {
 	require.Equal(t, dataOriginal, decoded, "could not get correct decrypted interaction")
 }
 
-func BenchmarkCacheParallel(b *testing.B) {
-	config := ccache.Configure().MaxSize(int64(DefaultOptions.MaxSize)).Buckets(64).GetsPerPromote(10).PromoteBuffer(4096)
-	cache := ccache.New(config)
-
-	b.RunParallel(func(pb *testing.PB) {
-		for pb.Next() {
-			doStuffWithCache(cache)
-		}
-	})
-}
-
 func BenchmarkCacheParallelOther(b *testing.B) {
 	cache := cache.New(cache.WithMaximumSize(DefaultOptions.MaxSize), cache.WithExpireAfterWrite(24*7*time.Hour))
 
@@ -137,13 +125,6 @@ func BenchmarkCacheParallelOther(b *testing.B) {
 			doStuffWithOtherCache(cache)
 		}
 	})
-}
-
-func doStuffWithCache(cache *ccache.Cache) {
-	for i := 0; i < 1e2; i++ {
-		cache.Set(strconv.Itoa(i), "test", 1*time.Minute)
-		_ = cache.Get(strconv.Itoa(i))
-	}
 }
 
 func doStuffWithOtherCache(cache cache.Cache) {

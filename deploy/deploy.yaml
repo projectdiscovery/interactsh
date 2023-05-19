@@ -74,6 +74,8 @@
       name: "{{ container_name }}"
       image: "{{ container_image }}"
       command: "{{ container_command }}"
+      memory: "4g"
+      memory_swap: "-1"
       network_mode: host
       restart: true
       restart_policy: "unless-stopped"
