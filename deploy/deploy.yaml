@@ -2,9 +2,9 @@
   become: true
   vars:
     container_name: "interactsh"
-    container_tag: "v1.1.2"
+    container_tag: "v1.1.4"
     container_image: "projectdiscovery/interactsh-server:{{container_tag}}"
-    container_command: "-dr -d {{domain_name}} -metrics"
+    container_command: "-dr -d {{domain_name}} -metrics -ds -dsp /root/interactsh"
     certmagic_host_path: "/root/.local/share/certmagic"
   tasks:
   - name: Install aptitude
@@ -12,7 +12,9 @@
       name: aptitude
       state: latest
       update_cache: true
-    tags: apt
+    tags:
+    - apt
+    - setup
 
   - name: Install required system packages
     apt:
@@ -28,38 +30,49 @@
       - gnupg
       state: latest
       update_cache: true
-    tags: apt
+    tags:
+    - apt
+    - setup
 
 
   - name: Add Docker GPG apt Key
     apt_key:
       url: https://download.docker.com/linux/{{ ansible_distribution | lower }}/gpg
       state: present
-    tags: docker
+    tags:
+    - docker
+    - setup
 
   - name: Add Docker Repository
     apt_repository:
       repo: deb https://download.docker.com/linux/{{ ansible_distribution | lower }}  {{ ansible_distribution_release }} stable
       state: present
-    tags: docker
+    tags:
+    - docker
+    - setup
 
   - name: Update apt and install docker-ce
     apt:
       name: docker-ce
       state: latest
       update_cache: true
-    tags: docker
+    tags:
+    - docker
+    - setup
 
   - name: Install Docker Module for Python
     pip:
       name: docker
-    tags: docker
+    tags:
+    - docker
+    - setup
     
   - name: Make sure certmagic directory is created
     file:
       path: "{{ item }}"
       state: directory
     loop:
+      - "/root/interactsh-disk-path"
       - "{{ certmagic_host_path }}"
     tags: dir
 
@@ -67,7 +80,9 @@
     community.docker.docker_image:
       name: "{{ container_image }}"
       source: pull
-    tags: deploy
+    tags:
+    - deploy
+    - pull
 
   - name: Launch interactsh docker container
     community.docker.docker_container:
@@ -77,9 +92,12 @@
       memory: "4g"
       memory_swap: "-1"
       network_mode: host
-      restart: true
+      restart: true # always restart the container
       restart_policy: "unless-stopped"
       volumes:
       - "{{certmagic_host_path}}:{{certmagic_host_path}}"
+      - "/root/interactsh-disk-path:/root/interactsh:rw"
       state: started
-    tags: deploy
+    tags:
+    - deploy
+    - test
