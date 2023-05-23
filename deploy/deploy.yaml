@@ -72,7 +72,6 @@
       path: "{{ item }}"
       state: directory
     loop:
-      - "/root/interactsh-disk-path"
       - "{{ certmagic_host_path }}"
     tags: dir
 
@@ -96,7 +95,6 @@
       restart_policy: "unless-stopped"
       volumes:
       - "{{certmagic_host_path}}:{{certmagic_host_path}}"
-      - "/root/interactsh-disk-path:/root/interactsh:rw"
       state: started
     tags:
     - deploy
