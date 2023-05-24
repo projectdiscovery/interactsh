@@ -150,12 +150,7 @@ func main() {
 	}
 
 	if cliOptions.StorePayload && cliOptions.StorePayloadFile != "" {
-		var sb strings.Builder
-		for _, interactshURL := range interactshURLs {
-			sb.WriteString(interactshURL)
-			sb.WriteString("\n")
-		}
-		if err := os.WriteFile(cliOptions.StorePayloadFile, []byte(sb.String()), 0644); err != nil {
+		if err := os.WriteFile(cliOptions.StorePayloadFile, []byte(strings.Join(interactshURLs, "\n")), 0644); err != nil {
 			gologger.Fatal().Msgf("Could not write to payload output file: %s\n", err)
 		}
 	}
