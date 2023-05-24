@@ -83,6 +83,8 @@ UPDATE:
 OUTPUT:
    -o string  output file to write interaction data
    -json      write output in JSONL(ines) format
+   -spayload, -store-payload         store generated interactsh payloads
+   -spf, -store-payload-file string  store generated interactsh payloads to output file (default "interactsh_urls.txt")
    -v         display verbose interaction
 
 DEBUG:
