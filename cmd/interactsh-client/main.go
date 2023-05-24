@@ -281,9 +281,9 @@ func main() {
 }
 
 func generatePayloadURL(numberOfPayloads int, client *client.Client) []string {
-	interactshURLs := []string{}
+	interactshURLs := make([]string, numberOfPayloads)
 	for i := 0; i < numberOfPayloads; i++ {
-		interactshURLs = append(interactshURLs, client.URL())
+		interactshURLs[i] = client.URL()
 	}
 	return interactshURLs
 }
