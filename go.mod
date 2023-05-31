@@ -23,7 +23,7 @@ require (
 	github.com/projectdiscovery/utils v0.0.32
 	github.com/remeh/sizedwaitgroup v1.0.0
 	github.com/rs/xid v1.5.0
-	github.com/stretchr/testify v1.8.3
+	github.com/stretchr/testify v1.8.4
 	github.com/syndtr/goleveldb v1.0.0
 	go.uber.org/multierr v1.11.0
 	go.uber.org/ratelimit v0.2.0
