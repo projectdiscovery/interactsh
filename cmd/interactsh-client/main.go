@@ -71,8 +71,8 @@ func main() {
 	flagSet.CreateGroup("output", "Output",
 		flagSet.StringVar(&cliOptions.Output, "o", "", "output file to write interaction data"),
 		flagSet.BoolVar(&cliOptions.JSON, "json", false, "write output in JSONL(ines) format"),
-		flagSet.BoolVarP(&cliOptions.StorePayload, "store-payload", "spayload", false, "store generated interactsh payloads"),
-		flagSet.StringVarP(&cliOptions.StorePayloadFile, "store-payload-file", "spf", settings.StorePayloadFileDefault, "store generated interactsh payloads to output file"),
+		flagSet.BoolVarP(&cliOptions.StorePayload, "payload-store", "ps", false, "write generated interactsh payload to file"),
+		flagSet.StringVarP(&cliOptions.StorePayloadFile, "payload-store-file", "psf", settings.StorePayloadFileDefault, "store generated interactsh payloads to given file"),
 
 		flagSet.BoolVar(&cliOptions.Verbose, "v", false, "display verbose interaction"),
 	)
