@@ -159,8 +159,8 @@ github.com/projectdiscovery/mapcidr v1.1.1 h1:68Xvw9cKugNeAVxHE3Nl1Ej26nm1taWq6e
 github.com/projectdiscovery/mapcidr v1.1.1/go.mod h1:yyp9ghqmmC0+r5DySgDBXE4cf2QW8SBloVESCteWiAg=
 github.com/projectdiscovery/retryabledns v1.0.26 h1:l2IGwJcbsFbap+YyXQsSwivTpIwpan8BgSOZ2uFo4MY=
 github.com/projectdiscovery/retryabledns v1.0.26/go.mod h1:yfYaRrJY8eNqKgxcwpLAsIiEMDj24QCI5fpJ8xWIwKY=
-github.com/projectdiscovery/retryablehttp-go v1.0.16 h1:xrEK9VVkLf0eN4bYOTc2Pg0qRqz47g8T823vqpCIsl8=
-github.com/projectdiscovery/retryablehttp-go v1.0.16/go.mod h1:9m76To4lNgBtVfqADzLxZg1wWajv6y/uYMWCOs1Olo8=
+github.com/projectdiscovery/retryablehttp-go v1.0.17 h1:oppnrypatWsHxcMU5RuAcUsUu3nxBhId2CF3OBj9XJA=
+github.com/projectdiscovery/retryablehttp-go v1.0.17/go.mod h1:zJh8bQdxhIsaEGnxsacvMbgiCKT4UAOr4T1kZBnSa68=
 github.com/projectdiscovery/utils v0.0.35 h1:+ex4fbJlcbf/5/RXFZcI9SG0Fo27vxlwV5DP+fMLY+4=
 github.com/projectdiscovery/utils v0.0.35/go.mod h1:gyDuJpCGPHN6Lyo3O8PAkTxf88iiAxRZyaMFMrXV0z4=
 github.com/remeh/sizedwaitgroup v1.0.0 h1:VNGGFwNo/R5+MJBf6yrsr110p0m4/OX4S3DCy7Kyl5E=
