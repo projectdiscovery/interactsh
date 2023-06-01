@@ -81,9 +81,11 @@ UPDATE:
    -duc, -disable-update-check  disable automatic interactsh-client update check
    
 OUTPUT:
-   -o string  output file to write interaction data
-   -json      write output in JSONL(ines) format
-   -v         display verbose interaction
+   -o string                         output file to write interaction data
+   -json                             write output in JSONL(ines) format
+   -ps, -payload-store               enable storing generated interactsh payload to file
+   -psf, -payload-store-file string  store generated interactsh payloads to given file (default "interactsh_payload.txt")
+   -v                                display verbose interaction
 
 DEBUG:
    -version            show version of the project
