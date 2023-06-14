@@ -16,7 +16,7 @@ require (
 	github.com/miekg/dns v1.1.54
 	github.com/pkg/errors v0.9.1
 	github.com/projectdiscovery/asnmap v1.0.4
-	github.com/projectdiscovery/goflags v0.1.8
+	github.com/projectdiscovery/goflags v0.1.9
 	github.com/projectdiscovery/gologger v1.1.10
 	github.com/projectdiscovery/retryabledns v1.0.29
 	github.com/projectdiscovery/retryablehttp-go v1.0.17
@@ -55,6 +55,7 @@ require (
 	github.com/google/go-querystring v1.1.0 // indirect
 	github.com/gorilla/css v1.0.0 // indirect
 	github.com/klauspost/cpuid/v2 v2.2.4 // indirect
+	github.com/kr/pretty v0.3.1 // indirect
 	github.com/logrusorgru/aurora v2.0.3+incompatible // indirect
 	github.com/lor00x/goldap v0.0.0-20180618054307-a546dffdd1a3 // indirect
 	github.com/lucasb-eyer/go-colorful v1.2.0 // indirect
