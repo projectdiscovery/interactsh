@@ -20,7 +20,7 @@ require (
 	github.com/projectdiscovery/gologger v1.1.10
 	github.com/projectdiscovery/retryabledns v1.0.30
 	github.com/projectdiscovery/retryablehttp-go v1.0.17
-	github.com/projectdiscovery/utils v0.0.37
+	github.com/projectdiscovery/utils v0.0.39
 	github.com/remeh/sizedwaitgroup v1.0.0
 	github.com/rs/xid v1.5.0
 	github.com/stretchr/testify v1.8.4
@@ -87,7 +87,7 @@ require (
 	golang.org/x/exp v0.0.0-20230315142452-642cacee5cc0 // indirect
 	golang.org/x/mod v0.11.0 // indirect
 	golang.org/x/net v0.11.0 // indirect
-	golang.org/x/oauth2 v0.8.0 // indirect
+	golang.org/x/oauth2 v0.9.0 // indirect
 	golang.org/x/sys v0.9.0 // indirect
 	golang.org/x/text v0.10.0 // indirect
 	golang.org/x/tools v0.10.0 // indirect
