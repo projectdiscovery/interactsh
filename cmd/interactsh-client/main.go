@@ -7,6 +7,7 @@ import (
 	"os/signal"
 	"path/filepath"
 	"regexp"
+	"strings"
 	"time"
 
 	jsoniter "github.com/json-iterator/go"
@@ -70,6 +71,9 @@ func main() {
 	flagSet.CreateGroup("output", "Output",
 		flagSet.StringVar(&cliOptions.Output, "o", "", "output file to write interaction data"),
 		flagSet.BoolVar(&cliOptions.JSON, "json", false, "write output in JSONL(ines) format"),
+		flagSet.BoolVarP(&cliOptions.StorePayload, "payload-store", "ps", false, "write generated interactsh payload to file"),
+		flagSet.StringVarP(&cliOptions.StorePayloadFile, "payload-store-file", "psf", settings.StorePayloadFileDefault, "store generated interactsh payloads to given file"),
+
 		flagSet.BoolVar(&cliOptions.Verbose, "v", false, "display verbose interaction"),
 	)
 
@@ -138,9 +142,17 @@ func main() {
 		gologger.Fatal().Msgf("Could not create client: %s\n", err)
 	}
 
+	interactshURLs := generatePayloadURL(cliOptions.NumberOfPayloads, client)
+
 	gologger.Info().Msgf("Listing %d payload for OOB Testing\n", cliOptions.NumberOfPayloads)
-	for i := 0; i < cliOptions.NumberOfPayloads; i++ {
-		gologger.Info().Msgf("%s\n", client.URL())
+	for _, interactshURL := range interactshURLs {
+		gologger.Info().Msgf("%s\n", interactshURL)
+	}
+
+	if cliOptions.StorePayload && cliOptions.StorePayloadFile != "" {
+		if err := os.WriteFile(cliOptions.StorePayloadFile, []byte(strings.Join(interactshURLs, "\n")), 0644); err != nil {
+			gologger.Fatal().Msgf("Could not write to payload output file: %s\n", err)
+		}
 	}
 
 	// show all interactions
@@ -255,6 +267,14 @@ func main() {
 		}
 		os.Exit(1)
 	}
+}
+
+func generatePayloadURL(numberOfPayloads int, client *client.Client) []string {
+	interactshURLs := make([]string, numberOfPayloads)
+	for i := 0; i < numberOfPayloads; i++ {
+		interactshURLs[i] = client.URL()
+	}
+	return interactshURLs
 }
 
 func writeOutput(outputFile *os.File, builder *bytes.Buffer) {
