@@ -2,7 +2,7 @@
   become: true
   vars:
     container_name: "interactsh"
-    container_tag: "v1.1.4"
+    container_tag: "v1.1.5"
     container_image: "projectdiscovery/interactsh-server:{{container_tag}}"
     container_command: "-dr -d {{domain_name}} -metrics"
     certmagic_host_path: "/root/.local/share/certmagic"
