@@ -15,6 +15,8 @@ type CLIClientOptions struct {
 	NumberOfPayloads         int
 	Output                   string
 	JSON                     bool
+	StorePayload             bool
+	StorePayloadFile         string
 	Verbose                  bool
 	PollInterval             int
 	DNSOnly                  bool
