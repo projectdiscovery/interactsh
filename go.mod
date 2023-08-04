@@ -6,7 +6,7 @@ require (
 	git.mills.io/prologic/smtpd v0.0.0-20210710122116-a525b76c287a
 	github.com/Mzack9999/ldapserver v1.0.2-0.20211229000134-b44a0d6ad0dd
 	github.com/asaskevich/govalidator v0.0.0-20230301143203-a9d515a09cc2
-	github.com/caddyserver/certmagic v0.18.2
+	github.com/caddyserver/certmagic v0.19.1
 	github.com/docker/go-units v0.5.0
 	github.com/goburrow/cache v0.1.4
 	github.com/google/uuid v1.3.0
@@ -102,6 +102,7 @@ require (
 	github.com/yl2chen/cidranger v1.0.2 // indirect
 	github.com/yuin/goldmark v1.5.4 // indirect
 	github.com/yuin/goldmark-emoji v1.0.1 // indirect
+	github.com/zeebo/blake3 v0.2.3 // indirect
 	github.com/zmap/rc2 v0.0.0-20190804163417-abaa70531248 // indirect
 	github.com/zmap/zcrypto v0.0.0-20230422215203-9a665e1e9968 // indirect
 	go.etcd.io/bbolt v1.3.7 // indirect
