@@ -88,6 +88,10 @@ type Options struct {
 	SessionInfo *options.SessionInfo
 	// keepAliveInterval to renew the session
 	KeepAliveInterval time.Duration
+	// VerifyCert to skip certificate verification
+	VerifyCert bool
+	// CheckCert to check certificate
+	CheckCert bool
 }
 
 // DefaultOptions is the default options for the interact client
@@ -114,6 +118,22 @@ func New(options *Options) (*Client, error) {
 		opts := retryablehttp.DefaultOptionsSingle
 		opts.Timeout = 10 * time.Second
 		httpclient = retryablehttp.NewClient(opts)
+	}
+	if options.CheckCert {
+		httpclient.HTTPClient.Transport.(*http.Transport).TLSClientConfig.InsecureSkipVerify = false
+	}
+	if options.VerifyCert {
+		httpclient.HTTPClient.Transport.(*http.Transport).TLSClientConfig.InsecureSkipVerify = false
+		interactshServerURL := ""
+		if strings.Contains(options.ServerURL, "://") {
+			interactshServerURL = options.ServerURL
+		} else {
+			interactshServerURL = "https://" + options.ServerURL
+		}
+		_, check := httpclient.HTTPClient.Get(interactshServerURL)
+		if check != nil {
+			return nil, fmt.Errorf("certificate verification failed: %s", check)
+		}
 	}
 
 	var correlationID, secretKey, token string

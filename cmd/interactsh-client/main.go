@@ -52,6 +52,8 @@ func main() {
 		flagSet.IntVarP(&cliOptions.CorrelationIdNonceLength, "correlation-id-nonce-length", "cidn", settings.CorrelationIdNonceLengthDefault, "length of the correlation id nonce"),
 		flagSet.StringVarP(&cliOptions.SessionFile, "session-file", "sf", "", "store/read from session file"),
 		flagSet.DurationVarP(&cliOptions.KeepAliveInterval, "keep-alive-interval", "kai", time.Minute, "keep alive interval"),
+		flagSet.BoolVarP(&cliOptions.CheckCert, "certificate-check", "cc", false, "check the certificate of the interactsh server"),
+		flagSet.BoolVarP(&cliOptions.VerifyCert, "certificate-verify", "cv", false, "verify the certificate of the interactsh server"),
 	)
 
 	flagSet.CreateGroup("filter", "Filter",
@@ -136,6 +138,8 @@ func main() {
 		DisableHTTPFallback:      cliOptions.DisableHTTPFallback,
 		CorrelationIdLength:      cliOptions.CorrelationIdLength,
 		CorrelationIdNonceLength: cliOptions.CorrelationIdNonceLength,
+		VerifyCert:               cliOptions.VerifyCert,
+		CheckCert:                cliOptions.CheckCert,
 		SessionInfo:              sessionInfo,
 	})
 	if err != nil {
