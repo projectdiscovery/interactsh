@@ -19,8 +19,8 @@ require (
 	github.com/projectdiscovery/goflags v0.1.11
 	github.com/projectdiscovery/gologger v1.1.11
 	github.com/projectdiscovery/retryabledns v1.0.31
-	github.com/projectdiscovery/retryablehttp-go v1.0.20
-	github.com/projectdiscovery/utils v0.0.45
+	github.com/projectdiscovery/retryablehttp-go v1.0.21
+	github.com/projectdiscovery/utils v0.0.46
 	github.com/remeh/sizedwaitgroup v1.0.0
 	github.com/rs/xid v1.5.0
 	github.com/stretchr/testify v1.8.4
@@ -80,7 +80,7 @@ require (
 	github.com/pierrec/lz4 v2.6.1+incompatible // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/projectdiscovery/blackrock v0.0.1 // indirect
-	github.com/projectdiscovery/fastdialer v0.0.35-0.20230712222521-f5386e7cfc12 // indirect
+	github.com/projectdiscovery/fastdialer v0.0.35 // indirect
 	github.com/projectdiscovery/hmap v0.0.13 // indirect
 	github.com/projectdiscovery/mapcidr v1.1.1 // indirect
 	github.com/projectdiscovery/networkpolicy v0.0.6 // indirect
@@ -110,7 +110,7 @@ require (
 	golang.org/x/crypto v0.11.0 // indirect
 	golang.org/x/exp v0.0.0-20230315142452-642cacee5cc0 // indirect
 	golang.org/x/mod v0.12.0 // indirect
-	golang.org/x/net v0.12.0 // indirect
+	golang.org/x/net v0.13.0 // indirect
 	golang.org/x/oauth2 v0.10.0 // indirect
 	golang.org/x/sys v0.10.0 // indirect
 	golang.org/x/text v0.11.0 // indirect
