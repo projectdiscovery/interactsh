@@ -27,7 +27,7 @@ require (
 	github.com/syndtr/goleveldb v1.0.0
 	go.uber.org/multierr v1.11.0
 	go.uber.org/ratelimit v0.3.0
-	go.uber.org/zap v1.24.0
+	go.uber.org/zap v1.25.0
 	goftp.io/server/v2 v2.0.1
 	gopkg.in/corvus-ch/zbase32.v1 v1.0.0
 	gopkg.in/yaml.v3 v3.0.1
@@ -106,7 +106,6 @@ require (
 	github.com/zmap/rc2 v0.0.0-20190804163417-abaa70531248 // indirect
 	github.com/zmap/zcrypto v0.0.0-20230422215203-9a665e1e9968 // indirect
 	go.etcd.io/bbolt v1.3.7 // indirect
-	go.uber.org/atomic v1.11.0 // indirect
 	golang.org/x/crypto v0.11.0 // indirect
 	golang.org/x/exp v0.0.0-20230315142452-642cacee5cc0 // indirect
 	golang.org/x/mod v0.12.0 // indirect
