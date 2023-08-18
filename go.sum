@@ -28,8 +28,8 @@ github.com/benbjohnson/clock v1.3.0 h1:ip6w0uFQkncKQ979AypyG0ER7mqUSBdKLOgAle/AT
 github.com/benbjohnson/clock v1.3.0/go.mod h1:J11/hYXuz8f4ySSvYwY0FKfm+ezbsZBKZxNJlLklBHA=
 github.com/bits-and-blooms/bitset v1.3.1 h1:y+qrlmq3XsWi+xZqSaueaE8ry8Y127iMxlMfqcK8p0g=
 github.com/bits-and-blooms/bloom/v3 v3.4.0 h1:9zesenPR5M3SLIJ/esQ84o1eSVFY5Rw5d+pa1tiXQNA=
-github.com/caddyserver/certmagic v0.19.1 h1:4jyOYm2DHvQI8YM0sk6qm62Gl5XznHxiMBMWjMTlQkw=
-github.com/caddyserver/certmagic v0.19.1/go.mod h1:fsL01NomQ6N+kE2j37ZCnig2MFosG+MIO4ztnmG/zz8=
+github.com/caddyserver/certmagic v0.19.2 h1:HZd1AKLx4592MalEGQS39DKs2ZOAJCEM/xYPMQ2/ui0=
+github.com/caddyserver/certmagic v0.19.2/go.mod h1:fsL01NomQ6N+kE2j37ZCnig2MFosG+MIO4ztnmG/zz8=
 github.com/charmbracelet/glamour v0.6.0 h1:wi8fse3Y7nfcabbbDuwolqTqMQPMnVPeZhDM273bISc=
 github.com/charmbracelet/glamour v0.6.0/go.mod h1:taqWV4swIMMbWALc0m7AfE9JkPSU8om2538k9ITBxOc=
 github.com/cheggaaa/pb/v3 v3.1.4 h1:DN8j4TVVdKu3WxVwcRKu0sG00IIU6FewoABZzXbRQeo=
