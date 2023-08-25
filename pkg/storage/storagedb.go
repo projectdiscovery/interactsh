@@ -52,7 +52,7 @@ func New(options *Options) (*StorageDB, error) {
 		}
 		dbpath := filepath.Join(options.DbPath, xid.New().String())
 
-		if err := os.MkdirAll(dbpath, 0644); err != nil {
+		if err := os.MkdirAll(dbpath, 0755); err != nil {
 			return nil, err
 		}
 		levDb, err := leveldb.OpenFile(dbpath, &opt.Options{})
