@@ -468,7 +468,7 @@ interactsh-server -d oast.pro,oast.me
 
 **Note:**
 
-While running interactsh server on **Cloud VM**'s like Amazon EC2, Goolge Cloud Platform (GCP), it is required to update the security rules to allow **"all traffic"** for inbound connections.
+While running interactsh server on **Cloud VM**'s like Amazon EC2, Google Cloud Platform (GCP), it is required to update the security rules to allow **"all traffic"** for inbound connections.
 
 </td>
 </table>
