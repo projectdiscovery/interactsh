@@ -116,7 +116,7 @@ func New(options *Options) (*Client, error) {
 		httpclient = retryablehttp.NewClient(opts)
 	}
 
-	tlsVerify := os.Getenv("TLS_VERIFY")
+	tlsVerify := os.Getenv("INTERACTSH_TLS_VERIFY")
 
 	if tlsVerify == "true" {
 		httpclient.HTTPClient.Transport.(*http.Transport).TLSClientConfig.InsecureSkipVerify = false
