@@ -9,7 +9,7 @@ require (
 	github.com/caddyserver/certmagic v0.19.2
 	github.com/docker/go-units v0.5.0
 	github.com/goburrow/cache v0.1.4
-	github.com/google/uuid v1.3.0
+	github.com/google/uuid v1.3.1
 	github.com/json-iterator/go v1.1.12
 	github.com/libdns/libdns v0.2.1
 	github.com/mackerelio/go-osstat v0.2.4
