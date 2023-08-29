@@ -19,7 +19,7 @@ require (
 	github.com/projectdiscovery/goflags v0.1.18
 	github.com/projectdiscovery/gologger v1.1.11
 	github.com/projectdiscovery/retryabledns v1.0.35
-	github.com/projectdiscovery/retryablehttp-go v1.0.22
+	github.com/projectdiscovery/retryablehttp-go v1.0.24
 	github.com/projectdiscovery/utils v0.0.52
 	github.com/remeh/sizedwaitgroup v1.0.0
 	github.com/rs/xid v1.5.0
@@ -40,7 +40,7 @@ require (
 	github.com/VividCortex/ewma v1.2.0 // indirect
 	github.com/akrylysov/pogreb v0.10.1 // indirect
 	github.com/alecthomas/chroma v0.10.0 // indirect
-	github.com/andybalholm/brotli v1.0.4 // indirect
+	github.com/andybalholm/brotli v1.0.5 // indirect
 	github.com/aymanbagabas/go-osc52/v2 v2.0.1 // indirect
 	github.com/aymerick/douceur v0.2.0 // indirect
 	github.com/benbjohnson/clock v1.3.0 // indirect
@@ -58,7 +58,7 @@ require (
 	github.com/google/go-github/v30 v30.1.0 // indirect
 	github.com/google/go-querystring v1.1.0 // indirect
 	github.com/gorilla/css v1.0.0 // indirect
-	github.com/klauspost/compress v1.15.15 // indirect
+	github.com/klauspost/compress v1.16.6 // indirect
 	github.com/klauspost/cpuid/v2 v2.2.5 // indirect
 	github.com/kr/pretty v0.3.1 // indirect
 	github.com/logrusorgru/aurora v2.0.3+incompatible // indirect
@@ -80,11 +80,12 @@ require (
 	github.com/pierrec/lz4 v2.6.1+incompatible // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/projectdiscovery/blackrock v0.0.1 // indirect
-	github.com/projectdiscovery/fastdialer v0.0.35 // indirect
-	github.com/projectdiscovery/hmap v0.0.13 // indirect
+	github.com/projectdiscovery/fastdialer v0.0.36 // indirect
+	github.com/projectdiscovery/hmap v0.0.15 // indirect
 	github.com/projectdiscovery/mapcidr v1.1.1 // indirect
 	github.com/projectdiscovery/networkpolicy v0.0.6 // indirect
-	github.com/refraction-networking/utls v1.3.2 // indirect
+	github.com/quic-go/quic-go v0.37.0 // indirect
+	github.com/refraction-networking/utls v1.4.2 // indirect
 	github.com/rivo/uniseg v0.4.4 // indirect
 	github.com/saintfish/chardet v0.0.0-20230101081208-5e3ef4b5456d // indirect
 	github.com/tidwall/btree v1.4.3 // indirect
