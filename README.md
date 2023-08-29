@@ -282,9 +282,16 @@ Interactsh can be used with OWASP ZAP via the [OAST add-on for ZAP](https://www.
 - Go to Tools &rarr; Options &rarr; OAST and select **Interactsh**.
 - Configure [the options](https://www.zaproxy.org/docs/desktop/addons/oast-support/services/interactsh/options/) for the client and click on "New Payload" to generate a new payload.
 - OOB interactions will appear in the [OAST Tab](https://www.zaproxy.org/docs/desktop/addons/oast-support/tab/) and you can click on any of them to view the full request and response.
+- You can set Interactsh as the default for ActiveScan in the `Options` > `OAST` > `General` menu.
+- When checking the `Use Permanent Database` option, you can review interactions that occurred after ZAP was terminated.
 - See the [OAST add-on documentation](https://www.zaproxy.org/docs/desktop/addons/oast-support/) for more info.
 
 ![zap](https://user-images.githubusercontent.com/16446369/135211920-ed24ba5a-5547-4cd4-b6d8-656af9592c20.png)
+*Interactsh in ZAP*
+
+![Options > OAST > General](https://github.com/hahwul/interactsh/assets/13212227/005bb527-3f60-4822-8b76-f9a3fd06df83)
+*`Options` > `OAST` > `General`*
+
 
 -------
 
