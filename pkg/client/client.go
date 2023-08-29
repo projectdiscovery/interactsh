@@ -116,6 +116,25 @@ func New(options *Options) (*Client, error) {
 		httpclient = retryablehttp.NewClient(opts)
 	}
 
+	// INTERACTSH_TLS_VERIFY enforces TLS (cleartext is a fatal error)
+	if os.Getenv("INTERACTSH_TLS_VERIFY") == "true" {
+		t, ok := httpclient.HTTPClient.Transport.(*http.Transport)
+		if !ok {
+			return nil, errors.New("could not get http transport:")
+		}
+		t.TLSClientConfig.InsecureSkipVerify = false
+		if stringsutil.HasPrefixI(options.ServerURL, "http://") {
+			return nil, errors.New("tls enforced - invalid URL with cleartext http")
+		}
+		interactshServerURL := options.ServerURL
+		if !stringsutil.HasPrefixAnyI(interactshServerURL, "https://") {
+			interactshServerURL = fmt.Sprintf("https://%s", interactshServerURL)
+		}
+		if _, err := httpclient.HTTPClient.Get(interactshServerURL); err != nil {
+			return nil, errorutil.NewWithErr(err).Msgf("certificate verification failed")
+		}
+	}
+
 	var correlationID, secretKey, token string
 
 	if options.SessionInfo != nil {
