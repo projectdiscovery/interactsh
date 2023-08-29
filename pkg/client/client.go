@@ -116,19 +116,22 @@ func New(options *Options) (*Client, error) {
 		httpclient = retryablehttp.NewClient(opts)
 	}
 
-	tlsVerify := os.Getenv("INTERACTSH_TLS_VERIFY")
-
-	if tlsVerify == "true" {
-		httpclient.HTTPClient.Transport.(*http.Transport).TLSClientConfig.InsecureSkipVerify = false
-		interactshServerURL := ""
-		if strings.Contains(options.ServerURL, "://") {
-			interactshServerURL = options.ServerURL
-		} else {
-			interactshServerURL = "https://" + options.ServerURL
+	// INTERACTSH_TLS_VERIFY enforces TLS (cleartext is a fatal error)
+	if os.Getenv("INTERACTSH_TLS_VERIFY") == "true" {
+		t, ok := httpclient.HTTPClient.Transport.(*http.Transport)
+		if !ok {
+			return nil, errors.New("could not get http transport:")
 		}
-		_, check := httpclient.HTTPClient.Get(interactshServerURL)
-		if check != nil {
-			return nil, fmt.Errorf("certificate verification failed: %s", check)
+		t.TLSClientConfig.InsecureSkipVerify = false
+		if stringsutil.HasPrefixI(options.ServerURL, "http://") {
+			return nil, errors.New("tls enforced - invalid URL with cleartext http")
+		}
+		interactshServerURL := options.ServerURL
+		if !stringsutil.HasPrefixAnyI(interactshServerURL, "https://") {
+			interactshServerURL = fmt.Sprintf("https://%s", interactshServerURL)
+		}
+		if _, err := httpclient.HTTPClient.Get(interactshServerURL); err != nil {
+			return nil, errorutil.NewWithErr(err).Msgf("certificate verification failed")
 		}
 	}
 
