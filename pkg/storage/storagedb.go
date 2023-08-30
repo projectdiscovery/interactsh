@@ -15,6 +15,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/pkg/errors"
 	fileutil "github.com/projectdiscovery/utils/file"
+	permissionutil "github.com/projectdiscovery/utils/permission"
 	"github.com/rs/xid"
 	"github.com/syndtr/goleveldb/leveldb"
 	"github.com/syndtr/goleveldb/leveldb/opt"
@@ -52,7 +53,7 @@ func New(options *Options) (*StorageDB, error) {
 		}
 		dbpath := filepath.Join(options.DbPath, xid.New().String())
 
-		if err := os.MkdirAll(dbpath, 0755); err != nil {
+		if err := os.MkdirAll(dbpath, permissionutil.ConfigFolderPermission); err != nil {
 			return nil, err
 		}
 		levDb, err := leveldb.OpenFile(dbpath, &opt.Options{})
