@@ -6,34 +6,10 @@
 version: 2
 updates:
 
-  # Maintain dependencies for GitHub Actions
-  - package-ecosystem: "github-actions"
-    directory: "/"
-    schedule:
-      interval: "weekly"
-    target-branch: "dev"
-    commit-message:
-      prefix: "chore"
-      include: "scope"
-    labels:
-      - "Type: Maintenance"
-
   # Maintain dependencies for go modules
   - package-ecosystem: "gomod"
     directory: "/"
     schedule:
-      interval: "daily"
-    target-branch: "dev"
-    commit-message:
-      prefix: "chore"
-      include: "scope"
-    labels:
-      - "Type: Maintenance"
-
-  # Maintain dependencies for docker
-  - package-ecosystem: "docker"
-    directory: ".github/docker/client/"
-    schedule:
       interval: "weekly"
     target-branch: "dev"
     commit-message:
@@ -41,14 +17,29 @@ updates:
       include: "scope"
     labels:
       - "Type: Maintenance"
+    allow:
+      - dependency-name: "github.com/projectdiscovery/*"
 
-  - package-ecosystem: "docker"
-    directory: ".github/docker/server/"
-    schedule:
-      interval: "weekly"
-    target-branch: "dev"
-    commit-message:
-      prefix: "chore"
-      include: "scope"
-    labels:
-      - "Type: Maintenance"
+#  # Maintain dependencies for docker
+#  - package-ecosystem: "docker"
+#    directory: "/"
+#    schedule:
+#      interval: "weekly"
+#    target-branch: "dev"
+#    commit-message:
+#      prefix: "chore"
+#      include: "scope"
+#    labels:
+#      - "Type: Maintenance"
+#
+#  # Maintain dependencies for GitHub Actions
+#  - package-ecosystem: "github-actions"
+#    directory: "/"
+#    schedule:
+#      interval: "weekly"
+#    target-branch: "dev"
+#    commit-message:
+#      prefix: "chore"
+#      include: "scope"
+#    labels:
+#      - "Type: Maintenance"
