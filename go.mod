@@ -16,11 +16,11 @@ require (
 	github.com/miekg/dns v1.1.55
 	github.com/pkg/errors v0.9.1
 	github.com/projectdiscovery/asnmap v1.0.4
-	github.com/projectdiscovery/goflags v0.1.19
+	github.com/projectdiscovery/goflags v0.1.20
 	github.com/projectdiscovery/gologger v1.1.11
 	github.com/projectdiscovery/retryabledns v1.0.35
 	github.com/projectdiscovery/retryablehttp-go v1.0.25
-	github.com/projectdiscovery/utils v0.0.53
+	github.com/projectdiscovery/utils v0.0.54
 	github.com/remeh/sizedwaitgroup v1.0.0
 	github.com/rs/xid v1.5.0
 	github.com/stretchr/testify v1.8.4
