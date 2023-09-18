@@ -1,5 +1,6 @@
 .idea
 .vscode
+.devcontainer
 
 cmd/interactsh-server/interactsh-server
 cmd/interactsh-client/interactsh-client

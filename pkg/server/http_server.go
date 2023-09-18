@@ -69,7 +69,7 @@ func NewHTTPServer(options *Options) (*HTTPServer, error) {
 		}
 	}
 	router := &http.ServeMux{}
-	router.Handle("/", server.logger(http.HandlerFunc(server.defaultHandler)))
+	router.Handle("/", server.logger(server.corsMiddleware(http.HandlerFunc(server.defaultHandler))))
 	router.Handle("/register", server.corsMiddleware(server.authMiddleware(http.HandlerFunc(server.registerHandler))))
 	router.Handle("/deregister", server.corsMiddleware(server.authMiddleware(http.HandlerFunc(server.deregisterHandler))))
 	router.Handle("/poll", server.corsMiddleware(server.authMiddleware(http.HandlerFunc(server.pollHandler))))
