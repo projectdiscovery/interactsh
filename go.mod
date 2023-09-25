@@ -15,7 +15,7 @@ require (
 	github.com/mackerelio/go-osstat v0.2.4
 	github.com/miekg/dns v1.1.55
 	github.com/pkg/errors v0.9.1
-	github.com/projectdiscovery/asnmap v1.0.4
+	github.com/projectdiscovery/asnmap v1.0.5
 	github.com/projectdiscovery/goflags v0.1.20
 	github.com/projectdiscovery/gologger v1.1.11
 	github.com/projectdiscovery/retryabledns v1.0.35
@@ -83,7 +83,7 @@ require (
 	github.com/projectdiscovery/blackrock v0.0.1 // indirect
 	github.com/projectdiscovery/fastdialer v0.0.37 // indirect
 	github.com/projectdiscovery/hmap v0.0.19 // indirect
-	github.com/projectdiscovery/mapcidr v1.1.2 // indirect
+	github.com/projectdiscovery/mapcidr v1.1.9 // indirect
 	github.com/projectdiscovery/networkpolicy v0.0.6 // indirect
 	github.com/quic-go/quic-go v0.37.4 // indirect
 	github.com/refraction-networking/utls v1.5.2 // indirect
