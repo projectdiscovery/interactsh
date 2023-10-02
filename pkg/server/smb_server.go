@@ -46,16 +46,26 @@ func (h *SMBServer) ListenAndServe(smbAlive chan bool) error {
 	defer func() {
 		smbAlive <- false
 	}()
-	tmpFile, err := os.CreateTemp("", "")
+
+	var err error
+	h.tmpFile, err = fileutil.GetTempFileName()
 	if err != nil {
 		return err
 	}
-	h.tmpFile = tmpFile.Name()
-	tmpFile.Close()
-	// execute smb_server.py - only works with ./interactsh-server
-	cmdLine := fmt.Sprintf("python3 smb_server.py %s %d", h.tmpFile, h.options.SmbPort)
-	args := strings.Fields(cmdLine)
-	h.cmd = exec.Command(args[0], args[1:]...)
+
+	pyFileName, err := fileutil.GetTempFileName()
+	if err != nil {
+		return err
+	}
+	pyFileName += ".py"
+
+	if err := os.WriteFile(pyFileName, []byte(pySmbServer), os.ModePerm); err != nil {
+		return err
+	}
+
+	// args := strings.Fields(cmdLine)
+	smbPort := fmt.Sprint(h.options.SmbPort)
+	h.cmd = exec.Command("python3", pyFileName, h.tmpFile, smbPort)
 	err = h.cmd.Start()
 	if err != nil {
 		return err
@@ -121,3 +131,22 @@ func (h *SMBServer) Close() {
 		os.RemoveAll(h.tmpFile)
 	}
 }
+
+var pySmbServer = `
+import sys
+from impacket import smbserver
+
+log_filename = "log.txt"
+if len(sys.argv) >= 2:
+    log_filename = sys.argv[1]
+port = 445
+if len(sys.argv) >= 3:
+    port = int(sys.argv[2])
+
+server = smbserver.SimpleSMBServer(listenAddress="0.0.0.0", listenPort=port)
+server.setSMB2Support(True)
+server.addShare("interactsh", "/interactsh")
+server.setSMBChallenge('')
+server.setLogFile(log_filename)
+server.start()
+`
