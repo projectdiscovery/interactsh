@@ -63,7 +63,6 @@ func (h *SMBServer) ListenAndServe(smbAlive chan bool) error {
 		return err
 	}
 
-	// args := strings.Fields(cmdLine)
 	smbPort := fmt.Sprint(h.options.SmbPort)
 	h.cmd = exec.Command("python3", pyFileName, h.tmpFile, smbPort)
 	err = h.cmd.Start()
