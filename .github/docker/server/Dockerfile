@@ -15,7 +15,6 @@ RUN apk -U upgrade --no-cache \
     && python3 -m pip install impacket \
     && python3 -m pip cache purge \
     && apk del .build-deps
-RUN curl -o /usr/local/bin/smb_server.py https://raw.githubusercontent.com/projectdiscovery/interactsh/main/cmd/interactsh-server/smb_server.py
 WORKDIR "/usr/local/bin"
 COPY --from=builder /app/interactsh-server /usr/local/bin/
 
