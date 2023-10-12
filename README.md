@@ -578,7 +578,7 @@ interactsh-server -d hackwithautomation.com -http-index banner.html
 
 Interactsh http server optionally enables file hosting to help in security testing. This capability can be used with a self-hosted server to serve files for common payloads for **XSS, XXE, RCE** and other attacks.
 
-To use this feature, `-http-directory` flag can be used which accepts diretory as input and files are served under `/s/` direcotry.
+To use this feature, `-http-directory` flag can be used which accepts diretory as input and files are served under `/s/` directory.
 
 ```console
 interactsh-server -d hackwithautomation.com -http-directory ./paylods
