@@ -18,7 +18,7 @@ require (
 	github.com/projectdiscovery/asnmap v1.0.5
 	github.com/projectdiscovery/goflags v0.1.23
 	github.com/projectdiscovery/gologger v1.1.11
-	github.com/projectdiscovery/retryabledns v1.0.38
+	github.com/projectdiscovery/retryabledns v1.0.39
 	github.com/projectdiscovery/retryablehttp-go v1.0.30
 	github.com/projectdiscovery/utils v0.0.57
 	github.com/remeh/sizedwaitgroup v1.0.0
