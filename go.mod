@@ -18,9 +18,9 @@ require (
 	github.com/projectdiscovery/asnmap v1.0.5
 	github.com/projectdiscovery/goflags v0.1.24
 	github.com/projectdiscovery/gologger v1.1.11
-	github.com/projectdiscovery/retryabledns v1.0.38
+	github.com/projectdiscovery/retryabledns v1.0.39
 	github.com/projectdiscovery/retryablehttp-go v1.0.30
-	github.com/projectdiscovery/utils v0.0.57
+	github.com/projectdiscovery/utils v0.0.58
 	github.com/remeh/sizedwaitgroup v1.0.0
 	github.com/rs/xid v1.5.0
 	github.com/stretchr/testify v1.8.4
@@ -82,12 +82,12 @@ require (
 	github.com/pierrec/lz4 v2.6.1+incompatible // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/projectdiscovery/blackrock v0.0.1 // indirect
-	github.com/projectdiscovery/fastdialer v0.0.38 // indirect
+	github.com/projectdiscovery/fastdialer v0.0.40 // indirect
 	github.com/projectdiscovery/hmap v0.0.22 // indirect
-	github.com/projectdiscovery/mapcidr v1.1.11 // indirect
+	github.com/projectdiscovery/mapcidr v1.1.12 // indirect
 	github.com/projectdiscovery/networkpolicy v0.0.6 // indirect
 	github.com/quic-go/quic-go v0.37.4 // indirect
-	github.com/refraction-networking/utls v1.5.3 // indirect
+	github.com/refraction-networking/utls v1.5.4 // indirect
 	github.com/rivo/uniseg v0.4.4 // indirect
 	github.com/saintfish/chardet v0.0.0-20230101081208-5e3ef4b5456d // indirect
 	github.com/tidwall/btree v1.6.0 // indirect
