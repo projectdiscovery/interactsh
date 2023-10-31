@@ -184,8 +184,8 @@ github.com/projectdiscovery/asnmap v1.0.5 h1:euWZuyLUkWhRMi8x3b4JXvKBDU9qRIcrh6p
 github.com/projectdiscovery/asnmap v1.0.5/go.mod h1:7YUiCMshTEKzPlV1kgVp7l6Z7ZrAvxH6ufYq5mNnurY=
 github.com/projectdiscovery/blackrock v0.0.1 h1:lHQqhaaEFjgf5WkuItbpeCZv2DUIE45k0VbGJyft6LQ=
 github.com/projectdiscovery/blackrock v0.0.1/go.mod h1:ANUtjDfaVrqB453bzToU+YB4cUbvBRpLvEwoWIwlTss=
-github.com/projectdiscovery/fastdialer v0.0.41 h1:OawlFknmOBYw73HsZV0RABTr4ksg3Gu63xamfqdlHaM=
-github.com/projectdiscovery/fastdialer v0.0.41/go.mod h1:hS5IrkkLN49ZY6dB8Vao6TxufebkE/Ml76Z6MRsl4fc=
+github.com/projectdiscovery/fastdialer v0.0.42 h1:O8YKG1bsMMOLbnt8k5B37sWqGOgHmvtlVuFBkIBU7Gg=
+github.com/projectdiscovery/fastdialer v0.0.42/go.mod h1:SMsoaA9W25A55fqj18ibUD/yCSfhPsaq11ATXGD9aXg=
 github.com/projectdiscovery/goflags v0.1.25 h1:nHXKo464RW7qzyeRMGEtHmsySWw2Cl1tqK5c5nlSnLk=
 github.com/projectdiscovery/goflags v0.1.25/go.mod h1:EhPEodSIWQkoPXtK80o2yY5xjfE+KNSLrKcLM02y9tw=
 github.com/projectdiscovery/gologger v1.1.11 h1:8vsz9oJlDT9euw6xlj7F7dZ6RWItVIqVwn4Mr6uzky8=
@@ -198,8 +198,8 @@ github.com/projectdiscovery/networkpolicy v0.0.6 h1:yDvm0XCrS9HeemRrBS+J+22surzV
 github.com/projectdiscovery/networkpolicy v0.0.6/go.mod h1:8HJQ/33Pi7v3a3MRWIQGXzpj+zHw2d60TysEL4qdoQk=
 github.com/projectdiscovery/retryabledns v1.0.40 h1:BasP4PSL9oRGghJNiRNQGd5EYM/gySoZQH0i7WKFEsg=
 github.com/projectdiscovery/retryabledns v1.0.40/go.mod h1:BI0AsUmaWF8k/AjEhDGRekMwqda6IDLI43misQuTdYQ=
-github.com/projectdiscovery/retryablehttp-go v1.0.30 h1:Eq4hSVy+Yt/Ko1Ki8qGTK0k86Izyg+SPpWTDqTdTAY8=
-github.com/projectdiscovery/retryablehttp-go v1.0.30/go.mod h1:oq6qXLIb8gz8crPW4mwx2ml4pTaeVUQHsiu9XOMW59Y=
+github.com/projectdiscovery/retryablehttp-go v1.0.33 h1:ysYnfUOEx4K/gC3SRYT7xRQYP/tqHwnSpG5SuC/34qU=
+github.com/projectdiscovery/retryablehttp-go v1.0.33/go.mod h1:zBlSJQabyxnX8giwjWOPsMhKPacYdMhVoy1XSPPGXIg=
 github.com/projectdiscovery/utils v0.0.60 h1:aIPFjFbOHplk12yy5dLWiuGK9A+sxBeqkMAqzrOrB2M=
 github.com/projectdiscovery/utils v0.0.60/go.mod h1:TVnAjN6sPBwzxqrJO7WPLWlb6OK4RRl39iZStF8/8mw=
 github.com/quic-go/quic-go v0.37.4 h1:ke8B73yMCWGq9MfrCCAw0Uzdm7GaViC3i39dsIdDlH4=
