@@ -827,3 +827,4 @@ Interactsh is inspired from [Burp Collaborator](https://portswigger.net/burp/doc
 ### License
 
 Interactsh is distributed under [MIT License](https://github.com/projectdiscovery/interactsh/blob/master/LICENSE.md) and made with 🖤 by the [projectdiscovery](https://projectdiscovery.io) team.
+
