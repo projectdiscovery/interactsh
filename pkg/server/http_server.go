@@ -3,6 +3,7 @@ package server
 import (
 	"bytes"
 	"crypto/tls"
+	"encoding/base64"
 	"fmt"
 	"log"
 	"net"
@@ -308,6 +309,13 @@ func writeResponseFromDynamicRequest(w http.ResponseWriter, req *http.Request) {
 	}
 	if body := values.Get("body"); body != "" {
 		_, _ = w.Write([]byte(body))
+	}
+
+	if b64Body := values.Get("b64_body"); b64Body != "" {
+		fmt.Println(b64Body)
+		if body, err := base64.StdEncoding.DecodeString(b64Body); err == nil {
+			_, _ = w.Write(body)
+		}
 	}
 }
 
