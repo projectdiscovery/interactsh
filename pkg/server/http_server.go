@@ -312,7 +312,6 @@ func writeResponseFromDynamicRequest(w http.ResponseWriter, req *http.Request) {
 	}
 
 	if b64Body := values.Get("b64_body"); b64Body != "" {
-		fmt.Println(b64Body)
 		if body, err := base64.StdEncoding.DecodeString(b64Body); err == nil {
 			_, _ = w.Write(body)
 		}
