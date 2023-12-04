@@ -83,8 +83,8 @@ require (
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/projectdiscovery/blackrock v0.0.1 // indirect
 	github.com/projectdiscovery/fastdialer v0.0.46 // indirect
-	github.com/projectdiscovery/hmap v0.0.27 // indirect
-	github.com/projectdiscovery/mapcidr v1.1.16 // indirect
+	github.com/projectdiscovery/hmap v0.0.28 // indirect
+	github.com/projectdiscovery/mapcidr v1.1.14 // indirect
 	github.com/projectdiscovery/networkpolicy v0.0.6 // indirect
 	github.com/quic-go/quic-go v0.37.4 // indirect
 	github.com/refraction-networking/utls v1.5.4 // indirect
