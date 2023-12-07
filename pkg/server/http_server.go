@@ -2,6 +2,7 @@ package server
 
 import (
 	"bytes"
+        "encoding/base64"
 	"crypto/tls"
 	"fmt"
 	"log"
@@ -271,7 +272,7 @@ func (h *HTTPServer) defaultHandler(w http.ResponseWriter, req *http.Request) {
 		fmt.Fprintf(w, "<data>%s</data>", reflection)
 		w.Header().Set("Content-Type", "application/xml")
 	} else {
-		if h.options.DynamicResp && len(req.URL.Query()) > 0 {
+		if h.options.DynamicResp && (len(req.URL.Query()) > 0  || stringsutil.HasPrefixI(req.URL.Path, "/b64_body:")) {
 			writeResponseFromDynamicRequest(w, req)
 			return
 		}
@@ -291,6 +292,14 @@ func (h *HTTPServer) defaultHandler(w http.ResponseWriter, req *http.Request) {
 func writeResponseFromDynamicRequest(w http.ResponseWriter, req *http.Request) {
 	values := req.URL.Query()
 
+	if stringsutil.HasPrefixI(req.URL.Path, "/b64_body:") {
+	firstindex := strings.Index(req.URL.Path, "/b64_body:")
+	lastIndex := strings.LastIndex(req.URL.Path, "/")
+
+        decodedBytes, _ := base64.StdEncoding.DecodeString(req.URL.Path[firstindex+10:lastIndex])
+        _, _ = w.Write(decodedBytes)
+
+	}
 	if headers := values["header"]; len(headers) > 0 {
 		for _, header := range headers {
 			if headerParts := strings.SplitN(header, ":", 2); len(headerParts) == 2 {
@@ -309,6 +318,11 @@ func writeResponseFromDynamicRequest(w http.ResponseWriter, req *http.Request) {
 	if body := values.Get("body"); body != "" {
 		_, _ = w.Write([]byte(body))
 	}
+
+        if b64_body := values.Get("b64_body"); b64_body != "" {
+                 decodedBytes, _ := base64.StdEncoding.DecodeString(string([]byte(b64_body)))
+                _, _ = w.Write(decodedBytes)
+        }
 }
 
 // RegisterRequest is a request for client registration to interactsh server.

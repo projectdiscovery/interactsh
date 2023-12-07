@@ -90,7 +90,7 @@ func startClient(idx int) {
 		log.Fatal(err)
 	}
 
-	// simulate continous interactions
+	// simulate continuous interactions
 	rateLimiter := ratelimit.New(*interactionsRateLimit)
 	for {
 		select {
