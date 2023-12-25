@@ -18,8 +18,8 @@ require (
 	github.com/projectdiscovery/asnmap v1.0.6
 	github.com/projectdiscovery/goflags v0.1.31
 	github.com/projectdiscovery/gologger v1.1.12
-	github.com/projectdiscovery/retryabledns v1.0.46
-	github.com/projectdiscovery/retryablehttp-go v1.0.40
+	github.com/projectdiscovery/retryabledns v1.0.47
+	github.com/projectdiscovery/retryablehttp-go v1.0.41
 	github.com/projectdiscovery/utils v0.0.68
 	github.com/remeh/sizedwaitgroup v1.0.0
 	github.com/rs/xid v1.5.0
@@ -110,13 +110,13 @@ require (
 	github.com/zmap/rc2 v0.0.0-20190804163417-abaa70531248 // indirect
 	github.com/zmap/zcrypto v0.0.0-20230422215203-9a665e1e9968 // indirect
 	go.etcd.io/bbolt v1.3.7 // indirect
-	golang.org/x/crypto v0.14.0 // indirect
+	golang.org/x/crypto v0.17.0 // indirect
 	golang.org/x/exp v0.0.0-20230315142452-642cacee5cc0 // indirect
 	golang.org/x/mod v0.12.0 // indirect
 	golang.org/x/net v0.17.0 // indirect
 	golang.org/x/oauth2 v0.11.0 // indirect
-	golang.org/x/sys v0.13.0 // indirect
-	golang.org/x/text v0.13.0 // indirect
+	golang.org/x/sys v0.15.0 // indirect
+	golang.org/x/text v0.14.0 // indirect
 	golang.org/x/tools v0.13.0 // indirect
 	google.golang.org/appengine v1.6.7 // indirect
 	google.golang.org/protobuf v1.31.0 // indirect
