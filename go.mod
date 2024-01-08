@@ -86,7 +86,7 @@ require (
 	github.com/projectdiscovery/fastdialer v0.0.51 // indirect
 	github.com/projectdiscovery/hmap v0.0.32 // indirect
 	github.com/projectdiscovery/mapcidr v1.1.16 // indirect
-	github.com/projectdiscovery/networkpolicy v0.0.6 // indirect
+	github.com/projectdiscovery/networkpolicy v0.0.7 // indirect
 	github.com/quic-go/quic-go v0.37.4 // indirect
 	github.com/refraction-networking/utls v1.5.4 // indirect
 	github.com/rivo/uniseg v0.4.4 // indirect
