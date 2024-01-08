@@ -207,8 +207,8 @@ github.com/projectdiscovery/goflags v0.1.33 h1:6B/YkHMfnClSb+ibbS4GnSVXINSYxLNXG
 github.com/projectdiscovery/goflags v0.1.33/go.mod h1:nEe5PoL5ICWiVKBAfHXnPiAlIMK7VwetJkm5CViht4M=
 github.com/projectdiscovery/gologger v1.1.12 h1:uX/QkQdip4PubJjjG0+uk5DtyAi1ANPJUvpmimXqv4A=
 github.com/projectdiscovery/gologger v1.1.12/go.mod h1:DI8nywPLERS5mo8QEA9E7gd5HZ3Je14SjJBH3F5/kLw=
-github.com/projectdiscovery/hmap v0.0.32 h1:RtvrEDA0bSeFnj6awx571y/cMvy7VFDOdFGJlzeYZnA=
-github.com/projectdiscovery/hmap v0.0.32/go.mod h1:k0QrpkucNTzCuPCUqIhEhV//Jb+FMo/X6qoQIUmoJb0=
+github.com/projectdiscovery/hmap v0.0.33 h1:kDkw4xVE8uyko6Cv3Cd9MZsHByn9BtXK3y7PeLKVBs4=
+github.com/projectdiscovery/hmap v0.0.33/go.mod h1:IlKSbnFKtn68STLiNwc5Kbu4GaR6aIsGaHbpFOYNFGY=
 github.com/projectdiscovery/mapcidr v1.1.16 h1:rjj1w5D6hbTsUQXYClLcGdfBEy9bryclgi70t0vBggo=
 github.com/projectdiscovery/mapcidr v1.1.16/go.mod h1:rGqpBhStdwOQ2uS62QM9qPsybwMwIhT7CTd2bxoHs8Q=
 github.com/projectdiscovery/networkpolicy v0.0.7 h1:AwHqBRXBqDQgnWzBMuoJtHBNEYBw+NFp/4qIK688x7o=
