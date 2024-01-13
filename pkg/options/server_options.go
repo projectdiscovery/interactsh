@@ -51,6 +51,8 @@ type CLIServerOptions struct {
 	Verbose                  bool
 	DisableUpdateCheck       bool
 	NoVersionHeader          bool
+	RealIPFrom               goflags.StringSlice
+	OriginIPEDNSopt          int
 	HeaderServer             string
 }
 
@@ -90,5 +92,7 @@ func (cliServerOptions *CLIServerOptions) AsServerOptions() *server.Options {
 		EnableMetrics:            cliServerOptions.EnableMetrics,
 		NoVersionHeader:          cliServerOptions.NoVersionHeader,
 		HeaderServer:             cliServerOptions.HeaderServer,
+		RealIPFrom:               cliServerOptions.RealIPFrom,
+		OriginIPEDNSopt:          cliServerOptions.OriginIPEDNSopt,
 	}
 }

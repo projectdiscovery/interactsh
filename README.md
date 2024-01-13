@@ -79,7 +79,7 @@ FILTER:
 UPDATE:
    -up, -update                 update interactsh-client to latest version
    -duc, -disable-update-check  disable automatic interactsh-client update check
-   
+
 OUTPUT:
    -o string                         output file to write interaction data
    -json                             write output in JSONL(ines) format
@@ -94,7 +94,7 @@ DEBUG:
 
 ## Interactsh CLI Client
 
-Interactsh Cli client requires **go1.20+** to install successfully. Run the following command to get the repo - 
+Interactsh Cli client requires **go1.20+** to install successfully. Run the following command to get the repo -
 
 ```sh
 go install -v github.com/projectdiscovery/interactsh/cmd/interactsh-client@latest
@@ -107,8 +107,8 @@ This will generate a unique payload that can be used for OOB testing with minima
 ```console
 interactsh-client
 
-    _       __                       __       __  
-   (_)___  / /____  _________ ______/ /______/ /_ 
+    _       __                       __       __
+   (_)___  / /____  _________ ______/ /______/ /_
   / / __ \/ __/ _ \/ ___/ __ '/ ___/ __/ ___/ __ \
  / / / / / /_/  __/ /  / /_/ / /__/ /_(__  ) / / /
 /_/_/ /_/\__/\___/_/   \__,_/\___/\__/____/_/ /_/ v0.0.5
@@ -128,13 +128,13 @@ interactsh-client
 
 ### Session File
 
-`interactsh-client` with `-sf, -session-file` flag can be used store/read the current session information from user defined file which is useful to resume the same session to poll the interactions even after the client gets stopped or closed. 
+`interactsh-client` with `-sf, -session-file` flag can be used store/read the current session information from user defined file which is useful to resume the same session to poll the interactions even after the client gets stopped or closed.
 
 ```console
 interactsh-client -sf interact.session
 
-    _       __                       __       __  
-   (_)___  / /____  _________ ______/ /______/ /_ 
+    _       __                       __       __
+   (_)___  / /____  _________ ______/ /______/ /_
   / / __ \/ __/ _ \/ ___/ __ '/ ___/ __/ ___/ __ \
  / / / / / /_/  __/ /  / /_/ / /__/ /_(__  ) / / /
 /_/_/ /_/\__/\___/_/   \__,_/\___/\__/____/_/ /_/ 1.0.3
@@ -160,8 +160,8 @@ Running the `interactsh-client` in **verbose mode** (v) to see the whole request
 ```console
 interactsh-client -v -o interactsh-logs.txt
 
-    _       __                       __       __  
-   (_)___  / /____  _________ ______/ /______/ /_ 
+    _       __                       __       __
+   (_)___  / /____  _________ ______/ /______/ /_
   / / __ \/ __/ _ \/ ___/ __ '/ ___/ __/ ___/ __ \
  / / / / / /_/  __/ /  / /_/ / /__/ /_(__  ) / / /
 /_/_/ /_/\__/\___/_/   \__,_/\___/\__/____/_/ /_/ 1.0.3
@@ -251,8 +251,8 @@ docker run projectdiscovery/interactsh-client:latest
 ```console
 docker run projectdiscovery/interactsh-client:latest
 
-    _       __                       __       __  
-   (_)___  / /____  _________ ______/ /______/ /_ 
+    _       __                       __       __
+   (_)___  / /____  _________ ______/ /______/ /_
   / / __ \/ __/ _ \/ ___/ __ '/ ___/ __/ ___/ __ \
  / / / / / /_/  __/ /  / /_/ / /__/ /_(__  ) / / /
 /_/_/ /_/\__/\___/_/   \__,_/\___/\__/____/_/ /_/ v1.0.0
@@ -332,6 +332,7 @@ INPUT:
    -cert string                             custom certificate path
    -privkey string                          custom private key path
    -oih, -origin-ip-header string           HTTP header containing origin ip (interactsh behind a reverse proxy)
+	-oie, -origin-ip-ednsopt                 ednsopt code containing origin ip (interactsh behind a reverse proxy)
 
 CONFIG:
    -config string               flag configuration file (default "$HOME/.config/interactsh-server/config.yaml")
@@ -343,11 +344,12 @@ CONFIG:
    -dsp, -disk-path string      disk storage path
    -csh, -server-header string  custom value of Server header in response
    -dv, -disable-version        disable publishing interactsh version in response header
+   -rip, -real-ip-from          defines trusted addresses that are known to send correct replacement addresses
 
 UPDATE:
    -up, -update                 update interactsh-server to latest version
    -duc, -disable-update-check  disable automatic interactsh-server update check
-   
+
 SERVICES:
    -dns-port int           port to use for dns service (default 53)
    -http-port int          port to use for http service (default 80)
@@ -425,8 +427,8 @@ A number of needed flags are configured automatically to run `interactsh-server`
 ```console
 interactsh-server -domain interact.sh
 
-    _       __                       __       __  
-   (_)___  / /____  _________ ______/ /______/ /_ 
+    _       __                       __       __
+   (_)___  / /____  _________ ______/ /______/ /_
   / / __ \/ __/ _ \/ ___/ __ '/ ___/ __/ ___/ __ \
  / / / / / /_/  __/ /  / /_/ / /__/ /_(__  ) / / /
 /_/_/ /_/\__/\___/_/   \__,_/\___/\__/____/_/ /_/ v1.0.0
@@ -513,7 +515,7 @@ http {
          proxy_set_header X-Real-IP $remote_addr;
          proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
          proxy_set_header X-Forwarded-Proto $scheme;
-      }        
+      }
    }
 }
 
@@ -590,7 +592,7 @@ interactsh-server -d hackwithautomation.com -http-directory ./paylods
 
 Interactsh http server optionally enables responding with dynamic HTTP response by using query parameters. This feature can be enabled by using `-dr` or `-dynamic-resp` flag.
 
-The following query parameter names are supported - `body`, `header`, `status` and `delay`. Multiple `header` parameters can be specified to set multiple headers. 
+The following query parameter names are supported - `body`, `header`, `status` and `delay`. Multiple `header` parameters can be specified to set multiple headers.
 
 - **body** (response body)
 - **header** (response header)
@@ -600,7 +602,7 @@ The following query parameter names are supported - `body`, `header`, `status` a
 ```console
 curl -i 'https://hackwithautomation.com/x?status=307&body=this+is+example+body&delay=1&header=header1:value1&header=header1:value12'
 
-HTTP/2 307 
+HTTP/2 307
 header1: value1
 header1: value12
 server: hackwithautomation.com
@@ -625,8 +627,8 @@ To enable `wildcard` interaction for configured Interactsh domain `wildcard` fla
 ```console
 interactsh-server -domain hackwithautomation.com -wildcard
 
-    _       __                       __       __  
-   (_)___  / /____  _________ ______/ /______/ /_ 
+    _       __                       __       __
+   (_)___  / /____  _________ ______/ /______/ /_
   / / __ \/ __/ _ \/ ___/ __ '/ ___/ __/ ___/ __ \
  / / / / / /_/  __/ /  / /_/ / /__/ /_(__  ) / / /
 /_/_/ /_/\__/\___/_/   \__,_/\___/\__/____/_/ /_/ v1.0.0
@@ -651,8 +653,8 @@ As default, Interactsh server support LDAP interaction for the payload included 
 ```console
 interactsh-server -domain hackwithautomation.com -sa -ldap
 
-    _       __                       __       __  
-   (_)___  / /____  _________ ______/ /______/ /_ 
+    _       __                       __       __
+   (_)___  / /____  _________ ______/ /______/ /_
   / / __ \/ __/ _ \/ ___/ __ '/ ___/ __/ ___/ __ \
  / / / / / /_/  __/ /  / /_/ / /__/ /_(__  ) / / /
 /_/_/ /_/\__/\___/_/   \__,_/\___/\__/____/_/ /_/ v1.0.0
@@ -676,8 +678,8 @@ The length of the interactsh payload is **33** by default, consisting of **20** 
 ```console
 interactsh-server -d hackwithautomation.com -cidl 4 -cidn 6
 
-    _       __                       __       __  
-   (_)___  / /____  _________ ______/ /______/ /_ 
+    _       __                       __       __
+   (_)___  / /____  _________ ______/ /______/ /_
   / / __ \/ __/ _ \/ ___/ __ '/ ___/ __/ ___/ __ \
  / / / / / /_/  __/ /  / /_/ / /__/ /_(__  ) / / /
 /_/_/ /_/\__/\___/_/   \__,_/\___/\__/____/_/ /_/ v1.0.2
@@ -700,8 +702,8 @@ interactsh-server -d hackwithautomation.com -cidl 4 -cidn 6
 ```console
 interactsh-client -s hackwithautomation.com -cidl 4 -cidn 6
 
-    _       __                       __       __  
-   (_)___  / /____  _________ ______/ /______/ /_ 
+    _       __                       __       __
+   (_)___  / /____  _________ ______/ /______/ /_
   / / __ \/ __/ _ \/ ___/ __ '/ ___/ __/ ___/ __ \
  / / / / / /_/  __/ /  / /_/ / /__/ /_(__  ) / / /
 /_/_/ /_/\__/\___/_/   \__,_/\___/\__/____/_/ /_/ v1.0.2
@@ -722,8 +724,8 @@ The [certmagic](https://github.com/caddyserver/certmagic) library is used by def
 ```console
 interactsh-server -d hackwithautomation.com -cert hackwithautomation.com.crt -privkey hackwithautomation.com.key
 
-    _       __                       __       __  
-   (_)___  / /____  _________ ______/ /______/ /_ 
+    _       __                       __       __
+   (_)___  / /____  _________ ______/ /______/ /_
   / / __ \/ __/ _ \/ ___/ __ '/ ___/ __/ ___/ __ \
  / / / / / /_/  __/ /  / /_/ / /__/ /_(__  ) / / /
 /_/_/ /_/\__/\___/_/   \__,_/\___/\__/____/_/ /_/ v1.0.2
@@ -759,7 +761,7 @@ $ sudo go run . -ftp -skip-acme -debug -domain localhost
 [FTP] Listening on TCP 192.168.1.16:21
 [DNS] Listening on UDP 192.168.1.16:53
 [LDAP] Listening on TCP 192.168.1.16:389
-[DBG] FTP Interaction: 
+[DBG] FTP Interaction:
 {"protocol":"ftp","unique-id":"","full-id":"","raw-request":"USER test\ntest logging in","remote-address":"127.0.0.1:51564","timestamp":"2022-09-29T00:49:42.212323+02:00"}
 ```
 

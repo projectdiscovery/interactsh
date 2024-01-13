@@ -104,6 +104,10 @@ type Options struct {
 	NoVersionHeader bool
 	// HeaderServer use custom string in HTTP response Server header instead of domain
 	HeaderServer string
+	// RealIPFrom defines trusted addresses that are known to send correct replacement addresses
+	RealIPFrom []string
+	// EDNSopt code containing origin IP
+	OriginIPEDNSopt int
 
 	ACMEStore *acme.Provider
 	Stats     *Metrics

@@ -58,6 +58,7 @@ func main() {
 		flagSet.StringVar(&cliOptions.CertificatePath, "cert", "", "custom certificate path"),
 		flagSet.StringVar(&cliOptions.PrivateKeyPath, "privkey", "", "custom private key path"),
 		flagSet.StringVarP(&cliOptions.OriginIPHeader, "origin-ip-header", "oih", "", "HTTP header containing origin ip (interactsh behind a reverse proxy)"),
+		flagSet.IntVarP(&cliOptions.OriginIPEDNSopt, "origin-ip-ednsopt", "oie", -1, "ednsopt code containing origin ip (interactsh behind a reverse proxy)"),
 	)
 
 	flagSet.CreateGroup("config", "config",
@@ -70,6 +71,7 @@ func main() {
 		flagSet.StringVarP(&cliOptions.DiskStoragePath, "disk-path", "dsp", "", "disk storage path"),
 		flagSet.StringVarP(&cliOptions.HeaderServer, "server-header", "csh", "", "custom value of Server header in response"),
 		flagSet.BoolVarP(&cliOptions.NoVersionHeader, "disable-version", "dv", false, "disable publishing interactsh version in response header"),
+		flagSet.StringSliceVarP(&cliOptions.RealIPFrom, "real-ip-from", "rip", []string{}, "defines trusted addresses that are known to send correct replacement addresses", goflags.CommaSeparatedStringSliceOptions),
 	)
 
 	flagSet.CreateGroup("update", "Update",

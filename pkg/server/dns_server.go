@@ -266,7 +266,7 @@ func (h *DNSServer) handleInteraction(domain string, w dns.ResponseWriter, r *dn
 	// if root-tld is enabled stores any interaction towards the main domain
 	if h.options.RootTLD && foundDomain != "" {
 		correlationID := foundDomain
-		host, _, _ := net.SplitHostPort(w.RemoteAddr().String())
+		host := h.getMsgHost(w, r)
 		interaction := &Interaction{
 			Protocol:      "dns",
 			UniqueID:      domain,
@@ -309,7 +309,7 @@ func (h *DNSServer) handleInteraction(domain string, w dns.ResponseWriter, r *dn
 
 	if uniqueID != "" {
 		correlationID := uniqueID[:h.options.CorrelationIdLength]
-		host, _, _ := net.SplitHostPort(w.RemoteAddr().String())
+		host := h.getMsgHost(w, r)
 		interaction := &Interaction{
 			Protocol:      "dns",
 			UniqueID:      uniqueID,
@@ -330,6 +330,64 @@ func (h *DNSServer) handleInteraction(domain string, w dns.ResponseWriter, r *dn
 			}
 		}
 	}
+}
+
+func (h *DNSServer) getMsgHost(w dns.ResponseWriter, r *dns.Msg) string {
+	host, _, _ := net.SplitHostPort(w.RemoteAddr().String())
+	if h.options.OriginIPEDNSopt < 0 {
+		return host
+	}
+
+	isTrusted := false
+	checkIP := net.ParseIP(host)
+
+	for _, test := range h.options.RealIPFrom {
+		if strings.Contains(test, "/") {
+			_, cidr, err := net.ParseCIDR(test)
+			if err != nil {
+				gologger.Error().Msgf("Invalid CIDR format: %s, err: %s", test, err)
+			}
+			if cidr.Contains(checkIP) {
+				isTrusted = true
+				break
+			}
+		} else {
+			ip := net.ParseIP(test)
+			if ip == nil {
+				gologger.Error().Msgf("Invalid IP address: %s", test)
+			}
+			if ip.Equal(checkIP) {
+				isTrusted = true
+				break
+			}
+		}
+	}
+
+	if !isTrusted {
+		return host
+	}
+
+	for _, extra := range r.Extra {
+		switch rr := extra.(type) {
+		case *dns.OPT:
+			for _, option := range rr.Option {
+				switch opt := option.(type) {
+				case *dns.EDNS0_LOCAL:
+					if opt.Code == uint16(h.options.OriginIPEDNSopt) {
+						ip := net.IP(opt.Data)
+						testHost := ip.String()
+						if net.ParseIP(testHost) == nil {
+							gologger.Warning().Msgf("Invalid origin IP address: %s\n", opt.String())
+							return host
+						}
+						return testHost
+					}
+				}
+			}
+		}
+	}
+
+	return host
 }
 
 // customDNSRecords is a server for custom dns records
