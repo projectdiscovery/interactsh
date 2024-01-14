@@ -308,7 +308,7 @@ func (h *DNSServer) handleInteraction(domain string, w dns.ResponseWriter, r *dn
 	uniqueID = strings.ToLower(uniqueID)
 
 	if uniqueID != "" {
-		correlationID := uniqueID[:h.options.CorrelationIdLength]
+		correlationID := h.options.getCorrelationID(uniqueID)
 		host := h.getMsgHost(w, r)
 		interaction := &Interaction{
 			Protocol:      "dns",

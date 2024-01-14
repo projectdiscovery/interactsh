@@ -8,6 +8,9 @@ import (
 )
 
 func (options *Options) isCorrelationID(s string) bool {
+	if options.getBurpCorrelationID(s) != "" {
+		return true
+	}
 	if len(s) == options.GetIdLength() && govalidator.IsAlphanumeric(s) {
 		// xid should be 12
 		if options.CorrelationIdLength != 12 {

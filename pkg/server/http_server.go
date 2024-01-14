@@ -2,8 +2,8 @@ package server
 
 import (
 	"bytes"
-        "encoding/base64"
 	"crypto/tls"
+	"encoding/base64"
 	"fmt"
 	"log"
 	"net"
@@ -74,6 +74,7 @@ func NewHTTPServer(options *Options) (*HTTPServer, error) {
 	router.Handle("/register", server.corsMiddleware(server.authMiddleware(http.HandlerFunc(server.registerHandler))))
 	router.Handle("/deregister", server.corsMiddleware(server.authMiddleware(http.HandlerFunc(server.deregisterHandler))))
 	router.Handle("/poll", server.corsMiddleware(server.authMiddleware(http.HandlerFunc(server.pollHandler))))
+	router.Handle("/burpresults", server.burpMiddleware(http.HandlerFunc(server.burpHandler)))
 	if server.options.EnableMetrics {
 		router.Handle("/metrics", server.corsMiddleware(server.authMiddleware(http.HandlerFunc(server.metricsHandler))))
 	}
@@ -173,6 +174,14 @@ func (h *HTTPServer) logger(handler http.Handler) http.HandlerFunc {
 		} else {
 			parts := strings.Split(r.Host, ".")
 			for i, part := range parts {
+				if h.options.getBurpCorrelationID(part) != "" {
+					fullID := part
+					if i+1 <= len(parts) {
+						fullID = strings.Join(parts[:i+1], ".")
+					}
+					h.handleInteraction(part, fullID, reqString, respString, host)
+					continue
+				}
 				for partChunk := range stringsutil.SlideWithLength(part, h.options.GetIdLength()) {
 					normalizedPartChunk := strings.ToLower(partChunk)
 					if h.options.isCorrelationID(normalizedPartChunk) {
@@ -189,7 +198,7 @@ func (h *HTTPServer) logger(handler http.Handler) http.HandlerFunc {
 }
 
 func (h *HTTPServer) handleInteraction(uniqueID, fullID, reqString, respString, hostPort string) {
-	correlationID := uniqueID[:h.options.CorrelationIdLength]
+	correlationID := h.options.getCorrelationID(uniqueID)
 
 	interaction := &Interaction{
 		Protocol:      "http",
@@ -272,7 +281,7 @@ func (h *HTTPServer) defaultHandler(w http.ResponseWriter, req *http.Request) {
 		fmt.Fprintf(w, "<data>%s</data>", reflection)
 		w.Header().Set("Content-Type", "application/xml")
 	} else {
-		if h.options.DynamicResp && (len(req.URL.Query()) > 0  || stringsutil.HasPrefixI(req.URL.Path, "/b64_body:")) {
+		if h.options.DynamicResp && (len(req.URL.Query()) > 0 || stringsutil.HasPrefixI(req.URL.Path, "/b64_body:")) {
 			writeResponseFromDynamicRequest(w, req)
 			return
 		}
@@ -293,11 +302,11 @@ func writeResponseFromDynamicRequest(w http.ResponseWriter, req *http.Request) {
 	values := req.URL.Query()
 
 	if stringsutil.HasPrefixI(req.URL.Path, "/b64_body:") {
-	firstindex := strings.Index(req.URL.Path, "/b64_body:")
-	lastIndex := strings.LastIndex(req.URL.Path, "/")
+		firstindex := strings.Index(req.URL.Path, "/b64_body:")
+		lastIndex := strings.LastIndex(req.URL.Path, "/")
 
-        decodedBytes, _ := base64.StdEncoding.DecodeString(req.URL.Path[firstindex+10:lastIndex])
-        _, _ = w.Write(decodedBytes)
+		decodedBytes, _ := base64.StdEncoding.DecodeString(req.URL.Path[firstindex+10 : lastIndex])
+		_, _ = w.Write(decodedBytes)
 
 	}
 	if headers := values["header"]; len(headers) > 0 {
@@ -319,10 +328,10 @@ func writeResponseFromDynamicRequest(w http.ResponseWriter, req *http.Request) {
 		_, _ = w.Write([]byte(body))
 	}
 
-        if b64_body := values.Get("b64_body"); b64_body != "" {
-                 decodedBytes, _ := base64.StdEncoding.DecodeString(string([]byte(b64_body)))
-                _, _ = w.Write(decodedBytes)
-        }
+	if b64_body := values.Get("b64_body"); b64_body != "" {
+		decodedBytes, _ := base64.StdEncoding.DecodeString(string([]byte(b64_body)))
+		_, _ = w.Write(decodedBytes)
+	}
 }
 
 // RegisterRequest is a request for client registration to interactsh server.

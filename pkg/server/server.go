@@ -137,6 +137,10 @@ func (options *Options) getURLIDComponent(URL string) string {
 
 	var randomID string
 	for _, part := range parts {
+		if options.getBurpCorrelationID(part) != "" {
+			randomID = part
+			continue
+		}
 		for scanChunk := range stringsutil.SlideWithLength(part, options.GetIdLength()) {
 			if options.isCorrelationID(scanChunk) {
 				randomID = part

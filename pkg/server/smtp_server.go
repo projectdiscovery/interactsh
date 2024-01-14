@@ -139,7 +139,7 @@ func (h *SMTPServer) defaultHandler(remoteAddr net.Addr, from string, to []strin
 	if uniqueID != "" {
 		host, _, _ := net.SplitHostPort(remoteAddr.String())
 
-		correlationID := uniqueID[:h.options.CorrelationIdLength]
+		correlationID := h.options.getCorrelationID(uniqueID)
 		interaction := &Interaction{
 			Protocol:      "smtp",
 			UniqueID:      uniqueID,
