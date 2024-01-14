@@ -160,8 +160,6 @@ func (h *HTTPServer) burpMiddleware(next http.Handler) http.Handler {
 }
 
 func (options *Options) getBurpCorrelationID(s string) string {
-	// k1ms4tpht3rv74t6m0ykiq9tpkvbj2jx7m
-	// 1y1a5y
 	if govalidator.IsAlphanumeric(s) && len(s) >= 32 {
 		iv, c1 := s[0:2], s[2]
 		if base36Hash(iv) != c1 {
