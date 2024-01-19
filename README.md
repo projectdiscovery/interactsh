@@ -352,6 +352,7 @@ UPDATE:
 
 SERVICES:
    -dns-port int           port to use for dns service (default 53)
+   -dns-ttl int            ttl to use for dns service (default 3600)
    -http-port int          port to use for http service (default 80)
    -https-port int         port to use for https service (default 443)
    -smtp-port int          port to use for smtp service (default 25)
@@ -619,6 +620,18 @@ this is example body
 - Dynamic HTTP Response feature is disabled as default.
 - By design, this feature lets anyone run client-side code / redirects using your interactsh domain / server
 - Using this option with an isolated domain is recommended to **avoid security impact** on associated root/subdomains.
+
+## DNS Rebinding
+Interactsh dns server supports dns rebinding. Add the hex of the domain name that needs to be randomized before the domain name. If it is empty, the server IP will be used to return.
+
+```
+7f000001-{id}.hackwithautomation.com
+will response in random of [127.0.0.1]
+7f000001--{id}.hackwithautomation.com
+will response in random of [127.0.0.1, host]
+7f000001-7f000001---{id}.hackwithautomation.com
+will response in random of [127.0.0.1, 127.0.0.1, host, host]
+```
 
 ## Wildcard Interaction
 
