@@ -81,6 +81,7 @@ func main() {
 
 	flagSet.CreateGroup("services", "Services",
 		flagSet.IntVar(&cliOptions.DnsPort, "dns-port", 53, "port to use for dns service"),
+		flagSet.IntVar(&cliOptions.DnsTTL, "dns-ttl", 3600, "ttl to use for dns service"),
 		flagSet.IntVar(&cliOptions.HttpPort, "http-port", 80, "port to use for http service"),
 		flagSet.IntVar(&cliOptions.HttpsPort, "https-port", 443, "port to use for https service"),
 		flagSet.IntVar(&cliOptions.SmtpPort, "smtp-port", 25, "port to use for smtp service"),

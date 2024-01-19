@@ -52,7 +52,7 @@ func NewDNSServer(network string, options *Options) *DNSServer {
 		ipAddress:     net.ParseIP(options.IPAddress),
 		mxDomains:     mxDomains,
 		nsDomains:     nsDomains,
-		timeToLive:    3600,
+		timeToLive:    uint32(options.DnsTTL),
 		customRecords: newCustomDNSRecordsServer(options.CustomRecords),
 	}
 	server.server = &dns.Server{
