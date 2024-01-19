@@ -3,9 +3,12 @@ package server
 import (
 	"bytes"
 	"context"
+	"encoding/hex"
 	"fmt"
+	"math/rand"
 	"net"
 	"os"
+	"regexp"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -296,11 +299,14 @@ func (h *DNSServer) handleInteraction(domain string, w dns.ResponseWriter, r *dn
 	if foundDomain != "" {
 		parts := strings.Split(domain, ".")
 		for i, part := range parts {
-			if h.options.isCorrelationID(part) {
-				uniqueID = part
-				fullID = part
-				if i+1 <= len(parts) {
-					fullID = strings.Join(parts[:i+1], ".")
+			subParts := splitSubDomainParts(part)
+			for _, sub := range subParts {
+				if h.options.isCorrelationID(sub) {
+					uniqueID = sub
+					fullID = part
+					if i+1 <= len(parts) {
+						fullID = strings.Join(parts[:i+1], ".")
+					}
 				}
 			}
 		}
@@ -441,5 +447,39 @@ func (c *customDNSRecords) checkCustomResponse(zone string) string {
 	if value, ok := c.records[strings.ToLower(parts[0])]; ok {
 		return value
 	}
-	return ""
+
+	subParts := splitSubDomainParts(parts[0])
+	if len(subParts) == 1 {
+		return ""
+	}
+	ips := make([]string, 0)
+	for _, part := range subParts {
+		if part == "" {
+			ips = append(ips, "") // "" represent options.IPAddress
+		} else if ok, _ := regexp.MatchString("^[a-f0-9]{8}$", part); ok {
+			ip, err := hex.DecodeString(part)
+			if err != nil {
+				continue
+			}
+			ips = append(ips, net.IP(ip).String())
+		}
+	}
+	if len(ips) == 0 {
+		return ""
+	}
+	return ips[rand.Intn(len(ips))]
+}
+
+func splitSubDomainParts(s string) []string {
+	var r []string
+	p := ""
+	for _, c := range s {
+		if c == '-' || c == '_' {
+			r, p = append(r, p), ""
+		} else {
+			p = p + string(c)
+		}
+	}
+	r = append(r, p)
+	return r
 }
