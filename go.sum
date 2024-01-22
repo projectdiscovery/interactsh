@@ -5,6 +5,8 @@ git.mills.io/prologic/smtpd v0.0.0-20210710122116-a525b76c287a h1:3i+FJ7IpSZHL+V
 git.mills.io/prologic/smtpd v0.0.0-20210710122116-a525b76c287a/go.mod h1:C7hXLmFmPYPjIDGfQl1clsmQ5TMEQfmzWTrJk475bUs=
 github.com/Masterminds/semver/v3 v3.2.1 h1:RN9w6+7QoMeJVGyfmbcgs28Br8cvmnucEXnY0rYXWg0=
 github.com/Masterminds/semver/v3 v3.2.1/go.mod h1:qvl/7zhW3nngYb5+80sSMF+FG2BjYrf8m9wsX0PNOMQ=
+github.com/Mzack9999/gcache v0.0.0-20230410081825-519e28eab057 h1:KFac3SiGbId8ub47e7kd2PLZeACxc1LkiiNoDOFRClE=
+github.com/Mzack9999/gcache v0.0.0-20230410081825-519e28eab057/go.mod h1:iLB2pivrPICvLOuROKmlqURtFIEsoJZaMidQfCG1+D4=
 github.com/Mzack9999/go-http-digest-auth-client v0.6.1-0.20220414142836-eb8883508809 h1:ZbFL+BDfBqegi+/Ssh7im5+aQfBRx6it+kHnC7jaDU8=
 github.com/Mzack9999/go-http-digest-auth-client v0.6.1-0.20220414142836-eb8883508809/go.mod h1:upgc3Zs45jBDnBT4tVRgRcgm26ABpaP7MoTSdgysca4=
 github.com/Mzack9999/ldapserver v1.0.2-0.20211229000134-b44a0d6ad0dd h1:RTWs+wEY9efxTKK5aFic5C5KybqQelGcX+JdM69KoTo=
@@ -201,8 +203,8 @@ github.com/projectdiscovery/asnmap v1.0.6 h1:NZj1hybBf4KF/hMCgJ6E2GXCe60tg5fIRke
 github.com/projectdiscovery/asnmap v1.0.6/go.mod h1:cXQjWMgxkl+8A4861Nms9u+ASxQLTb47imJD+AyX+dU=
 github.com/projectdiscovery/blackrock v0.0.1 h1:lHQqhaaEFjgf5WkuItbpeCZv2DUIE45k0VbGJyft6LQ=
 github.com/projectdiscovery/blackrock v0.0.1/go.mod h1:ANUtjDfaVrqB453bzToU+YB4cUbvBRpLvEwoWIwlTss=
-github.com/projectdiscovery/fastdialer v0.0.53 h1:s9BuOMpeIu8E7muTwYG0aQYpp5TEdlJYy8GBCWO6V+Q=
-github.com/projectdiscovery/fastdialer v0.0.53/go.mod h1:Fvbo4+QTc6grX5eGYcEHwJHE9Grq7iATP/nfTcatTKk=
+github.com/projectdiscovery/fastdialer v0.0.55 h1:dcD3La9MsImgQMrBnG0/w5Mu8PRJu2TU1STycKSSodc=
+github.com/projectdiscovery/fastdialer v0.0.55/go.mod h1:DNP62sWCLp0YHXwhlo73iyZODpSZE7dVstt2GNAC7+A=
 github.com/projectdiscovery/goflags v0.1.35 h1:tSxKmJci+aoy0Eu8wgGqD5Kg8lee7Et0LI5uq51473M=
 github.com/projectdiscovery/goflags v0.1.35/go.mod h1:MfK1JFmW5c4nMtcWxG6HeJCIWJVKCrVTkecuwyZyoA0=
 github.com/projectdiscovery/gologger v1.1.12 h1:uX/QkQdip4PubJjjG0+uk5DtyAi1ANPJUvpmimXqv4A=
