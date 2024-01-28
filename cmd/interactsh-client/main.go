@@ -1,5 +1,7 @@
 package main
 
+
+
 import (
 	"bytes"
 	"fmt"
@@ -9,7 +11,9 @@ import (
 	"regexp"
 	"strings"
 	"time"
+	"net/http"
 
+	"github.com/gin-gonic/gin"
 	jsoniter "github.com/json-iterator/go"
 	"github.com/projectdiscovery/goflags"
 	"github.com/projectdiscovery/gologger"
@@ -24,12 +28,107 @@ import (
 	updateutils "github.com/projectdiscovery/utils/update"
 )
 
+var interactshURLs []string
+var interaction *server.Interaction
+
+func startServer() {
+	// Create a new Gin router
+	router := gin.Default()
+
+	// Define API routes
+	router.GET("/api/getURL", func(c *gin.Context) {
+		// Call a function to get the interactsh URLs
+		urls := getURLs()
+		c.JSON(http.StatusOK, gin.H{"urls": urls})
+	})
+
+	router.GET("/api/getInteractions", func(c *gin.Context) {
+		interactionInfo := getInteractions()
+	
+		// Check if interactionInfo is not nil
+		if interactionInfo != nil {
+			c.JSON(http.StatusOK, interactionInfo)
+		} else {
+			// Handle the case where interactionInfo is nil (no interaction available)
+			c.JSON(http.StatusOK, gin.H{"message": "No interactions available"})
+		}
+	})
+	
+
+	// Start the server
+	if err := router.Run(":8080"); err != nil {
+		gologger.Fatal().Msgf("Failed to start server: %s\n", err)
+	}
+}
+
+// Function to get interactsh URLs
+func getURLs() []string {
+	return interactshURLs
+}
+
+func getInteractions() gin.H {
+
+
+	if interaction == nil {
+		return nil
+	}
+
+	output := make(map[string]interface{})
+
+	// switch statement for different interaction protocols
+	switch interaction.Protocol {
+	case "dns":
+		// Add DNS interaction details to the output map
+		output["type"] = "dns"
+		output["id"] = interaction.FullId
+		output["qtype"] = interaction.QType
+		output["remoteAddress"] = interaction.RemoteAddress
+		output["timestamp"] = interaction.Timestamp.Format("2006-01-02 15:04:05")
+	case "http":
+		// Add HTTP interaction details to the output map
+		output["type"] = "http"
+		output["id"] = interaction.FullId
+		output["remoteAddress"] = interaction.RemoteAddress
+		output["timestamp"] = interaction.Timestamp.Format("2006-01-02 15:04:05")
+	case "smtp":
+		// Add SMTP interaction details to the output map
+		output["type"] = "smtp"
+		output["id"] = interaction.FullId
+		output["remoteAddress"] = interaction.RemoteAddress
+		output["timestamp"] = interaction.Timestamp.Format("2006-01-02 15:04:05")
+
+	case "ftp":
+		// Add FTP interaction details to the output map
+		output["type"] = "ftp"
+		output["remoteAddress"] = interaction.RemoteAddress
+		output["timestamp"] = interaction.Timestamp.Format("2006-01-02 15:04:05")
+
+	case "responder", "smb":
+		// Add Responder/SMB interaction details to the output map
+		output["type"] = "responder/smb"
+		output["timestamp"] = interaction.Timestamp.Format("2006-01-02 15:04:05")
+
+	case "ldap":
+		// Add LDAP interaction details to the output map
+		output["type"] = "ldap"
+		output["id"] = interaction.FullId
+		output["remoteAddress"] = interaction.RemoteAddress
+		output["timestamp"] = interaction.Timestamp.Format("2006-01-02 15:04:05")
+	}
+
+	return gin.H{"interaction": output}
+}
+
+
+
 var (
 	healthcheck           bool
 	defaultConfigLocation = filepath.Join(folderutil.HomeDirOrDefault("."), ".config/interactsh-client/config.yaml")
 )
 
 func main() {
+
+
 	gologger.DefaultLogger.SetMaxLevel(levels.LevelVerbose)
 
 	defaultOpts := client.DefaultOptions
@@ -41,6 +140,8 @@ func main() {
 	flagSet.CreateGroup("input", "Input",
 		flagSet.StringVarP(&cliOptions.ServerURL, "server", "s", defaultOpts.ServerURL, "interactsh server(s) to use"),
 	)
+
+	go startServer()
 
 	flagSet.CreateGroup("config", "config",
 		flagSet.StringVar(&cliOptions.Config, "config", defaultConfigLocation, "flag configuration file"),
@@ -149,6 +250,9 @@ func main() {
 		gologger.Info().Msgf("%s\n", interactshURL)
 	}
 
+	//Utility function to get insteractshURLS
+	
+
 	if cliOptions.StorePayload && cliOptions.StorePayloadFile != "" {
 		if err := os.WriteFile(cliOptions.StorePayloadFile, []byte(strings.Join(interactshURLs, "\n")), 0644); err != nil {
 			gologger.Fatal().Msgf("Could not write to payload output file: %s\n", err)
@@ -171,89 +275,92 @@ func main() {
 		}
 	}
 
-	err = client.StartPolling(time.Duration(cliOptions.PollInterval)*time.Second, func(interaction *server.Interaction) {
-		if matcher != nil && !matcher.match(interaction.FullId) {
-			return
-		}
-		if filter != nil && filter.match(interaction.FullId) {
-			return
-		}
+		err = client.StartPolling(time.Duration(cliOptions.PollInterval)*time.Second, func(intr *server.Interaction) {
 
-		if cliOptions.Asn {
-			_ = client.TryGetAsnInfo(interaction)
-		}
+			interaction = intr
 
-		if !cliOptions.JSON {
-			builder := &bytes.Buffer{}
-
-			switch interaction.Protocol {
-			case "dns":
-				if noFilter || cliOptions.DNSOnly {
-					builder.WriteString(fmt.Sprintf("[%s] Received DNS interaction (%s) from %s at %s", interaction.FullId, interaction.QType, interaction.RemoteAddress, interaction.Timestamp.Format("2006-01-02 15:04:05")))
-					if cliOptions.Verbose {
-						builder.WriteString(fmt.Sprintf("\n-----------\nDNS Request\n-----------\n\n%s\n\n------------\nDNS Response\n------------\n\n%s\n\n", interaction.RawRequest, interaction.RawResponse))
-					}
-					writeOutput(outputFile, builder)
-				}
-			case "http":
-				if noFilter || cliOptions.HTTPOnly {
-					builder.WriteString(fmt.Sprintf("[%s] Received HTTP interaction from %s at %s", interaction.FullId, interaction.RemoteAddress, interaction.Timestamp.Format("2006-01-02 15:04:05")))
-					if cliOptions.Verbose {
-						builder.WriteString(fmt.Sprintf("\n------------\nHTTP Request\n------------\n\n%s\n\n-------------\nHTTP Response\n-------------\n\n%s\n\n", interaction.RawRequest, interaction.RawResponse))
-					}
-					writeOutput(outputFile, builder)
-				}
-			case "smtp":
-				if noFilter || cliOptions.SmtpOnly {
-					builder.WriteString(fmt.Sprintf("[%s] Received SMTP interaction from %s at %s", interaction.FullId, interaction.RemoteAddress, interaction.Timestamp.Format("2006-01-02 15:04:05")))
-					if cliOptions.Verbose {
-						builder.WriteString(fmt.Sprintf("\n------------\nSMTP Interaction\n------------\n\n%s\n\n", interaction.RawRequest))
-					}
-					writeOutput(outputFile, builder)
-				}
-			case "ftp":
-				if noFilter {
-					builder.WriteString(fmt.Sprintf("Received FTP interaction from %s at %s", interaction.RemoteAddress, interaction.Timestamp.Format("2006-01-02 15:04:05")))
-					if cliOptions.Verbose {
-						builder.WriteString(fmt.Sprintf("\n------------\nFTP Interaction\n------------\n\n%s\n\n", interaction.RawRequest))
-					}
-					writeOutput(outputFile, builder)
-				}
-			case "responder", "smb":
-				if noFilter {
-					builder.WriteString(fmt.Sprintf("Received Responder/Smb interaction at %s", interaction.Timestamp.Format("2006-01-02 15:04:05")))
-					if cliOptions.Verbose {
-						builder.WriteString(fmt.Sprintf("\n------------\nResponder/SMB Interaction\n------------\n\n%s\n\n", interaction.RawRequest))
-					}
-					writeOutput(outputFile, builder)
-				}
-			case "ldap":
-				if noFilter {
-					builder.WriteString(fmt.Sprintf("[%s] Received LDAP interaction from %s at %s", interaction.FullId, interaction.RemoteAddress, interaction.Timestamp.Format("2006-01-02 15:04:05")))
-					if cliOptions.Verbose {
-						builder.WriteString(fmt.Sprintf("\n------------\nLDAP Interaction\n------------\n\n%s\n\n", interaction.RawRequest))
-					}
-					writeOutput(outputFile, builder)
-				}
+			if matcher != nil && !matcher.match(interaction.FullId) {
+				return
 			}
-		} else {
-			b, err := jsoniter.Marshal(interaction)
-			if err != nil {
-				gologger.Error().Msgf("Could not marshal json output: %s\n", err)
+			if filter != nil && filter.match(interaction.FullId) {
+				return
+			}
+
+			if cliOptions.Asn {
+				_ = client.TryGetAsnInfo(interaction)
+			}
+
+			if !cliOptions.JSON {
+				builder := &bytes.Buffer{}
+
+				switch interaction.Protocol {
+				case "dns":
+					if noFilter || cliOptions.DNSOnly {
+						builder.WriteString(fmt.Sprintf("[%s] Received DNS interaction (%s) from %s at %s", interaction.FullId, interaction.QType, interaction.RemoteAddress, interaction.Timestamp.Format("2006-01-02 15:04:05")))
+						if cliOptions.Verbose {
+							builder.WriteString(fmt.Sprintf("\n-----------\nDNS Request\n-----------\n\n%s\n\n------------\nDNS Response\n------------\n\n%s\n\n", interaction.RawRequest, interaction.RawResponse))
+						}
+						writeOutput(outputFile, builder)
+					}
+				case "http":
+					if noFilter || cliOptions.HTTPOnly {
+						builder.WriteString(fmt.Sprintf("[%s] Received HTTP interaction from %s at %s", interaction.FullId, interaction.RemoteAddress, interaction.Timestamp.Format("2006-01-02 15:04:05")))
+						if cliOptions.Verbose {
+							builder.WriteString(fmt.Sprintf("\n------------\nHTTP Request\n------------\n\n%s\n\n-------------\nHTTP Response\n-------------\n\n%s\n\n", interaction.RawRequest, interaction.RawResponse))
+						}
+						writeOutput(outputFile, builder)
+					}
+				case "smtp":
+					if noFilter || cliOptions.SmtpOnly {
+						builder.WriteString(fmt.Sprintf("[%s] Received SMTP interaction from %s at %s", interaction.FullId, interaction.RemoteAddress, interaction.Timestamp.Format("2006-01-02 15:04:05")))
+						if cliOptions.Verbose {
+							builder.WriteString(fmt.Sprintf("\n------------\nSMTP Interaction\n------------\n\n%s\n\n", interaction.RawRequest))
+						}
+						writeOutput(outputFile, builder)
+					}
+				case "ftp":
+					if noFilter {
+						builder.WriteString(fmt.Sprintf("Received FTP interaction from %s at %s", interaction.RemoteAddress, interaction.Timestamp.Format("2006-01-02 15:04:05")))
+						if cliOptions.Verbose {
+							builder.WriteString(fmt.Sprintf("\n------------\nFTP Interaction\n------------\n\n%s\n\n", interaction.RawRequest))
+						}
+						writeOutput(outputFile, builder)
+					}
+				case "responder", "smb":
+					if noFilter {
+						builder.WriteString(fmt.Sprintf("Received Responder/Smb interaction at %s", interaction.Timestamp.Format("2006-01-02 15:04:05")))
+						if cliOptions.Verbose {
+							builder.WriteString(fmt.Sprintf("\n------------\nResponder/SMB Interaction\n------------\n\n%s\n\n", interaction.RawRequest))
+						}
+						writeOutput(outputFile, builder)
+					}
+				case "ldap":
+					if noFilter {
+						builder.WriteString(fmt.Sprintf("[%s] Received LDAP interaction from %s at %s", interaction.FullId, interaction.RemoteAddress, interaction.Timestamp.Format("2006-01-02 15:04:05")))
+						if cliOptions.Verbose {
+							builder.WriteString(fmt.Sprintf("\n------------\nLDAP Interaction\n------------\n\n%s\n\n", interaction.RawRequest))
+						}
+						writeOutput(outputFile, builder)
+					}
+				}
 			} else {
-				os.Stdout.Write(b)
-				os.Stdout.Write([]byte("\n"))
+				b, err := jsoniter.Marshal(interaction)
+				if err != nil {
+					gologger.Error().Msgf("Could not marshal json output: %s\n", err)
+				} else {
+					os.Stdout.Write(b)
+					os.Stdout.Write([]byte("\n"))
+				}
+				if outputFile != nil {
+					_, _ = outputFile.Write(b)
+					_, _ = outputFile.Write([]byte("\n"))
+				}
 			}
-			if outputFile != nil {
-				_, _ = outputFile.Write(b)
-				_, _ = outputFile.Write([]byte("\n"))
-			}
+		})
+		if err != nil {
+			gologger.Error().Msgf(err.Error())
 		}
-	})
-	if err != nil {
-		gologger.Error().Msgf(err.Error())
-	}
-
+	
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt)
 	for range c {
@@ -267,14 +374,16 @@ func main() {
 		}
 		os.Exit(1)
 	}
+
 }
 
 func generatePayloadURL(numberOfPayloads int, client *client.Client) []string {
-	interactshURLs := make([]string, numberOfPayloads)
+	interactshURL := make([]string, numberOfPayloads)
 	for i := 0; i < numberOfPayloads; i++ {
-		interactshURLs[i] = client.URL()
+		interactshURL[i] = client.URL()
 	}
-	return interactshURLs
+	interactshURLs=interactshURL
+	return interactshURL
 }
 
 func writeOutput(outputFile *os.File, builder *bytes.Buffer) {
