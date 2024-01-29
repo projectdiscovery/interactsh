@@ -16,7 +16,7 @@ require (
 	github.com/miekg/dns v1.1.56
 	github.com/pkg/errors v0.9.1
 	github.com/projectdiscovery/asnmap v1.0.6
-	github.com/projectdiscovery/goflags v0.1.36
+	github.com/projectdiscovery/goflags v0.1.37
 	github.com/projectdiscovery/gologger v1.1.12
 	github.com/projectdiscovery/retryabledns v1.0.53
 	github.com/projectdiscovery/retryablehttp-go v1.0.45
