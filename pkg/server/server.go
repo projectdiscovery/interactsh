@@ -70,6 +70,10 @@ type Options struct {
 	HTTPIndex string
 	// HTTPDirectory is the directory for interact server
 	HTTPDirectory string
+	// HTTPReverseParams is the parameter list of reverse proxy destination. If it is empty, it means it is not enabled.
+	HTTPReverseParams []string
+	// HTTPReverseProxy is the proxy for reverse proxy server
+	HTTPReverseProxy string
 	// Token required to retrieve interactions
 	Token string
 	// Enable root tld interactions

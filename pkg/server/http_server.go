@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/http/httputil"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -30,6 +31,7 @@ type HTTPServer struct {
 	nontlsserver  http.Server
 	customBanner  string
 	staticHandler http.Handler
+	proxyHandler  http.Handler
 }
 
 type noopLogger struct {
@@ -60,6 +62,12 @@ func NewHTTPServer(options *Options) (*HTTPServer, error) {
 		gologger.Info().Msgf("Loading directory (%s) to serve from : %s/s/", abs, strings.Join(options.Domains, ","))
 		server.staticHandler = http.StripPrefix("/s/", disableDirectoryListing(http.FileServer(http.Dir(options.HTTPDirectory))))
 	}
+
+	// If HTTPReverseParams is not empty, also serve it
+	if len(options.HTTPReverseParams) > 0 {
+		server.proxyHandler = http.StripPrefix("/p/", http.HandlerFunc(newProxyHandler(options)))
+	}
+
 	// If custom index, read the custom index file and serve it.
 	// Supports {DOMAIN} placeholders.
 	if options.HTTPIndex != "" {
@@ -266,6 +274,8 @@ func (h *HTTPServer) defaultHandler(w http.ResponseWriter, req *http.Request) {
 	reflection := h.options.URLReflection(req.Host)
 	if stringsutil.HasPrefixI(req.URL.Path, "/s/") && h.staticHandler != nil {
 		h.staticHandler.ServeHTTP(w, req)
+	} else if stringsutil.HasPrefixI(req.URL.Path, "/p/") && h.proxyHandler != nil {
+		h.proxyHandler.ServeHTTP(w, req)
 	} else if req.URL.Path == "/" && reflection == "" {
 		if h.customBanner != "" {
 			fmt.Fprint(w, strings.ReplaceAll(h.customBanner, "{DOMAIN}", domain))
@@ -500,4 +510,52 @@ func (h *HTTPServer) metricsHandler(w http.ResponseWriter, req *http.Request) {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.Header().Set("X-Content-Type-Options", "nosniff")
 	_ = jsoniter.NewEncoder(w).Encode(interactMetrics)
+}
+
+func newProxyHandler(option *Options) func(w http.ResponseWriter, r *http.Request) {
+	var p func(*http.Request) (*url.URL, error) = nil
+	if option.HTTPReverseProxy != "" {
+		u, err := url.Parse(option.HTTPReverseProxy)
+		if err != nil {
+			gologger.Error().Msgf("Could not parse http proxy %s: %s\n", option.HTTPReverseProxy, err)
+		}
+		if u != nil {
+			p = http.ProxyURL(u)
+		}
+	}
+
+	params := option.HTTPReverseParams
+	return func(w http.ResponseWriter, r *http.Request) {
+		query := r.URL.Query()
+		var target *url.URL
+		for _, param := range params {
+			var err error
+			target, err = url.Parse(query.Get(param))
+			if err != nil || !(target.Scheme == "http" || target.Scheme == "https") {
+				continue
+			}
+			query.Del(param) // delete query
+			break
+		}
+
+		if target == nil {
+			http.Error(w, "Bad Gateway", http.StatusBadGateway)
+			return
+		}
+
+		r.URL.RawQuery = query.Encode()
+		r.Host = target.Host
+
+		proxy := httputil.NewSingleHostReverseProxy(target)
+		transport := &http.Transport{
+			DialContext: (&net.Dialer{
+				Timeout:   30 * time.Second,
+				KeepAlive: 30 * time.Second,
+			}).DialContext,
+			Proxy: p,
+		}
+
+		proxy.Transport = transport
+		proxy.ServeHTTP(w, r)
+	}
 }
