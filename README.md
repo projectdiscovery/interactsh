@@ -633,6 +633,28 @@ will response in random of [127.0.0.1, host]
 will response in random of [127.0.0.1, 127.0.0.1, host, host]
 ```
 
+## Reverse Proxy
+The Interactsh http server can optionally enable Reverse Proxy using query parameters. You can use "-hrps" or "-http-reverse-params" followed by the parameter name you want to enable this feature.
+You can use "-hrp", "-http-reverse-proxy" to add a proxy to the reverse proxy. You can use this capability to prevent ssrf.
+
+```
+http-reverse-params: ["_", "u", "proxy", "p"]
+http-reverse-proxy: http://127.0.0.1:8080
+```
+
+```
+curl hackwithautomation.com/p/any-sub-path?_=https://example.com&param=param
+
+GET /any-sub-path?param=param HTTP/1.1
+Host: example.com
+User-Agent: curl/7.81.0
+Accept: */*
+X-Forwarded-For: 127.0.0.1
+Accept-Encoding: gzip
+
+
+```
+
 ## Wildcard Interaction
 
 To enable `wildcard` interaction for configured Interactsh domain `wildcard` flag can be used with implicit authentication protection via the `auth` flag if the `token` flag is omitted.

@@ -32,6 +32,8 @@ type CLIServerOptions struct {
 	Auth                     bool
 	HTTPIndex                string
 	HTTPDirectory            string
+	HTTPReverseParams        goflags.StringSlice
+	HTTPReverseProxy         string
 	Token                    string
 	OriginURL                string
 	RootTLD                  bool
@@ -76,6 +78,8 @@ func (cliServerOptions *CLIServerOptions) AsServerOptions() *server.Options {
 		Auth:                     cliServerOptions.Auth,
 		HTTPIndex:                cliServerOptions.HTTPIndex,
 		HTTPDirectory:            cliServerOptions.HTTPDirectory,
+		HTTPReverseParams:        cliServerOptions.HTTPReverseParams,
+		HTTPReverseProxy:         cliServerOptions.HTTPReverseProxy,
 		Token:                    cliServerOptions.Token,
 		Version:                  Version,
 		DynamicResp:              cliServerOptions.DynamicResp,
