@@ -38,7 +38,7 @@ type BurpHTTPData struct {
 }
 
 type BurpDNSData struct {
-	SubDomain  string `json:"subDomain"`
+	Subdomain  string `json:"subDomain"`
 	Type       uint16 `json:"type"`
 	RawRequest string `json:"rawRequest"`
 }
@@ -80,7 +80,7 @@ func convert2BurpItem(data string) (*BurpItem, error) {
 	switch interaction.Protocol {
 	case "dns":
 		item.Data = &BurpDNSData{
-			SubDomain:  interaction.FullId,
+			Subdomain:  interaction.FullId,
 			Type:       dns.StringToType[interaction.QType],
 			RawRequest: base64.StdEncoding.EncodeToString([]byte(interaction.RawRequest)),
 		}

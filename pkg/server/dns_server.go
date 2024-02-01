@@ -22,6 +22,10 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+var (
+	HEX_IP_REGEX = regexp.MustCompile("^[a-f0-9]{8}$")
+)
+
 // DNSServer is a DNS server instance that listens on port 53.
 type DNSServer struct {
 	options       *Options
@@ -56,7 +60,7 @@ func NewDNSServer(network string, options *Options) *DNSServer {
 		mxDomains:     mxDomains,
 		nsDomains:     nsDomains,
 		timeToLive:    uint32(options.DnsTTL),
-		customRecords: newCustomDNSRecordsServer(options.CustomRecords),
+		customRecords: newCustomDNSRecordsServer(options),
 	}
 	server.server = &dns.Server{
 		Addr:    options.ListenIP + fmt.Sprintf(":%d", options.DnsPort),
@@ -299,7 +303,7 @@ func (h *DNSServer) handleInteraction(domain string, w dns.ResponseWriter, r *dn
 	if foundDomain != "" {
 		parts := strings.Split(domain, ".")
 		for i, part := range parts {
-			subParts := splitSubDomainParts(part)
+			subParts := splitSubdomainParts(part)
 			for _, sub := range subParts {
 				if h.options.isCorrelationID(sub) {
 					uniqueID = sub
@@ -398,7 +402,8 @@ func (h *DNSServer) getMsgHost(w dns.ResponseWriter, r *dns.Msg) string {
 
 // customDNSRecords is a server for custom dns records
 type customDNSRecords struct {
-	records map[string]string
+	records    map[string]string
+	subdomains map[string]string
 }
 
 // defaultCustomRecords is the list of default custom DNS records
@@ -409,8 +414,17 @@ var defaultCustomRecords = map[string]string{
 	"oracle":    "192.0.0.192",
 }
 
-func newCustomDNSRecordsServer(input string) *customDNSRecords {
-	server := &customDNSRecords{records: make(map[string]string)}
+func newCustomDNSRecordsServer(options *Options) *customDNSRecords {
+	subdomainRecords := make(map[string]string)
+	for _, m := range options.DnsSubdomainRecords {
+		parts := strings.SplitN(m, "=", 2)
+		if len(parts) == 2 {
+			subdomainRecords[strings.ToLower(parts[0])] = parts[1]
+		}
+	}
+	server := &customDNSRecords{records: make(map[string]string), subdomains: subdomainRecords}
+
+	input := options.CustomRecords
 	for k, v := range defaultCustomRecords {
 		server.records[k] = v
 	}
@@ -448,7 +462,7 @@ func (c *customDNSRecords) checkCustomResponse(zone string) string {
 		return value
 	}
 
-	subParts := splitSubDomainParts(parts[0])
+	subParts := splitSubdomainParts(parts[0])
 	if len(subParts) == 1 {
 		return ""
 	}
@@ -456,12 +470,14 @@ func (c *customDNSRecords) checkCustomResponse(zone string) string {
 	for _, part := range subParts {
 		if part == "" {
 			ips = append(ips, "") // "" represent options.IPAddress
-		} else if ok, _ := regexp.MatchString("^[a-f0-9]{8}$", part); ok {
+		} else if ok := HEX_IP_REGEX.MatchString(part); ok {
 			ip, err := hex.DecodeString(part)
 			if err != nil {
 				continue
 			}
 			ips = append(ips, net.IP(ip).String())
+		} else if ans, ok := c.subdomains[strings.ToLower(part)]; ok {
+			ips = append(ips, ans)
 		}
 	}
 	if len(ips) == 0 {
@@ -470,7 +486,7 @@ func (c *customDNSRecords) checkCustomResponse(zone string) string {
 	return ips[rand.Intn(len(ips))]
 }
 
-func splitSubDomainParts(s string) []string {
+func splitSubdomainParts(s string) []string {
 	var r []string
 	p := ""
 	for _, c := range s {

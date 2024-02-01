@@ -69,6 +69,7 @@ func main() {
 		flagSet.StringVarP(&cliOptions.HTTPDirectory, "http-directory", "hd", "", "directory with files to serve with http server"),
 		flagSet.StringVarP(&cliOptions.HTTPReverseProxy, "http-reverse-proxy", "hrp", "", "HTTPReverseProxy is the proxy for reverse proxy server"),
 		flagSet.StringSliceVarP(&cliOptions.HTTPReverseParams, "http-reverse-params", "hrps", []string{}, "HTTPProxyParams is the parameter list of reverse proxy destination", goflags.CommaSeparatedStringSliceOptions),
+		flagSet.StringSliceVarP(&cliOptions.DnsSubdomainRecords, "dns-subdomain-records", "dsr", []string{}, "DnsSubdomainRecords is the mapping relationship between subdomain and resolve, used for dns rebinding", goflags.CommaSeparatedStringSliceOptions),
 		flagSet.BoolVarP(&cliOptions.DiskStorage, "disk", "ds", false, "disk based storage"),
 		flagSet.StringVarP(&cliOptions.DiskStoragePath, "disk-path", "dsp", "", "disk storage path"),
 		flagSet.StringVarP(&cliOptions.HeaderServer, "server-header", "csh", "", "custom value of Server header in response"),

@@ -335,16 +335,19 @@ INPUT:
 	-oie, -origin-ip-ednsopt                 ednsopt code containing origin ip (interactsh behind a reverse proxy)
 
 CONFIG:
-   -config string               flag configuration file (default "$HOME/.config/interactsh-server/config.yaml")
-   -dr, -dynamic-resp           enable setting up arbitrary response data
-   -cr, -custom-records string  custom dns records YAML file for DNS server
-   -hi, -http-index string      custom index file for http server
-   -hd, -http-directory string  directory with files to serve with http server
-   -ds, -disk                   disk based storage
-   -dsp, -disk-path string      disk storage path
-   -csh, -server-header string  custom value of Server header in response
-   -dv, -disable-version        disable publishing interactsh version in response header
-   -rip, -real-ip-from          defines trusted addresses that are known to send correct replacement addresses
+   -config string                      flag configuration file (default "$HOME/.config/interactsh-server/config.yaml")
+   -dr, -dynamic-resp                  enable setting up arbitrary response data
+   -cr, -custom-records string         custom dns records YAML file for DNS server
+   -dsr, -dns-subdomain-records        the mapping relationship between subdomain and resolve, used for dns rebinding
+   -hi, -http-index string             custom index file for http server
+   -hd, -http-directory string         directory with files to serve with http server
+   -hrp, -http-reverse-proxy string[]  the proxy for reverse proxy server
+   -hrps, -http-reverse-params         the parameter list of reverse proxy destination
+   -ds, -disk                          disk based storage
+   -dsp, -disk-path string             disk storage path
+   -csh, -server-header string         custom value of Server header in response
+   -dv, -disable-version               disable publishing interactsh version in response header
+   -rip, -real-ip-from                 defines trusted addresses that are known to send correct replacement addresses
 
 UPDATE:
    -up, -update                 update interactsh-server to latest version
@@ -623,7 +626,14 @@ this is example body
 
 ## DNS Rebinding
 Interactsh dns server supports dns rebinding. Add the hex of the domain name that needs to be randomized before the domain name. If it is empty, the server IP will be used to return.
+You can add dns-subdomain-records to quickly point to domain name resolution. For example
 
+```yaml
+dns-subdomain-records:
+  - local=127.0.0.1
+  - aws=169.254.169.254
+  - e=example.com
+```
 ```
 7f000001-{id}.hackwithautomation.com
 will response in random of [127.0.0.1]
@@ -631,6 +641,8 @@ will response in random of [127.0.0.1]
 will response in random of [127.0.0.1, host]
 7f000001-7f000001---{id}.hackwithautomation.com
 will response in random of [127.0.0.1, 127.0.0.1, host, host]
+local-7f000002-e-aws--{id}.hackwithautomation.com
+will response in random of [127.0.0.1, 127.0.0.2, 169.254.169.254, example.com, host]
 ```
 
 ## Reverse Proxy

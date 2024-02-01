@@ -12,6 +12,7 @@ type CLIServerOptions struct {
 	Domains                  goflags.StringSlice
 	DnsPort                  int
 	DnsTTL                   int
+	DnsSubdomainRecords      goflags.StringSlice
 	IPAddress                string
 	ListenIP                 string
 	HttpPort                 int
@@ -64,6 +65,7 @@ func (cliServerOptions *CLIServerOptions) AsServerOptions() *server.Options {
 		Domains:                  cliServerOptions.Domains,
 		DnsPort:                  cliServerOptions.DnsPort,
 		DnsTTL:                   cliServerOptions.DnsTTL,
+		DnsSubdomainRecords:      cliServerOptions.DnsSubdomainRecords,
 		IPAddress:                cliServerOptions.IPAddress,
 		ListenIP:                 cliServerOptions.ListenIP,
 		HttpPort:                 cliServerOptions.HttpPort,

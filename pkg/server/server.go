@@ -45,6 +45,8 @@ type Options struct {
 	// DnsTTL is the ttl for DNS response
 	DnsTTL int
 	// HttpPort is the port to listen HTTP server on
+	DnsSubdomainRecords []string
+	// DnsSubdomainRecords is the mapping relationship between subdomain and resolve, used for dns rebinding
 	HttpPort int
 	// HttpsPort is the port to listen HTTPS server on
 	HttpsPort int
