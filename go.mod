@@ -20,7 +20,7 @@ require (
 	github.com/projectdiscovery/gologger v1.1.12
 	github.com/projectdiscovery/retryabledns v1.0.53
 	github.com/projectdiscovery/retryablehttp-go v1.0.45
-	github.com/projectdiscovery/utils v0.0.76
+	github.com/projectdiscovery/utils v0.0.77
 	github.com/remeh/sizedwaitgroup v1.0.0
 	github.com/rs/xid v1.5.0
 	github.com/stretchr/testify v1.8.4
@@ -84,7 +84,7 @@ require (
 	github.com/pierrec/lz4/v4 v4.1.2 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/projectdiscovery/blackrock v0.0.1 // indirect
-	github.com/projectdiscovery/fastdialer v0.0.55 // indirect
+	github.com/projectdiscovery/fastdialer v0.0.56 // indirect
 	github.com/projectdiscovery/hmap v0.0.36 // indirect
 	github.com/projectdiscovery/mapcidr v1.1.16 // indirect
 	github.com/projectdiscovery/networkpolicy v0.0.7 // indirect
