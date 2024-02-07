@@ -266,10 +266,10 @@ func (ldapServer *LDAPServer) handleAdd(w ldap.ResponseWriter, m *ldap.Message) 
 func (ldapServer *LDAPServer) handleDelete(w ldap.ResponseWriter, m *ldap.Message) {
 	atomic.AddUint64(&ldapServer.options.Stats.Ldap, 1)
 
-	r := m.GetCompareRequest()
+	r := m.GetDeleteRequest()
 	var message strings.Builder
 	message.WriteString("Type=Delete\n")
-	message.WriteString(fmt.Sprintf("Entity=%s\n", r.Entry()))
+	message.WriteString(fmt.Sprintf("Entity=%s\n", r))
 
 	res := ldap.NewDeleteResponse(ldap.LDAPResultSuccess)
 	w.Write(res)
