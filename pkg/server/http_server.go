@@ -266,12 +266,14 @@ func (h *HTTPServer) defaultHandler(w http.ResponseWriter, req *http.Request) {
 				}
 			}
 			if delay := values.Get("delay"); delay != "" {
-				parsed, _ := strconv.Atoi(delay)
-				time.Sleep(time.Duration(parsed) * time.Second)
+				if parsed, err := strconv.Atoi(delay); err == nil {
+					time.Sleep(time.Duration(parsed) * time.Second)
+				}
 			}
 			if status := values.Get("status"); status != "" {
-				parsed, _ := strconv.Atoi(status)
-				w.WriteHeader(parsed)
+				if parsed, err := strconv.Atoi(status); err == nil {
+					w.WriteHeader(parsed)
+				}
 			}
 		}
 		h.staticHandler.ServeHTTP(w, req)
