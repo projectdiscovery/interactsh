@@ -8,17 +8,13 @@ import (
 	"sync/atomic"
 	"time"
 
-	ldap "github.com/Mzack9999/ldapserver"
 	jsoniter "github.com/json-iterator/go"
 	"github.com/projectdiscovery/gologger"
+	ldap "github.com/projectdiscovery/ldapserver"
 	stringsutil "github.com/projectdiscovery/utils/strings"
 )
 
 // Most routes handlers are taken from the example at https://github.com/vjeantet/ldapserver/blob/master/examples/complex/main.go
-
-func init() {
-	ldap.Logger = ldap.DiscardingLogger
-}
 
 // LDAPServer is a ldap server instance
 type LDAPServer struct {
@@ -33,7 +29,7 @@ func NewLDAPServer(options *Options, withLogger bool) (*LDAPServer, error) {
 	ldapserver := &LDAPServer{options: options, WithLogger: withLogger}
 
 	if withLogger {
-		ldap.Logger = ldapserver
+		ldap.HandleLogCallback = ldapserver.handleLog
 	}
 
 	routes := ldap.NewRouteMux()
@@ -266,10 +262,10 @@ func (ldapServer *LDAPServer) handleAdd(w ldap.ResponseWriter, m *ldap.Message) 
 func (ldapServer *LDAPServer) handleDelete(w ldap.ResponseWriter, m *ldap.Message) {
 	atomic.AddUint64(&ldapServer.options.Stats.Ldap, 1)
 
-	r := m.GetCompareRequest()
+	r := m.GetDeleteRequest()
 	var message strings.Builder
 	message.WriteString("Type=Delete\n")
-	message.WriteString(fmt.Sprintf("Entity=%s\n", r.Entry()))
+	message.WriteString(fmt.Sprintf("Entity=%s\n", r))
 
 	res := ldap.NewDeleteResponse(ldap.LDAPResultSuccess)
 	w.Write(res)
@@ -392,36 +388,7 @@ func (ldapServer *LDAPServer) handleExtended(w ldap.ResponseWriter, m *ldap.Mess
 	}
 }
 
-func (ldapServer *LDAPServer) Fatal(v ...interface{}) {
-	//nolint
-	ldapServer.handleLog("%v", v...) //nolint
-}
-func (ldapServer *LDAPServer) Fatalf(format string, v ...interface{}) {
-	ldapServer.handleLog(format, v...)
-}
-func (ldapServer *LDAPServer) Fatalln(v ...interface{}) {
-	ldapServer.handleLog("%v", v...) //nolint
-}
-func (ldapServer *LDAPServer) Panic(v ...interface{}) {
-	ldapServer.handleLog("%v", v...) //nolint
-}
-func (ldapServer *LDAPServer) Panicf(format string, v ...interface{}) {
-	ldapServer.handleLog(format, v...)
-}
-func (ldapServer *LDAPServer) Panicln(v ...interface{}) {
-	ldapServer.handleLog("%v", v...) //nolint
-}
-func (ldapServer *LDAPServer) Print(v ...interface{}) {
-	ldapServer.handleLog("%v", v...) //nolint
-}
-func (ldapServer *LDAPServer) Printf(format string, v ...interface{}) {
-	ldapServer.handleLog(format, v...)
-}
-func (ldapServer *LDAPServer) Println(v ...interface{}) {
-	ldapServer.handleLog("%v", v...) //nolint
-}
-
-func (ldapServer *LDAPServer) handleLog(f string, v ...interface{}) {
+func (ldapServer *LDAPServer) handleLog(host string, f string, v ...interface{}) {
 	// just discard logs if logger is disabled
 	if !ldapServer.WithLogger {
 		return
@@ -437,7 +404,7 @@ func (ldapServer *LDAPServer) handleLog(f string, v ...interface{}) {
 	}
 
 	// Correlation id doesn't apply here, we skip encryption
-	ldapServer.logInteraction(Interaction{RawRequest: data.String()})
+	ldapServer.logInteraction(Interaction{RawRequest: data.String(), RemoteAddress: host})
 }
 
 func (ldapServer *LDAPServer) logInteraction(interaction Interaction) {
