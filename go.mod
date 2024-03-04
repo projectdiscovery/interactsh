@@ -14,7 +14,7 @@ require (
 	github.com/mackerelio/go-osstat v0.2.4
 	github.com/miekg/dns v1.1.56
 	github.com/pkg/errors v0.9.1
-	github.com/projectdiscovery/asnmap v1.0.6
+	github.com/projectdiscovery/asnmap v1.1.0
 	github.com/projectdiscovery/goflags v0.1.41
 	github.com/projectdiscovery/gologger v1.1.12
 	github.com/projectdiscovery/ldapserver v1.0.2-0.20240219154113-dcc758ebc0cb
@@ -125,6 +125,7 @@ require (
 	golang.org/x/net v0.17.0 // indirect
 	golang.org/x/oauth2 v0.11.0 // indirect
 	golang.org/x/sys v0.16.0 // indirect
+	golang.org/x/term v0.16.0 // indirect
 	golang.org/x/text v0.14.0 // indirect
 	golang.org/x/tools v0.13.0 // indirect
 	google.golang.org/appengine v1.6.7 // indirect
