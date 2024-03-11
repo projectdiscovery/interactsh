@@ -23,7 +23,7 @@ require (
 	github.com/projectdiscovery/utils v0.0.82
 	github.com/remeh/sizedwaitgroup v1.0.0
 	github.com/rs/xid v1.5.0
-	github.com/stretchr/testify v1.8.4
+	github.com/stretchr/testify v1.9.0
 	github.com/syndtr/goleveldb v1.0.0
 	go.uber.org/multierr v1.11.0
 	go.uber.org/ratelimit v0.3.0
@@ -90,7 +90,7 @@ require (
 	github.com/projectdiscovery/hmap v0.0.41 // indirect
 	github.com/projectdiscovery/machineid v0.0.0-20240226150047-2e2c51e35983 // indirect
 	github.com/projectdiscovery/mapcidr v1.1.16 // indirect
-	github.com/projectdiscovery/networkpolicy v0.0.7 // indirect
+	github.com/projectdiscovery/networkpolicy v0.0.8 // indirect
 	github.com/quic-go/quic-go v0.37.7 // indirect
 	github.com/refraction-networking/utls v1.5.4 // indirect
 	github.com/rivo/uniseg v0.4.4 // indirect
