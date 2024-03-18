@@ -206,8 +206,8 @@ github.com/projectdiscovery/asnmap v1.1.0 h1:ynvbLB5cNpyQ2+k9IP0Rpla+0JmCJpd3mw6
 github.com/projectdiscovery/asnmap v1.1.0/go.mod h1:QNjBnGLxUBEZAgaYk/Av5cjKKWFY3i/FOfoIWCUApoY=
 github.com/projectdiscovery/blackrock v0.0.1 h1:lHQqhaaEFjgf5WkuItbpeCZv2DUIE45k0VbGJyft6LQ=
 github.com/projectdiscovery/blackrock v0.0.1/go.mod h1:ANUtjDfaVrqB453bzToU+YB4cUbvBRpLvEwoWIwlTss=
-github.com/projectdiscovery/fastdialer v0.0.61 h1:z5OzP9lRbn6fSIezgReKC3hkzRh+YX41ST9OgkVEm/s=
-github.com/projectdiscovery/fastdialer v0.0.61/go.mod h1:FyxJ0m1MwB69nLmdXYqK32f3a0Pf+5YpC8wBY73baiE=
+github.com/projectdiscovery/fastdialer v0.0.63 h1:IZlC77aGf71cAgPfbvoUspzwKnJ2ZylWHXqXCKT+f9k=
+github.com/projectdiscovery/fastdialer v0.0.63/go.mod h1:MJKyHdU08k0TfeQSKigQIRsF2VwvX2qKJJfNlb4vdBw=
 github.com/projectdiscovery/goflags v0.1.44 h1:O/ObgErxBgLO1snPJ4LlM3j3aO1IUFN5l42imtnxSmE=
 github.com/projectdiscovery/goflags v0.1.44/go.mod h1:Z9lgmcFjEL8SUr2m1uh3X5z/m/2Z/FJvkyAG+6MTeRE=
 github.com/projectdiscovery/gologger v1.1.12 h1:uX/QkQdip4PubJjjG0+uk5DtyAi1ANPJUvpmimXqv4A=
@@ -301,8 +301,6 @@ github.com/ulikunitz/xz v0.5.8/go.mod h1:nbz6k7qbPmH4IRqmfOplQw/tblSgqTqBwxkY0oW
 github.com/ulikunitz/xz v0.5.9/go.mod h1:nbz6k7qbPmH4IRqmfOplQw/tblSgqTqBwxkY0oWt/14=
 github.com/ulikunitz/xz v0.5.11 h1:kpFauv27b6ynzBNT/Xy+1k+fK4WswhN/6PN5WhFAGw8=
 github.com/ulikunitz/xz v0.5.11/go.mod h1:nbz6k7qbPmH4IRqmfOplQw/tblSgqTqBwxkY0oWt/14=
-github.com/ulule/deepcopier v0.0.0-20200430083143-45decc6639b6 h1:TtyC78WMafNW8QFfv3TeP3yWNDG+uxNkk9vOrnDu6JA=
-github.com/ulule/deepcopier v0.0.0-20200430083143-45decc6639b6/go.mod h1:h8272+G2omSmi30fBXiZDMkmHuOgonplfKIKjQWzlfs=
 github.com/weppos/publicsuffix-go v0.13.0/go.mod h1:z3LCPQ38eedDQSwmsSRW4Y7t2L8Ln16JPQ02lHAdn5k=
 github.com/weppos/publicsuffix-go v0.30.1-0.20230422193905-8fecedd899db h1:/WcxBne+5CbtbgWd/sV2wbravmr4sT7y52ifQaCgoLs=
 github.com/weppos/publicsuffix-go v0.30.1-0.20230422193905-8fecedd899db/go.mod h1:aiQaH1XpzIfgrJq3S1iw7w+3EDbRP7mF5fmwUhWyRUs=
