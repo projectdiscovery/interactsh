@@ -17,7 +17,7 @@
   <a href="#usage">Usage</a> •
   <a href="#interactsh-client">Interactsh Client</a> •
   <a href="#interactsh-server">Interactsh Server</a> •
-  <a href="#interactsh-integration">Interactsh Integration</a> •
+  <a href="https://docs.projectdiscovery.io/tools/interactsh/overview">Documentation</a> •
   <a href="https://discord.gg/projectdiscovery">Join Discord</a>
 </p>
 
