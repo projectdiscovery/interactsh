@@ -55,6 +55,9 @@ This will display help for the tool. Here are all the switches it supports.
 Usage:
   ./interactsh-client [flags]
 
+Usage:
+  ./interactsh-client [flags]
+
 Flags:
 INPUT:
    -s, -server string  interactsh server(s) to use (default "oast.pro,oast.live,oast.site,oast.online,oast.fun,oast.me")
@@ -68,7 +71,6 @@ CONFIG:
    -cidl, -correlation-id-length int        length of the correlation id preamble (default 20)
    -cidn, -correlation-id-nonce-length int  length of the correlation id nonce (default 13)
    -sf, -session-file string                store/read from session file
-   -kai, -keep-alive-interval value         keep alive interval (default 1m0s)
 
 FILTER:
    -m, -match string[]   match interaction based on the specified pattern
@@ -76,23 +78,23 @@ FILTER:
    -dns-only             display only dns interaction in CLI output
    -http-only            display only http interaction in CLI output
    -smtp-only            display only smtp interactions in CLI output
-   -asn                   include asn information of remote ip in json output
 
 UPDATE:
    -up, -update                 update interactsh-client to latest version
    -duc, -disable-update-check  disable automatic interactsh-client update check
-
+   
 OUTPUT:
    -o string                         output file to write interaction data
    -json                             write output in JSONL(ines) format
    -silent                           display interactions only
    -ed                               save exfiltrated data in the format content.filename.extension.interactsh-address.oast.io
-   -ps, -payload-store               write generated interactsh payload to file
+   -ps, -payload-store               enable storing generated interactsh payload to file
    -psf, -payload-store-file string  store generated interactsh payloads to given file (default "interactsh_payload.txt")
    -v                                display verbose interaction
 
 DEBUG:
    -version            show version of the project
+   -health-check, -hc  run diagnostic check up
 ```
 
 ## Interactsh CLI Client
