@@ -60,7 +60,7 @@ INPUT:
    -s, -server string  interactsh server(s) to use (default "oast.pro,oast.live,oast.site,oast.online,oast.fun,oast.me")
 
 CONFIG:
-   -config string                           flag configuration file (default "/home/kali/.config/interactsh-client/config.yaml")
+   -config string                           flag configuration file (default "$HOME/.config/interactsh-client/config.yaml")
    -n, -number int                          number of interactsh payload to generate (default 1)
    -t, -token string                        authentication token to connect protected interactsh server
    -pi, -poll-interval int                  poll interval in seconds to pull interaction data (default 5)
