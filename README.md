@@ -381,13 +381,13 @@ We are using GoDaddy for domain name and DigitalOcean droplet for the server, a 
 
 ## Configuring Interactsh domain
 
-- Navigate to `https://dcc.godaddy.com/manage/{{domain}}/dns/hosts`
-- Advanced Features &rarr; Host names &rarr; Add &rarr; Submit `ns1`, `ns2` with your `SERVER_IP` as value
+- Navigate to `https://dcc.godaddy.com/control/portfolio/{{domain}}/settings?subtab=hostnames`
+- Add &rarr; Submit `ns1`, `ns2` with your `SERVER_IP` as value
 
 <img width="1288" alt="gdd-hostname" src="https://user-images.githubusercontent.com/8293321/135175512-135259fb-0490-4038-845a-0b62b1b8f549.png">
 
-- Navigate to `https://dns.godaddy.com/{{domain}}/nameservers`
-- I'll use my own nameservers &rarr; Submit `ns1.INTERACTSH_DOMAIN`, `ns2.INTERACTSH_DOMAIN`
+- Navigate to `https://dcc.godaddy.com/control/dnsmanagement?domainName={{domain}}&subtab=nameservers`
+- Change Nameservers &rarr; I'll use my own nameservers &rarr; Submit `ns1.INTERACTSH_DOMAIN`, `ns2.INTERACTSH_DOMAIN`
 
 <img width="1288" alt="gdd-ns" src="https://user-images.githubusercontent.com/8293321/135175627-ea9639fd-353d-441b-a9a4-dae7f540d0ae.png">
 
