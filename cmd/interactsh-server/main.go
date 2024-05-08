@@ -92,6 +92,7 @@ func main() {
 		flagSet.BoolVar(&cliOptions.Ftp, "ftp", false, "start ftp agent (authenticated)"),
 		flagSet.IntVar(&cliOptions.SmbPort, "smb-port", 445, "port to use for smb service"),
 		flagSet.IntVar(&cliOptions.FtpPort, "ftp-port", 21, "port to use for ftp service"),
+		flagSet.IntVar(&cliOptions.FtpsPort, "ftps-port", 990, "port to use for ftps service"),
 		flagSet.StringVar(&cliOptions.FTPDirectory, "ftp-dir", "", "ftp directory - temporary if not specified"),
 	)
 
@@ -318,12 +319,13 @@ func main() {
 	defer ldapServer.Close()
 
 	ftpAlive := make(chan bool)
+	ftpsAlive := make(chan bool)
 	if cliOptions.Ftp {
 		ftpServer, err := server.NewFTPServer(serverOptions)
 		if err != nil {
 			gologger.Fatal().Msgf("Could not create FTP server: %s", err)
 		}
-		go ftpServer.ListenAndServe(tlsConfig, ftpAlive) //nolint
+		go ftpServer.ListenAndServe(tlsConfig, ftpAlive, ftpsAlive) //nolint
 	}
 
 	responderAlive := make(chan bool)
@@ -385,6 +387,10 @@ func main() {
 				service = "FTP"
 				network = "TCP"
 				port = serverOptions.FtpPort
+			case status = <-ftpsAlive:
+				service = "FTPS"
+				network = "TCP"
+				port = serverOptions.FtpsPort
 			case status = <-responderAlive:
 				service = "Responder"
 				network = "TCP"

@@ -26,6 +26,7 @@ type CLIServerOptions struct {
 	SmtpsPort                int
 	SmtpAutoTLSPort          int
 	FtpPort                  int
+	FtpsPort                 int
 	LdapPort                 int
 	Ftp                      bool
 	Auth                     bool
