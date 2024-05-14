@@ -11,6 +11,8 @@ if len(sys.argv) >= 3:
 server = smbserver.SimpleSMBServer(listenAddress="0.0.0.0", listenPort=port)
 server.setSMB2Support(True)
 server.addShare("interactsh", "/interactsh")
+server.removeShare("IPC$")
+server.addShare("IPC$", "/interactsh")
 server.setSMBChallenge('')
 server.setLogFile(log_filename)
 server.start()
