@@ -111,7 +111,7 @@ func New(options *Options) (*Client, error) {
 	if options.HTTPClient != nil {
 		httpclient = options.HTTPClient
 	} else {
-		opts := retryablehttp.DefaultOptionsSingle
+		opts := retryablehttp.DefaultOptionsSpraying
 		opts.Timeout = 10 * time.Second
 		httpclient = retryablehttp.NewClient(opts)
 	}
@@ -120,7 +120,7 @@ func New(options *Options) (*Client, error) {
 	if os.Getenv("INTERACTSH_TLS_VERIFY") == "true" {
 		t, ok := httpclient.HTTPClient.Transport.(*http.Transport)
 		if !ok {
-			return nil, errors.New("could not get http transport:")
+			return nil, errors.New("could not get http transport")
 		}
 		t.TLSClientConfig.InsecureSkipVerify = false
 		if stringsutil.HasPrefixI(options.ServerURL, "http://") {
