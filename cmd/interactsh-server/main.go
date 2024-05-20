@@ -258,7 +258,11 @@ func main() {
 	go dnsTcpServer.ListenAndServe(dnsTcpAlive)
 	go dnsUdpServer.ListenAndServe(dnsUdpAlive)
 
-	var tlsConfig *tls.Config
+	var (
+		tlsConfig   *tls.Config
+		domainCerts []tls.Certificate
+		certFiles   []acme.CertificateFiles
+	)
 	switch {
 	case cliOptions.CertificatePath != "" && cliOptions.PrivateKeyPath != "":
 		var domain string
@@ -276,7 +280,8 @@ func main() {
 		for idx, domain := range cliOptions.Domains {
 			trimmedDomain := strings.TrimSuffix(domain, ".")
 			hostmaster := serverOptions.Hostmasters[idx]
-			domainCerts, acmeErr := acme.HandleWildcardCertificates(fmt.Sprintf("*.%s", trimmedDomain), hostmaster, acmeStore, cliOptions.Debug)
+			var acmeErr error
+			domainCerts, certFiles, acmeErr = acme.HandleWildcardCertificates(fmt.Sprintf("*.%s", trimmedDomain), hostmaster, acmeStore, cliOptions.Debug)
 			if acmeErr != nil {
 				gologger.Error().Msgf("An error occurred while applying for a certificate, error: %v", acmeErr)
 				gologger.Error().Msgf("Could not generate certs for auto TLS, https will be disabled")
@@ -290,6 +295,9 @@ func main() {
 			gologger.Error().Msgf("An error occurred while preparing tls configuration, error: %v", tlsErr)
 		}
 	}
+
+	serverOptions.Certificates = domainCerts
+	serverOptions.CertFiles = certFiles
 
 	// manually cleans up stale OCSP from storage
 	acme.CleanupStorage()

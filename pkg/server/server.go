@@ -1,6 +1,7 @@
 package server
 
 import (
+	"crypto/tls"
 	"strings"
 	"time"
 
@@ -110,6 +111,9 @@ type Options struct {
 	ACMEStore *acme.Provider
 	Stats     *Metrics
 	OnResult  OnResultCallback
+
+	Certificates []tls.Certificate
+	CertFiles    []acme.CertificateFiles
 }
 type OnResultCallback func(out interface{})
 

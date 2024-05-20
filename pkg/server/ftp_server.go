@@ -60,15 +60,28 @@ func NewFTPServer(options *Options) (*FTPServer, error) {
 	server.ftpServer = ftpServer
 	ftpServer.RegisterNotifer(server)
 
-	if options.CertificatePath != "" && options.PrivateKeyPath != "" {
-		optsTls := *opt
+	if options.CertificatePath != "" && options.PrivateKeyPath != "" || len(options.CertFiles) > 0 {
+		// attempt to retrieve certificates for the first domain automatically
+		optsTls := &ftpserver.Options{
+			Name:   "interactsh-ftp",
+			Driver: nopDriver,
+			Port:   options.FtpsPort,
+			Perm:   ftpserver.NewSimplePerm("root", "root"),
+			Logger: server,
+			Auth:   &NopAuth{},
+		}
 		optsTls.TLS = true
 		optsTls.Port = options.FtpsPort
-		optsTls.CertFile = options.CertificatePath
-		optsTls.KeyFile = options.PrivateKeyPath
+		if len(options.CertFiles) > 0 {
+			optsTls.CertFile = options.CertFiles[0].CertPath
+			optsTls.KeyFile = options.CertFiles[0].PrivKeyPath
+		} else {
+			optsTls.CertFile = options.CertificatePath
+			optsTls.KeyFile = options.PrivateKeyPath
+		}
 
 		// start ftp server
-		ftpsServer, err := ftpserver.NewServer(&optsTls)
+		ftpsServer, err := ftpserver.NewServer(optsTls)
 		if err != nil {
 			return nil, err
 		}

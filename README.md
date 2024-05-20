@@ -745,7 +745,7 @@ interactsh-server -d hackwithautomation.com -cert hackwithautomation.com.crt -pr
 
 ### FTP
 
-FTP support can be enabled with the `-ftp` flag and is recommended for self-hosted instances only. The FTP agent simulates a fully-functional FTP server agent with authentication that captures authentications with every file operation. By default, the agent listens for clear text FTP on port 21 (this can be changed with the `-ftp-port` flag) and tls FTP on port 990 (this can be changed with the `-ftps-port` flag) and lists in read-only mode the content of the OS default temporary directory (customizable with the `-ftp-dir` option).
+FTP support can be enabled with the `-ftp` flag and is recommended for self-hosted instances only. The FTP agent simulates a fully-functional FTP server agent with authentication that captures authentications with every file operation. By default, the agent listens for clear text FTP on port 21 (this can be changed with the `-ftp-port` flag) and tls FTP on port 990 (this can be changed with the `-ftps-port` flag) and lists in read-only mode the content of the OS default temporary directory (customizable with the `-ftp-dir` option). The ftp engine uses the custom certificate and private key if provided or it will extract the certificate and private key from the first acme domain if provided.
 Example of starting the FTP daemon and capturing a login interaction:
 
 ```console
