@@ -18,8 +18,9 @@ import (
 
 // FTPServer is a ftp server instance
 type FTPServer struct {
-	options   *Options
-	ftpServer *ftpserver.Server
+	options    *Options
+	ftpServer  *ftpserver.Server
+	ftpsServer *ftpserver.Server
 }
 
 // NewFTPServer returns a new TLS & Non-TLS FTP server.
@@ -59,11 +60,51 @@ func NewFTPServer(options *Options) (*FTPServer, error) {
 	server.ftpServer = ftpServer
 	ftpServer.RegisterNotifer(server)
 
+	if options.CertificatePath != "" && options.PrivateKeyPath != "" || len(options.CertFiles) > 0 {
+		// attempt to retrieve certificates for the first domain automatically
+		optsTls := &ftpserver.Options{
+			Name:   "interactsh-ftp",
+			Driver: nopDriver,
+			Port:   options.FtpsPort,
+			Perm:   ftpserver.NewSimplePerm("root", "root"),
+			Logger: server,
+			Auth:   &NopAuth{},
+		}
+		optsTls.TLS = true
+		optsTls.Port = options.FtpsPort
+		if len(options.CertFiles) > 0 {
+			optsTls.CertFile = options.CertFiles[0].CertPath
+			optsTls.KeyFile = options.CertFiles[0].PrivKeyPath
+		} else {
+			optsTls.CertFile = options.CertificatePath
+			optsTls.KeyFile = options.PrivateKeyPath
+		}
+
+		// start ftp server
+		ftpsServer, err := ftpserver.NewServer(optsTls)
+		if err != nil {
+			return nil, err
+		}
+		server.ftpsServer = ftpsServer
+		ftpsServer.RegisterNotifer(server)
+	}
+
 	return server, nil
 }
 
 // ListenAndServe listens on smtp and/or smtps ports for the server.
-func (h *FTPServer) ListenAndServe(tlsConfig *tls.Config, ftpAlive chan bool) {
+func (h *FTPServer) ListenAndServe(tlsConfig *tls.Config, ftpAlive chan bool, ftpsAlive chan bool) {
+	go func() {
+		if tlsConfig == nil {
+			return
+		}
+		ftpsAlive <- true
+		if err := h.ftpsServer.ListenAndServe(); err != nil {
+			gologger.Error().Msgf("Could not serve ftp on tls: %s\n", err)
+			ftpsAlive <- false
+		}
+	}()
+
 	ftpAlive <- true
 	if err := h.ftpServer.ListenAndServe(); err != nil {
 		gologger.Error().Msgf("Could not serve ftp on port 21: %s\n", err)
@@ -73,6 +114,9 @@ func (h *FTPServer) ListenAndServe(tlsConfig *tls.Config, ftpAlive chan bool) {
 
 func (h *FTPServer) Close() {
 	_ = h.ftpServer.Shutdown()
+	if h.ftpsServer != nil {
+		_ = h.ftpsServer.Shutdown()
+	}
 }
 
 func (h *FTPServer) recordInteraction(remoteAddress, data string) {
