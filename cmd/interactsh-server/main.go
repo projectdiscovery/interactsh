@@ -92,6 +92,7 @@ func main() {
 		flagSet.BoolVar(&cliOptions.Ftp, "ftp", false, "start ftp agent (authenticated)"),
 		flagSet.IntVar(&cliOptions.SmbPort, "smb-port", 445, "port to use for smb service"),
 		flagSet.IntVar(&cliOptions.FtpPort, "ftp-port", 21, "port to use for ftp service"),
+		flagSet.IntVar(&cliOptions.FtpsPort, "ftps-port", 990, "port to use for ftps service"),
 		flagSet.StringVar(&cliOptions.FTPDirectory, "ftp-dir", "", "ftp directory - temporary if not specified"),
 	)
 
@@ -257,7 +258,11 @@ func main() {
 	go dnsTcpServer.ListenAndServe(dnsTcpAlive)
 	go dnsUdpServer.ListenAndServe(dnsUdpAlive)
 
-	var tlsConfig *tls.Config
+	var (
+		tlsConfig   *tls.Config
+		domainCerts []tls.Certificate
+		certFiles   []acme.CertificateFiles
+	)
 	switch {
 	case cliOptions.CertificatePath != "" && cliOptions.PrivateKeyPath != "":
 		var domain string
@@ -275,7 +280,8 @@ func main() {
 		for idx, domain := range cliOptions.Domains {
 			trimmedDomain := strings.TrimSuffix(domain, ".")
 			hostmaster := serverOptions.Hostmasters[idx]
-			domainCerts, acmeErr := acme.HandleWildcardCertificates(fmt.Sprintf("*.%s", trimmedDomain), hostmaster, acmeStore, cliOptions.Debug)
+			var acmeErr error
+			domainCerts, certFiles, acmeErr = acme.HandleWildcardCertificates(fmt.Sprintf("*.%s", trimmedDomain), hostmaster, acmeStore, cliOptions.Debug)
 			if acmeErr != nil {
 				gologger.Error().Msgf("An error occurred while applying for a certificate, error: %v", acmeErr)
 				gologger.Error().Msgf("Could not generate certs for auto TLS, https will be disabled")
@@ -289,6 +295,9 @@ func main() {
 			gologger.Error().Msgf("An error occurred while preparing tls configuration, error: %v", tlsErr)
 		}
 	}
+
+	serverOptions.Certificates = domainCerts
+	serverOptions.CertFiles = certFiles
 
 	// manually cleans up stale OCSP from storage
 	acme.CleanupStorage()
@@ -318,12 +327,13 @@ func main() {
 	defer ldapServer.Close()
 
 	ftpAlive := make(chan bool)
+	ftpsAlive := make(chan bool)
 	if cliOptions.Ftp {
 		ftpServer, err := server.NewFTPServer(serverOptions)
 		if err != nil {
 			gologger.Fatal().Msgf("Could not create FTP server: %s", err)
 		}
-		go ftpServer.ListenAndServe(tlsConfig, ftpAlive) //nolint
+		go ftpServer.ListenAndServe(tlsConfig, ftpAlive, ftpsAlive) //nolint
 	}
 
 	responderAlive := make(chan bool)
@@ -385,6 +395,10 @@ func main() {
 				service = "FTP"
 				network = "TCP"
 				port = serverOptions.FtpPort
+			case status = <-ftpsAlive:
+				service = "FTPS"
+				network = "TCP"
+				port = serverOptions.FtpsPort
 			case status = <-responderAlive:
 				service = "Responder"
 				network = "TCP"

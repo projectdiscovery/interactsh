@@ -35,7 +35,7 @@
 - Dynamic HTTP Response control
 - Self-Hosted Interactsh Server
 - Multiple domain support **(self-hosted)**
-- NTLM/SMB/FTP/RESPONDER Listener **(self-hosted)**
+- NTLM/SMB/FTP(S)/RESPONDER Listener **(self-hosted)**
 - Wildcard / Protected Interactions **(self-hosted)**
 - Customizable Index / File hosting **(self-hosted)**
 - Customizable Payload Length **(self-hosted)**
@@ -363,6 +363,7 @@ SERVICES:
    -ftp                    start ftp agent (authenticated)
    -smb-port int           port to use for smb service (default 445)
    -ftp-port int           port to use for ftp service (default 21)
+   -ftps-port int          port to use for ftps service (default 990)
    -ftp-dir string         ftp directory - temporary if not specified
 
 DEBUG:
@@ -381,13 +382,13 @@ We are using GoDaddy for domain name and DigitalOcean droplet for the server, a 
 
 ## Configuring Interactsh domain
 
-- Navigate to `https://dcc.godaddy.com/manage/{{domain}}/dns/hosts`
-- Advanced Features &rarr; Host names &rarr; Add &rarr; Submit `ns1`, `ns2` with your `SERVER_IP` as value
+- Navigate to `https://dcc.godaddy.com/control/portfolio/{{domain}}/settings?subtab=hostnames`
+- Add &rarr; Submit `ns1`, `ns2` with your `SERVER_IP` as value
 
 <img width="1288" alt="gdd-hostname" src="https://user-images.githubusercontent.com/8293321/135175512-135259fb-0490-4038-845a-0b62b1b8f549.png">
 
-- Navigate to `https://dns.godaddy.com/{{domain}}/nameservers`
-- I'll use my own nameservers &rarr; Submit `ns1.INTERACTSH_DOMAIN`, `ns2.INTERACTSH_DOMAIN`
+- Navigate to `https://dcc.godaddy.com/control/dnsmanagement?domainName={{domain}}&subtab=nameservers`
+- Change Nameservers &rarr; I'll use my own nameservers &rarr; Submit `ns1.INTERACTSH_DOMAIN`, `ns2.INTERACTSH_DOMAIN`
 
 <img width="1288" alt="gdd-ns" src="https://user-images.githubusercontent.com/8293321/135175627-ea9639fd-353d-441b-a9a4-dae7f540d0ae.png">
 
@@ -744,7 +745,7 @@ interactsh-server -d hackwithautomation.com -cert hackwithautomation.com.crt -pr
 
 ### FTP
 
-FTP support can be enabled with the `-ftp` flag and is recommended for self-hosted instances only. The FTP agent simulates a fully-functional FTP server agent with authentication that captures authentications with every file operation. By default, the agent listens on port 21 (this can be changed with the `-ftp-port` flag) and lists in read-only mode the content of the OS default temporary directory (customizable with the `-ftp-dir` option).
+FTP support can be enabled with the `-ftp` flag and is recommended for self-hosted instances only. The FTP agent simulates a fully-functional FTP server agent with authentication that captures authentications with every file operation. By default, the agent listens for clear text FTP on port 21 (this can be changed with the `-ftp-port` flag) and tls FTP on port 990 (this can be changed with the `-ftps-port` flag) and lists in read-only mode the content of the OS default temporary directory (customizable with the `-ftp-dir` option). The ftp engine uses the custom certificate and private key if provided or it will extract the certificate and private key from the first acme domain if provided.
 Example of starting the FTP daemon and capturing a login interaction:
 
 ```console

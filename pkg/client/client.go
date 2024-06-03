@@ -111,7 +111,7 @@ func New(options *Options) (*Client, error) {
 	if options.HTTPClient != nil {
 		httpclient = options.HTTPClient
 	} else {
-		opts := retryablehttp.DefaultOptionsSingle
+		opts := retryablehttp.DefaultOptionsSpraying
 		opts.Timeout = 10 * time.Second
 		httpclient = retryablehttp.NewClient(opts)
 	}
@@ -120,7 +120,7 @@ func New(options *Options) (*Client, error) {
 	if os.Getenv("INTERACTSH_TLS_VERIFY") == "true" {
 		t, ok := httpclient.HTTPClient.Transport.(*http.Transport)
 		if !ok {
-			return nil, errors.New("could not get http transport:")
+			return nil, errors.New("could not get http transport")
 		}
 		t.TLSClientConfig.InsecureSkipVerify = false
 		if stringsutil.HasPrefixI(options.ServerURL, "http://") {
@@ -167,9 +167,10 @@ func New(options *Options) (*Client, error) {
 			client.privKey = privKey
 		}
 		pubKey, err := decodePublicKey(options.SessionInfo.PublicKey)
-		if err == nil {
-			client.pubKey = pubKey
+		if err != nil {
+			return nil, errorutil.NewWithErr(err).Msgf("failed to decode public key")
 		}
+		client.pubKey = pubKey
 		if serverURL, err := url.Parse(options.SessionInfo.ServerURL); err == nil {
 			client.serverURL = serverURL
 		}
@@ -280,6 +281,9 @@ func decodePublicKey(data string) (*rsa.PublicKey, error) {
 	}
 
 	pubkeyPem, _ := pem.Decode(decodedBytes)
+	if pubkeyPem == nil {
+		return nil, errors.New("failed to decode PEM block containing the public key")
+	}
 
 	pubKey, err := x509.ParsePKIXPublicKey(pubkeyPem.Bytes)
 	if err != nil {

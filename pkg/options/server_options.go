@@ -26,6 +26,7 @@ type CLIServerOptions struct {
 	SmtpsPort                int
 	SmtpAutoTLSPort          int
 	FtpPort                  int
+	FtpsPort                 int
 	LdapPort                 int
 	Ftp                      bool
 	Auth                     bool
@@ -68,6 +69,7 @@ func (cliServerOptions *CLIServerOptions) AsServerOptions() *server.Options {
 		SmtpsPort:                cliServerOptions.SmtpsPort,
 		SmtpAutoTLSPort:          cliServerOptions.SmtpAutoTLSPort,
 		FtpPort:                  cliServerOptions.FtpPort,
+		FtpsPort:                 cliServerOptions.FtpsPort,
 		LdapPort:                 cliServerOptions.LdapPort,
 		Auth:                     cliServerOptions.Auth,
 		HTTPIndex:                cliServerOptions.HTTPIndex,
