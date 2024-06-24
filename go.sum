@@ -214,8 +214,8 @@ github.com/projectdiscovery/goflags v0.1.56 h1:tJYiZN7s9Jk9DxfYOUiqOoybaIDlXyX4Z
 github.com/projectdiscovery/goflags v0.1.56/go.mod h1:DsGF0NPpM5hGg75N3MTSvWJ4MIT7HFEAOEeWZ074+Fg=
 github.com/projectdiscovery/gologger v1.1.12 h1:uX/QkQdip4PubJjjG0+uk5DtyAi1ANPJUvpmimXqv4A=
 github.com/projectdiscovery/gologger v1.1.12/go.mod h1:DI8nywPLERS5mo8QEA9E7gd5HZ3Je14SjJBH3F5/kLw=
-github.com/projectdiscovery/hmap v0.0.47 h1:NdakfvlFruevnOvehdllofg/hc0CQn2WQaLHaRcsGAk=
-github.com/projectdiscovery/hmap v0.0.47/go.mod h1:/9V6EnyTY33hAy71Quox6Ggu9ZkKp36tgepBh/NzNSg=
+github.com/projectdiscovery/hmap v0.0.48 h1:pbxoDcwZWSdaqZ3QgaG5Aw1G1qEFN2zeQco6eWeROAo=
+github.com/projectdiscovery/hmap v0.0.48/go.mod h1:KMSbPJoIgI+9PkG6alZ0INEMRiIGnND128RUjxiY+8I=
 github.com/projectdiscovery/ldapserver v1.0.2-0.20240219154113-dcc758ebc0cb h1:MGtI4oE12ruWv11ZlPXXd7hl/uAaQZrFvrIDYDeVMd8=
 github.com/projectdiscovery/ldapserver v1.0.2-0.20240219154113-dcc758ebc0cb/go.mod h1:vmgC0DTFCfoCLp0RAfsfYTZZan0QMVs+cmTbH6blfjk=
 github.com/projectdiscovery/machineid v0.0.0-20240226150047-2e2c51e35983 h1:ZScLodGSezQVwsQDtBSMFp72WDq0nNN+KE/5DHKY5QE=
@@ -228,8 +228,8 @@ github.com/projectdiscovery/retryabledns v1.0.64 h1:bhaKarpUnPjTXN9A0ApA/IA4SWfu
 github.com/projectdiscovery/retryabledns v1.0.64/go.mod h1:n1N7LMgxMNQT/bUoE5/OQZBTxVApkfeAvDtYQ1OnuAg=
 github.com/projectdiscovery/retryablehttp-go v1.0.65 h1:GCZI9CUbYkldy9Iup4C7w6aVTxZuAHpSZTVy92qHPo4=
 github.com/projectdiscovery/retryablehttp-go v1.0.65/go.mod h1:qF0UuglJiYJcezEoMIyYVYhHGwaOBy8bh3gRGz7CBs8=
-github.com/projectdiscovery/utils v0.1.4-0.20240611113448-0e2f2d33fe1c h1:0I/iRtu5nPYle1v8/R33pCLOrH5bziP5Bi0eZURxTQY=
-github.com/projectdiscovery/utils v0.1.4-0.20240611113448-0e2f2d33fe1c/go.mod h1:mXs6OOeG9l/dVchjB2PGvQO3+wuMiE14Y/kmHeKogoM=
+github.com/projectdiscovery/utils v0.1.4 h1:VSULN/RBEXbkgWuhrDey84ZDnSXtYMSev9p+QHXXDeI=
+github.com/projectdiscovery/utils v0.1.4/go.mod h1:mXs6OOeG9l/dVchjB2PGvQO3+wuMiE14Y/kmHeKogoM=
 github.com/quic-go/quic-go v0.42.0 h1:uSfdap0eveIl8KXnipv9K7nlwZ5IqLlYOpJ58u5utpM=
 github.com/quic-go/quic-go v0.42.0/go.mod h1:132kz4kL3F9vxhW3CtQJLDVwcFe5wdWeJXXijhsO57M=
 github.com/refraction-networking/utls v1.5.4 h1:9k6EO2b8TaOGsQ7Pl7p9w6PUhx18/ZCeT0WNTZ7Uw4o=
