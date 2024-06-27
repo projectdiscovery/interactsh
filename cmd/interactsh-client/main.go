@@ -71,6 +71,8 @@ func main() {
 	flagSet.CreateGroup("output", "Output",
 		flagSet.StringVar(&cliOptions.Output, "o", "", "output file to write interaction data"),
 		flagSet.BoolVar(&cliOptions.JSON, "json", false, "write output in JSONL(ines) format"),
+		flagSet.BoolVar(&cliOptions.Silent, "silent", false, "display interactions only"),
+		flagSet.BoolVar(&cliOptions.ExfiltrateData, "ed", false, "save exfiltrated data in the format content.filename.extension.interactsh-address.oast.io"),
 		flagSet.BoolVarP(&cliOptions.StorePayload, "payload-store", "ps", false, "write generated interactsh payload to file"),
 		flagSet.StringVarP(&cliOptions.StorePayloadFile, "payload-store-file", "psf", settings.StorePayloadFileDefault, "store generated interactsh payloads to given file"),
 
@@ -86,7 +88,9 @@ func main() {
 		gologger.Fatal().Msgf("Could not parse options: %s\n", err)
 	}
 
-	options.ShowBanner()
+	if !cliOptions.Silent {
+		options.ShowBanner()
+	}
 
 	if healthcheck {
 		cfgFilePath, _ := flagSet.GetConfigFilePath()
@@ -171,6 +175,7 @@ func main() {
 		}
 	}
 
+	repeated := make(repeatedQueries)
 	err = client.StartPolling(time.Duration(cliOptions.PollInterval)*time.Second, func(interaction *server.Interaction) {
 		if matcher != nil && !matcher.match(interaction.FullId) {
 			return
@@ -194,6 +199,30 @@ func main() {
 						builder.WriteString(fmt.Sprintf("\n-----------\nDNS Request\n-----------\n\n%s\n\n------------\nDNS Response\n------------\n\n%s\n\n", interaction.RawRequest, interaction.RawResponse))
 					}
 					writeOutput(outputFile, builder)
+
+					if cliOptions.ExfiltrateData {
+
+						parts := strings.Split(interaction.FullId, ".")
+
+						minParts := 4
+						if cliOptions.ServerURL != defaultOpts.ServerURL {
+							minParts = 6
+						}
+
+						if len(parts) < minParts {
+							break
+						}
+						
+
+						filename := strings.ToLower(parts[1]) + "." + strings.ToLower(parts[2])
+						content := parts[0]
+						key := filename + "." + strings.ToLower(content)
+
+						if _, exists := repeated[key]; !exists {
+							repeated[key] = true
+							appendToFile(filename, content)
+						}
+					}
 				}
 			case "http":
 				if noFilter || cliOptions.HTTPOnly {
@@ -209,7 +238,7 @@ func main() {
 					if cliOptions.Verbose {
 						builder.WriteString(fmt.Sprintf("\n------------\nSMTP Interaction\n------------\n\n%s\n\n", interaction.RawRequest))
 					}
-					writeOutput(outputFile, builder)
+
 				}
 			case "ftp":
 				if noFilter {
@@ -285,9 +314,26 @@ func writeOutput(outputFile *os.File, builder *bytes.Buffer) {
 	gologger.Silent().Msgf("%s", builder.String())
 }
 
+func appendToFile(filename, content string) {
+	file, err := os.OpenFile(filename, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		fmt.Println("Error opening or creating file:", err)
+		return
+	}
+	defer file.Close()
+
+	if _, err := file.WriteString(content); err != nil {
+		fmt.Println("Error writing to file:", err)
+		return
+	}
+	fmt.Printf("[%s] appended to file %s\n", content, filename)
+}
+
 type regexMatcher struct {
 	items []*regexp.Regexp
 }
+
+type repeatedQueries map[string]bool
 
 func newRegexMatcher(items []string) (*regexMatcher, error) {
 	matcher := &regexMatcher{}

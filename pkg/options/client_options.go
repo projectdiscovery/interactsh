@@ -11,6 +11,8 @@ type CLIClientOptions struct {
 	Filter                   goflags.StringSlice
 	Config                   string
 	Version                  bool
+	ExfiltrateData			 bool
+	Silent				   	 bool
 	ServerURL                string
 	NumberOfPayloads         int
 	Output                   string
