@@ -294,18 +294,33 @@ func (h *DNSServer) handleInteraction(domain string, w dns.ResponseWriter, r *dn
 	}
 
 	if foundDomain != "" {
+		if h.options.ScanEverywhere {
+			chunks := stringsutil.SplitAny(requestMsg, ".\n\t\"'")
+			for _, chunk := range chunks {
+				for part := range stringsutil.SlideWithLength(chunk, h.options.GetIdLength()) {
+					normalizedPart := strings.ToLower(part)
+					if h.options.isCorrelationID(normalizedPart) {
+						uniqueID = normalizedPart
+						fullID = part
+					}
+				}
+			}
+		}
+	} else {
 		parts := strings.Split(domain, ".")
 		for i, part := range parts {
-			if h.options.isCorrelationID(part) {
-				uniqueID = part
-				fullID = part
-				if i+1 <= len(parts) {
-					fullID = strings.Join(parts[:i+1], ".")
+			for partChunk := range stringsutil.SlideWithLength(part, h.options.GetIdLength()) {
+				normalizedPartChunk := strings.ToLower(partChunk)
+				if h.options.isCorrelationID(normalizedPartChunk) {
+					fullID = part
+					if i+1 <= len(parts) {
+						fullID = strings.Join(parts[:i+1], ".")
+					}
+					uniqueID = normalizedPartChunk
 				}
 			}
 		}
 	}
-	uniqueID = strings.ToLower(uniqueID)
 
 	if uniqueID != "" {
 		correlationID := uniqueID[:h.options.CorrelationIdLength]
