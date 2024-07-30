@@ -113,9 +113,6 @@ You can configure your PDCP_API_KEY in two ways:
    ./interactsh-client -auth=<pdcp-api-key>
    ````
 
-
-
-
 ### Default Run
 
 This will generate a unique payload that can be used for OOB testing with minimal interaction information in the output.
