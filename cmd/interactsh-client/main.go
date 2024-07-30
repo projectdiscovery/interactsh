@@ -90,6 +90,10 @@ func main() {
 		gologger.Fatal().Msgf("Could not parse options: %s\n", err)
 	}
 
+	// If user have passed auth flag without key (ex: interactsh-client -auth)
+	// then we will prompt user to enter the api key, if already set shows user identity and exit
+	// If user have passed auth flag with key (ex: interactsh-client -auth=<api-key>)
+	// then we will validate the key and save it to file
 	if cliOptions.PdcpAuth == "true" {
 		options.AuthWithPDCP()
 	} else if len(cliOptions.PdcpAuth) == 36 {
