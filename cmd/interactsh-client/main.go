@@ -251,7 +251,7 @@ func main() {
 		}
 	})
 	if err != nil {
-		gologger.Error().Msgf(err.Error())
+		gologger.Error().Msg(err.Error())
 	}
 
 	c := make(chan os.Signal, 1)
