@@ -19,7 +19,7 @@ require (
 	github.com/projectdiscovery/gologger v1.1.23
 	github.com/projectdiscovery/ldapserver v1.0.2-0.20240219154113-dcc758ebc0cb
 	github.com/projectdiscovery/retryabledns v1.0.75
-	github.com/projectdiscovery/retryablehttp-go v1.0.76
+	github.com/projectdiscovery/retryablehttp-go v1.0.77
 	github.com/projectdiscovery/utils v0.2.8
 	github.com/remeh/sizedwaitgroup v1.0.0
 	github.com/rs/xid v1.5.0
