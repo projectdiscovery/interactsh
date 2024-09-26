@@ -11,6 +11,7 @@ import (
 	"time"
 
 	jsoniter "github.com/json-iterator/go"
+	asnmap "github.com/projectdiscovery/asnmap/libs"
 	"github.com/projectdiscovery/goflags"
 	"github.com/projectdiscovery/gologger"
 	"github.com/projectdiscovery/gologger/levels"
@@ -19,6 +20,8 @@ import (
 	"github.com/projectdiscovery/interactsh/pkg/options"
 	"github.com/projectdiscovery/interactsh/pkg/server"
 	"github.com/projectdiscovery/interactsh/pkg/settings"
+	"github.com/projectdiscovery/utils/auth/pdcp"
+	"github.com/projectdiscovery/utils/env"
 	fileutil "github.com/projectdiscovery/utils/file"
 	folderutil "github.com/projectdiscovery/utils/folder"
 	updateutils "github.com/projectdiscovery/utils/update"
@@ -44,6 +47,7 @@ func main() {
 
 	flagSet.CreateGroup("config", "config",
 		flagSet.StringVar(&cliOptions.Config, "config", defaultConfigLocation, "flag configuration file"),
+		flagSet.DynamicVar(&cliOptions.PdcpAuth, "auth", "true", "configure projectdiscovery cloud (pdcp) api key"),
 		flagSet.IntVarP(&cliOptions.NumberOfPayloads, "number", "n", 1, "number of interactsh payload to generate"),
 		flagSet.StringVarP(&cliOptions.Token, "token", "t", "", "authentication token to connect protected interactsh server"),
 		flagSet.IntVarP(&cliOptions.PollInterval, "poll-interval", "pi", 5, "poll interval in seconds to pull interaction data"),
@@ -86,7 +90,27 @@ func main() {
 		gologger.Fatal().Msgf("Could not parse options: %s\n", err)
 	}
 
-	options.ShowBanner()
+	// If user have passed auth flag without key (ex: interactsh-client -auth)
+	// then we will prompt user to enter the api key, if already set shows user identity and exit
+	// If user have passed auth flag with key (ex: interactsh-client -auth=<api-key>)
+	// then we will validate the key and save it to file
+	if cliOptions.PdcpAuth == "true" {
+		options.AuthWithPDCP()
+	} else if len(cliOptions.PdcpAuth) == 36 {
+		ph := pdcp.PDCPCredHandler{}
+		if _, err := ph.GetCreds(); err == pdcp.ErrNoCreds {
+			apiServer := env.GetEnvOrDefault("PDCP_API_SERVER", pdcp.DefaultApiServer)
+			if validatedCreds, err := ph.ValidateAPIKey(cliOptions.PdcpAuth, apiServer, "interactsh"); err == nil {
+				options.ShowBanner()
+				asnmap.PDCPApiKey = validatedCreds.APIKey
+				if err = ph.SaveCreds(validatedCreds); err != nil {
+					gologger.Warning().Msgf("Could not save credentials to file: %s\n", err)
+				}
+			}
+		}
+	} else {
+		options.ShowBanner()
+	}
 
 	if healthcheck {
 		cfgFilePath, _ := flagSet.GetConfigFilePath()
@@ -251,7 +275,7 @@ func main() {
 		}
 	})
 	if err != nil {
-		gologger.Error().Msgf(err.Error())
+		gologger.Error().Msg(err.Error())
 	}
 
 	c := make(chan os.Signal, 1)

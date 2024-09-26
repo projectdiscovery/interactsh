@@ -100,6 +100,19 @@ Interactsh Cli client requires **go1.20+** to install successfully. Run the foll
 go install -v github.com/projectdiscovery/interactsh/cmd/interactsh-client@latest
 ```
 
+### Configure PDCP_API_KEY With Interactsh CLI Client
+> Get your free api key by signing up at https://cloud.projectdiscovery.io
+
+You can configure your PDCP_API_KEY in two ways:
+1. To configure the API key interactively, run the following command:
+   ```sh
+   ./interactsh-client -auth
+   ```
+2. If you prefer to pass the API key directly, use the -auth option followed by your API key:
+   ```sh
+   ./interactsh-client -auth=<pdcp-api-key>
+   ````
+
 ### Default Run
 
 This will generate a unique payload that can be used for OOB testing with minimal interaction information in the output.

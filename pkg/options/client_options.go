@@ -30,4 +30,5 @@ type CLIClientOptions struct {
 	Asn                      bool
 	DisableUpdateCheck       bool
 	KeepAliveInterval        time.Duration
+	PdcpAuth                 string
 }
