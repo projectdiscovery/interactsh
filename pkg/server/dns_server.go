@@ -305,18 +305,18 @@ func (h *DNSServer) handleInteraction(domain string, w dns.ResponseWriter, r *dn
 					}
 				}
 			}
-		}
-	} else {
-		parts := strings.Split(domain, ".")
-		for i, part := range parts {
-			for partChunk := range stringsutil.SlideWithLength(part, h.options.GetIdLength()) {
-				normalizedPartChunk := strings.ToLower(partChunk)
-				if h.options.isCorrelationID(normalizedPartChunk) {
-					fullID = part
-					if i+1 <= len(parts) {
-						fullID = strings.Join(parts[:i+1], ".")
+		} else {
+			parts := strings.Split(domain, ".")
+			for i, part := range parts {
+				for partChunk := range stringsutil.SlideWithLength(part, h.options.GetIdLength()) {
+					normalizedPartChunk := strings.ToLower(partChunk)
+					if h.options.isCorrelationID(normalizedPartChunk) {
+						fullID = part
+						if i+1 <= len(parts) {
+							fullID = strings.Join(parts[:i+1], ".")
+						}
+						uniqueID = normalizedPartChunk
 					}
-					uniqueID = normalizedPartChunk
 				}
 			}
 		}
