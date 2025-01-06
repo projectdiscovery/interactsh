@@ -61,6 +61,7 @@ func main() {
 	)
 
 	flagSet.CreateGroup("config", "config",
+		flagSet.StringSliceVarP(&cliOptions.Resolvers, "resolvers", "r", nil, "list of resolvers to use (file or comma separated)", goflags.FileCommaSeparatedStringSliceOptions),
 		flagSet.StringVar(&cliOptions.Config, "config", defaultConfigLocation, "flag configuration file"),
 		flagSet.BoolVarP(&cliOptions.DynamicResp, "dynamic-resp", "dr", false, "enable setting up arbitrary response data"),
 		flagSet.StringVarP(&cliOptions.CustomRecords, "custom-records", "cr", "", "custom dns records YAML file for DNS server"),
@@ -281,7 +282,7 @@ func main() {
 			trimmedDomain := strings.TrimSuffix(domain, ".")
 			hostmaster := serverOptions.Hostmasters[idx]
 			var acmeErr error
-			domainCerts, certFiles, acmeErr = acme.HandleWildcardCertificates(fmt.Sprintf("*.%s", trimmedDomain), hostmaster, acmeStore, cliOptions.Debug)
+			domainCerts, certFiles, acmeErr = acme.HandleWildcardCertificates(fmt.Sprintf("*.%s", trimmedDomain), hostmaster, acmeStore, cliOptions.Debug, cliOptions.Resolvers)
 			if acmeErr != nil {
 				gologger.Error().Msgf("An error occurred while applying for a certificate, error: %v", acmeErr)
 				gologger.Error().Msgf("Could not generate certs for auto TLS, https will be disabled")

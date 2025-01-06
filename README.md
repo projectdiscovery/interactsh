@@ -357,6 +357,7 @@ INPUT:
    -oih, -origin-ip-header string           HTTP header containing origin ip (interactsh behind a reverse proxy)
 
 CONFIG:
+   -r, -resolvers string[]      list of resolvers to use (file or comma separated)
    -config string               flag configuration file (default "$HOME/.config/interactsh-server/config.yaml")
    -dr, -dynamic-resp           enable setting up arbitrary response data
    -cr, -custom-records string  custom dns records YAML file for DNS server
