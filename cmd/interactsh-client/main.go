@@ -133,7 +133,7 @@ func main() {
 		}
 	}
 
-	if cliOptions.Config != defaultConfigLocation {
+	if fileutil.FileExists(cliOptions.Config) {
 		if err := flagSet.MergeConfigFile(cliOptions.Config); err != nil {
 			gologger.Fatal().Msgf("Could not read config: %s\n", err)
 		}
