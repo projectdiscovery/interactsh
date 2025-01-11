@@ -305,6 +305,16 @@ Interactsh can be used with OWASP ZAP via the [OAST add-on for ZAP](https://www.
 ![Options > OAST > General](https://github.com/hahwul/interactsh/assets/13212227/005bb527-3f60-4822-8b76-f9a3fd06df83)
 *`Options` > `OAST` > `General`*
 
+## Caido Extension
+
+[quickssrf](https://github.com/caido-community/quickssrf) is Caido extension developed and maintained which allows using Interactsh from within Caido Proxy.
+
+- Download latest zip file from [releases](https://github.com/caido-community/quickssrf/releases/) page.
+- Open Caido &rarr; Plugins &rarr; Install Package &rarr; Select zip file &rarr; Next
+- New sidebar named **QuickSSRF** will appear upon successful installation.
+- See the [quickssrf](https://github.com/caido-community/quickssrf) project for more info.
+
+![caido-image](https://github.com/user-attachments/assets/aeb91a15-c2cf-4d1f-98dd-cb77c24a5d42)
 
 -------
 
@@ -347,6 +357,7 @@ INPUT:
    -oih, -origin-ip-header string           HTTP header containing origin ip (interactsh behind a reverse proxy)
 
 CONFIG:
+   -r, -resolvers string[]      list of resolvers to use (file or comma separated)
    -config string               flag configuration file (default "$HOME/.config/interactsh-server/config.yaml")
    -dr, -dynamic-resp           enable setting up arbitrary response data
    -cr, -custom-records string  custom dns records YAML file for DNS server
