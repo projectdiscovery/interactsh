@@ -6,6 +6,7 @@ import (
 )
 
 type CLIServerOptions struct {
+	Resolvers                goflags.StringSlice
 	Config                   string
 	Version                  bool
 	Debug                    bool

@@ -15,6 +15,14 @@ import (
 	"go.uber.org/zap"
 )
 
+// DefaultResolvers trusted
+var DefaultResolvers = []string{
+	"1.1.1.1:53",
+	"1.0.0.1:53",
+	"8.8.8.8:53",
+	"8.8.4.4:53",
+}
+
 // CleanupStorage perform cleanup routines tasks
 func CleanupStorage() {
 	cleanupOptions := certmagic.CleanStorageOptions{OCSPStaples: true}
@@ -28,7 +36,7 @@ type CertificateFiles struct {
 
 // HandleWildcardCertificates handles ACME wildcard cert generation with DNS
 // challenge using certmagic library from caddyserver.
-func HandleWildcardCertificates(domain, email string, store *Provider, debug bool) ([]tls.Certificate, []CertificateFiles, error) {
+func HandleWildcardCertificates(domain, email string, store *Provider, debug bool, customResolvers []string) ([]tls.Certificate, []CertificateFiles, error) {
 	logger, err := zap.NewProduction()
 	if err != nil {
 		return nil, nil, err
@@ -37,12 +45,12 @@ func HandleWildcardCertificates(domain, email string, store *Provider, debug boo
 	certmagic.DefaultACME.Email = email
 	certmagic.DefaultACME.DNS01Solver = &certmagic.DNS01Solver{
 		DNSProvider: store,
-		Resolvers: []string{
-			"8.8.8.8:53",
-			"8.8.4.4:53",
-			"1.1.1.1:53",
-			"1.0.0.1:53",
-		},
+		Resolvers: func() []string {
+			if len(customResolvers) == 0 {
+				return DefaultResolvers
+			}
+			return customResolvers
+		}(),
 	}
 	originalDomain := strings.TrimPrefix(domain, "*.")
 
