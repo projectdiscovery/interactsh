@@ -15,12 +15,12 @@ require (
 	github.com/miekg/dns v1.1.56
 	github.com/pkg/errors v0.9.1
 	github.com/projectdiscovery/asnmap v1.1.1
-	github.com/projectdiscovery/goflags v0.1.69-0.20250122072540-cf3a70ca082b
-	github.com/projectdiscovery/gologger v1.1.44
+	github.com/projectdiscovery/goflags v0.1.74
+	github.com/projectdiscovery/gologger v1.1.45
 	github.com/projectdiscovery/ldapserver v1.0.2-0.20240219154113-dcc758ebc0cb
 	github.com/projectdiscovery/retryabledns v1.0.94
-	github.com/projectdiscovery/retryablehttp-go v1.0.99
-	github.com/projectdiscovery/utils v0.4.9
+	github.com/projectdiscovery/retryablehttp-go v1.0.101
+	github.com/projectdiscovery/utils v0.4.12
 	github.com/remeh/sizedwaitgroup v1.0.0
 	github.com/rs/xid v1.5.0
 	github.com/stretchr/testify v1.9.0
@@ -90,7 +90,7 @@ require (
 	github.com/power-devops/perfstat v0.0.0-20210106213030-5aafc221ea8c // indirect
 	github.com/projectdiscovery/blackrock v0.0.1 // indirect
 	github.com/projectdiscovery/fastdialer v0.3.0 // indirect
-	github.com/projectdiscovery/hmap v0.0.79 // indirect
+	github.com/projectdiscovery/hmap v0.0.81 // indirect
 	github.com/projectdiscovery/machineid v0.0.0-20240226150047-2e2c51e35983 // indirect
 	github.com/projectdiscovery/mapcidr v1.1.34 // indirect
 	github.com/projectdiscovery/networkpolicy v0.1.1 // indirect
