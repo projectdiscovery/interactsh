@@ -86,7 +86,8 @@ func main() {
 		flagSet.IntVar(&cliOptions.SmtpsPort, "smtps-port", 587, "port to use for smtps service"),
 		flagSet.IntVar(&cliOptions.SmtpAutoTLSPort, "smtp-autotls-port", 465, "port to use for smtps autotls service"),
 		flagSet.IntVar(&cliOptions.LdapPort, "ldap-port", 389, "port to use for ldap service"),
-		flagSet.BoolVar(&cliOptions.LdapWithFullLogger, "ldap", false, "enable ldap server with full logging (authenticated)"),
+		flagSet.BoolVar(&cliOptions.Ldap, "ldap", true, "enable ldap server"),
+		flagSet.BoolVar(&cliOptions.LdapWithFullLogger, "ldapFullLog", false, "enable ldap server with full logging (authenticated)"),
 		flagSet.BoolVarP(&cliOptions.RootTLD, "wildcard", "wc", false, "enable wildcard interaction for interactsh domain (authenticated)"),
 		flagSet.BoolVar(&cliOptions.Smb, "smb", false, "start smb agent - impacket and python 3 must be installed (authenticated)"),
 		flagSet.BoolVar(&cliOptions.Responder, "responder", false, "start responder agent - docker must be installed (authenticated)"),
@@ -320,13 +321,14 @@ func main() {
 	go smtpServer.ListenAndServe(tlsConfig, smtpAlive, smtpsAlive)
 
 	ldapAlive := make(chan bool)
-	ldapServer, err := server.NewLDAPServer(serverOptions, cliOptions.LdapWithFullLogger)
-	if err != nil {
-		gologger.Fatal().Msgf("Could not create LDAP server: %s", err)
+	if cliOptions.Ldap {
+		ldapServer, err := server.NewLDAPServer(serverOptions, cliOptions.LdapWithFullLogger)
+		if err != nil {
+			gologger.Fatal().Msgf("Could not create LDAP server: %s", err)
+		}
+		go ldapServer.ListenAndServe(tlsConfig, ldapAlive)
+		defer ldapServer.Close()
 	}
-	go ldapServer.ListenAndServe(tlsConfig, ldapAlive)
-	defer ldapServer.Close()
-
 	ftpAlive := make(chan bool)
 	ftpsAlive := make(chan bool)
 	if cliOptions.Ftp {
@@ -339,7 +341,7 @@ func main() {
 
 	responderAlive := make(chan bool)
 	if cliOptions.Responder {
-		responderServer, err := server.NewResponderServer(serverOptions)
+		responderServer, err := server.NewResponderServer(serverOptions,cliOptions.Ldap,cliOptions.Ftp)
 		if err != nil {
 			gologger.Fatal().Msgf("Could not create SMB server: %s", err)
 		}
