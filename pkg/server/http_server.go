@@ -255,6 +255,14 @@ func (h *HTTPServer) defaultHandler(w http.ResponseWriter, req *http.Request) {
 	}
 
 	reflection := h.options.URLReflection(req.Host)
+
+	// If custom index is defined, always return it regardless of path
+	if h.customBanner != "" {
+		fmt.Fprint(w, strings.ReplaceAll(h.customBanner, "{DOMAIN}", domain))
+		return
+	}
+
+	// Handle other cases if no custom index is defined
 	if stringsutil.HasPrefixI(req.URL.Path, "/s/") && h.staticHandler != nil {
 		if h.options.DynamicResp && len(req.URL.Query()) > 0 {
 			values := req.URL.Query()
@@ -278,11 +286,7 @@ func (h *HTTPServer) defaultHandler(w http.ResponseWriter, req *http.Request) {
 		}
 		h.staticHandler.ServeHTTP(w, req)
 	} else if req.URL.Path == "/" && reflection == "" {
-		if h.customBanner != "" {
-			fmt.Fprint(w, strings.ReplaceAll(h.customBanner, "{DOMAIN}", domain))
-		} else {
-			fmt.Fprintf(w, banner, domain)
-		}
+		fmt.Fprintf(w, banner, domain)
 	} else if strings.EqualFold(req.URL.Path, "/robots.txt") {
 		fmt.Fprintf(w, "User-agent: *\nDisallow: / # %s", reflection)
 	} else if stringsutil.HasSuffixI(req.URL.Path, ".json") {
