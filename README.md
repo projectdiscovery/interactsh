@@ -287,9 +287,9 @@ docker run projectdiscovery/interactsh-client:latest
 
 <img width="2032" alt="burp" src="https://user-images.githubusercontent.com/8293321/135176099-0e3fa01c-bdce-4f04-a94f-de0a34c7abf6.png">
 
-## OWASP ZAP Add-On
+## ZAP Add-On
 
-Interactsh can be used with OWASP ZAP via the [OAST add-on for ZAP](https://www.zaproxy.org/docs/desktop/addons/oast-support/). With ZAP's scripting capabilities, you can create powerful out-of-band scan rules that leverage Interactsh's features. A standalone script template has been provided as an example (it is added automatically when you install the add-on).
+Interactsh can be used with ZAP via the [OAST add-on for ZAP](https://www.zaproxy.org/docs/desktop/addons/oast-support/). With ZAP's scripting capabilities, you can create powerful out-of-band scan rules that leverage Interactsh's features. A standalone script template has been provided as an example (it is added automatically when you install the add-on).
 
 - Install the OAST add-on from the [ZAP Marketplace](https://www.zaproxy.org/addons/).
 - Go to Tools &rarr; Options &rarr; OAST and select **Interactsh**.
@@ -301,9 +301,6 @@ Interactsh can be used with OWASP ZAP via the [OAST add-on for ZAP](https://www.
 
 ![zap](https://user-images.githubusercontent.com/16446369/135211920-ed24ba5a-5547-4cd4-b6d8-656af9592c20.png)
 *Interactsh in ZAP*
-
-![Options > OAST > General](https://github.com/hahwul/interactsh/assets/13212227/005bb527-3f60-4822-8b76-f9a3fd06df83)
-*`Options` > `OAST` > `General`*
 
 ## Caido Extension
 
