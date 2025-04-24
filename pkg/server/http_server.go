@@ -277,7 +277,7 @@ func (h *HTTPServer) defaultHandler(w http.ResponseWriter, req *http.Request) {
 			}
 		}
 		h.staticHandler.ServeHTTP(w, req)
-	} else if req.URL.Path == "/" && reflection == "" {
+	} else if req.URL.Path == "/" {
 		if h.customBanner != "" {
 			fmt.Fprint(w, strings.ReplaceAll(h.customBanner, "{DOMAIN}", domain))
 		} else {
