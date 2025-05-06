@@ -23,18 +23,22 @@ var responderMonitorList map[string]string = map[string]string{
 
 // ResponderServer is a Responder wrapper server instance
 type ResponderServer struct {
-	options   *Options
-	LogFile   string
-	ipAddress net.IP
-	cmd       *exec.Cmd
-	tmpFolder string
+	options      *Options
+	ldapInteract bool
+	ftpInteract  bool
+	LogFile      string
+	ipAddress    net.IP
+	cmd          *exec.Cmd
+	tmpFolder    string
 }
 
 // NewResponderServer returns a new SMB server.
-func NewResponderServer(options *Options) (*ResponderServer, error) {
+func NewResponderServer(options *Options, LdapInteract bool, FtpInteract bool) (*ResponderServer, error) {
 	server := &ResponderServer{
-		options:   options,
-		ipAddress: net.ParseIP(options.IPAddress),
+		options:      options,
+		ldapInteract: LdapInteract,
+		ftpInteract:  FtpInteract,
+		ipAddress:    net.ParseIP(options.IPAddress),
 	}
 	return server, nil
 }
@@ -51,8 +55,18 @@ func (h *ResponderServer) ListenAndServe(responderAlive chan bool) error {
 	}
 	h.tmpFolder = tmpFolder
 	// execute dockerized responder
-	cmdLine := "docker run -p 137:137/udp -p  138:138/udp -p 389:389 -p 1433:1433 -p 1434:1434/udp -p 135:135 -p 139:139 -p 445:445 -p 21:21 -p 3141:3141 -p 110:110 -p 3128:3128 -p 5355:5355/udp -v " + h.tmpFolder + ":/opt/Responder/logs --rm interactsh:latest"
-	args := strings.Fields(cmdLine)
+	var cmdLine strings.Builder
+	cmdLine.WriteString("docker run -p 137:137/udp -p  138:138/udp -p 1433:1433 -p 1434:1434/udp -p 135:135 -p 139:139 -p 445:445  -p 3141:3141 -p 110:110 -p 3128:3128 -p 5355:5355/udp")
+	if !h.ldapInteract {
+		cmdLine.WriteString(" -p 389:389 ")
+	}
+	if !h.ftpInteract {
+		cmdLine.WriteString(" -p 21:21 ")
+	}
+	cmdLine.WriteString(" -v ")
+	cmdLine.WriteString(h.tmpFolder)
+	cmdLine.WriteString(":/opt/Responder/logs --rm interactsh:latest")
+	args := strings.Fields(cmdLine.String())
 	h.cmd = exec.Command(args[0], args[1:]...)
 	err = h.cmd.Start()
 	if err != nil {

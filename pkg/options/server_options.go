@@ -18,6 +18,7 @@ type CLIServerOptions struct {
 	HttpsPort                int
 	Hostmasters              []string
 	LdapWithFullLogger       bool
+	Ldap       				 bool
 	Eviction                 int
 	NoEviction               bool
 	Responder                bool

@@ -815,7 +815,7 @@ $ sudo interactsh-server -responder -d localhost
 On default settings, the daemon listens on the following ports:
 
 - UDP: 137, 138, 1434
-+ TCP: 21 (might collide with FTP daemon if used), 110, 135, 139, 389, 445, 1433, 3141, 3128
++ TCP: 21 (might collide with FTP daemon if used), 110, 135, 139, 389 (might collide with LDAP server), 445, 1433, 3141, 3128
 
 ## Interactsh Integration
 
