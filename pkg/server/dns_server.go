@@ -378,7 +378,11 @@ func (c *customDNSRecords) readRecordsFromFile(input string) error {
 	if err != nil {
 		return errors.Wrap(err, "could not open file")
 	}
-	defer file.Close()
+	defer func() {
+		if err := file.Close(); err != nil {
+			gologger.Error().Msgf("Could not close file: %s", err)
+		}
+	}()
 
 	var data map[string]string
 	if err := yaml.NewDecoder(file).Decode(&data); err != nil {
