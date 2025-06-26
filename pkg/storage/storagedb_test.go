@@ -110,7 +110,7 @@ func TestStorageAddGetInteractions(t *testing.T) {
 	cipherText = cipherText[aes.BlockSize:]
 
 	// XORKeyStream can work in-place if the two arguments are the same.
-	stream := cipher.NewCFBDecrypter(block, iv)
+	stream := cipher.NewCTR(block, iv)
 	decoded := make([]byte, len(cipherText))
 	stream.XORKeyStream(decoded, cipherText)
 
