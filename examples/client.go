@@ -14,12 +14,22 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	defer client.Close()
+	defer func() {
+		if err := client.Close(); err != nil {
+			panic(err)
+		}
+	}()
 
-	client.StartPolling(time.Duration(1*time.Second), func(interaction *server.Interaction) {
+	if err := client.StartPolling(time.Duration(1*time.Second), func(interaction *server.Interaction) {
 		fmt.Printf("Got Interaction: %v => %v\n", interaction.Protocol, interaction.FullId)
-	})
-	defer client.StopPolling()
+	}); err != nil {
+		panic(err)
+	}
+	defer func() {
+		if err := client.StopPolling(); err != nil {
+			panic(err)
+		}
+	}()
 
 	URL := client.URL()
 
@@ -27,7 +37,9 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	resp.Body.Close()
+	if err := resp.Body.Close(); err != nil {
+		panic(err)
+	}
 
 	fmt.Printf("Got URL: %v => %v\n", URL, resp)
 	time.Sleep(1 * time.Second)

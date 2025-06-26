@@ -325,7 +325,11 @@ func main() {
 		gologger.Fatal().Msgf("Could not create LDAP server: %s", err)
 	}
 	go ldapServer.ListenAndServe(tlsConfig, ldapAlive)
-	defer ldapServer.Close()
+	defer func() {
+		if err := ldapServer.Close(); err != nil {
+			gologger.Error().Msgf("Error closing LDAP server: %v", err)
+		}
+	}()
 
 	ftpAlive := make(chan bool)
 	ftpsAlive := make(chan bool)
@@ -442,7 +446,9 @@ func main() {
 			gologger.Warning().Msgf("Couldn't close the storage: %s\n", err)
 		}
 		if pprofServer != nil {
-			pprofServer.Close()
+			if err := pprofServer.Close(); err != nil {
+				gologger.Warning().Msgf("Couldn't close the pprof server: %s\n", err)
+			}
 		}
 		os.Exit(1)
 	}
