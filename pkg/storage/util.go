@@ -36,7 +36,7 @@ func ParseB64RSAPublicKeyFromPEM(pubPEM string) (*rsa.PublicKey, error) {
 	default:
 		break // fall through
 	}
-	return nil, errors.New("Key type is not RSA")
+	return nil, errors.New("key type is not RSA")
 }
 
 // AESEncrypt encrypts a message using AES and puts IV at the beginning of ciphertext.

@@ -127,7 +127,7 @@ func (h *SMBServer) ListenAndServe(smbAlive chan bool) error {
 func (h *SMBServer) Close() {
 	_ = h.cmd.Process.Kill()
 	if fileutil.FileExists(h.tmpFile) {
-		os.RemoveAll(h.tmpFile)
+		_ = os.RemoveAll(h.tmpFile)
 	}
 }
 
