@@ -109,7 +109,9 @@ func startClient(idx int) {
 				log.Printf("client %d failed to send http request\n", idx)
 			} else if resp != nil {
 				_, _ = io.Copy(io.Discard, resp.Body)
-				resp.Body.Close()
+				if err := resp.Body.Close(); err != nil {
+					log.Printf("Error closing response body: %v\n", err)
+				}
 				log.Printf("Client %d sent HTTP request: %d\n", idx, resp.StatusCode)
 			}
 

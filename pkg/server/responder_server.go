@@ -115,6 +115,6 @@ func (h *ResponderServer) ListenAndServe(responderAlive chan bool) error {
 func (h *ResponderServer) Close() {
 	_ = h.cmd.Process.Kill()
 	if fileutil.FolderExists(h.tmpFolder) {
-		os.RemoveAll(h.tmpFolder)
+		_ = os.RemoveAll(h.tmpFolder)
 	}
 }

@@ -12,7 +12,6 @@ import (
 	"strings"
 
 	"github.com/goburrow/cache"
-	"github.com/google/uuid"
 	"github.com/pkg/errors"
 	fileutil "github.com/projectdiscovery/utils/file"
 	permissionutil "github.com/projectdiscovery/utils/permission"
@@ -100,16 +99,19 @@ func (s *StorageDB) SetIDPublicKey(correlationID, secretKey, publicKey string) e
 	if err != nil {
 		return errors.Wrap(err, "could not read public Key")
 	}
-	aesKey := uuid.New().String()[:32]
+	aesKey := make([]byte, 32)
+	if _, err := rand.Read(aesKey); err != nil {
+		return errors.Wrap(err, "could not generate AES key")
+	}
 
-	ciphertext, err := rsa.EncryptOAEP(sha256.New(), rand.Reader, publicKeyData, []byte(aesKey), []byte(""))
+	ciphertext, err := rsa.EncryptOAEP(sha256.New(), rand.Reader, publicKeyData, aesKey, []byte(""))
 	if err != nil {
 		return errors.New("could not encrypt event data")
 	}
 
 	data := &CorrelationData{
 		SecretKey:       secretKey,
-		AESKey:          []byte(aesKey),
+		AESKey:          aesKey,
 		AESKeyEncrypted: base64.StdEncoding.EncodeToString(ciphertext),
 	}
 	s.cache.Put(correlationID, data)
