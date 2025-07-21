@@ -293,8 +293,8 @@ github.com/projectdiscovery/networkpolicy v0.1.17 h1:A/axsarHnVgv8bPB2vuI/7Hg0Pr
 github.com/projectdiscovery/networkpolicy v0.1.17/go.mod h1:Bwgfqbb2RAMIQ0OvfVofoFQFV3DitnXZZX5DkQMnjx8=
 github.com/projectdiscovery/retryabledns v1.0.103 h1:rPnoMTK+CXLbO8kT7ODtwbhyQGAUpJsqhVq8AAvu1bs=
 github.com/projectdiscovery/retryabledns v1.0.103/go.mod h1:sfu91YrZkb8Ccvij8YDTV96cQt69IPqnfa+OEFUke1o=
-github.com/projectdiscovery/retryablehttp-go v1.0.117 h1:xU9H2ONb9iG25Sm4eCinDhb4kt/s542BomUZAx4CGEs=
-github.com/projectdiscovery/retryablehttp-go v1.0.117/go.mod h1:pAQWFh6lg9Gmno5zrQxbfuAbc9OvIugl5P9kaoXztgM=
+github.com/projectdiscovery/retryablehttp-go v1.0.118 h1:ylbb2mKOfFQOwbtGyI1C0yzudl/UvJvC9YbWIPMyXQY=
+github.com/projectdiscovery/retryablehttp-go v1.0.118/go.mod h1:pAQWFh6lg9Gmno5zrQxbfuAbc9OvIugl5P9kaoXztgM=
 github.com/projectdiscovery/utils v0.4.21 h1:yAothTUSF6NwZ9yoC4iGe5gSBrovqKR9JwwW3msxk3Q=
 github.com/projectdiscovery/utils v0.4.21/go.mod h1:HJuJFqjB6EmVaDl0ilFPKvLoMaX2GyE6Il2TqKXNs8I=
 github.com/prometheus/client_model v0.0.0-20190812154241-14fe0d1b01d4/go.mod h1:xMI15A0UPsDsEKsMN9yxemIoYk6Tm2C1GtYGdfGttqA=
