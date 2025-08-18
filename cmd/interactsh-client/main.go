@@ -65,6 +65,7 @@ func main() {
 		flagSet.BoolVar(&cliOptions.HTTPOnly, "http-only", false, "display only http interaction in CLI output"),
 		flagSet.BoolVar(&cliOptions.SmtpOnly, "smtp-only", false, "display only smtp interactions in CLI output"),
 		flagSet.BoolVar(&cliOptions.Asn, "asn", false, " include asn information of remote ip in json output"),
+		flagSet.BoolVarP(&cliOptions.MatchOnlyPayloads, "payloads-only", "po", false, "match only generated payloads"),
 	)
 
 	flagSet.CreateGroup("update", "Update",
@@ -188,13 +189,29 @@ func main() {
 
 	var matcher *regexMatcher
 	var filter *regexMatcher
+
 	if len(cliOptions.Match) > 0 {
-		if matcher, err = newRegexMatcher(cliOptions.Match); err != nil {
+		matcher = newRegexMatcher()
+		if err = matcher.addMatcher(cliOptions.Match); err != nil {
+			gologger.Fatal().Msgf("Could not compile matchers: %s\n", err)
+		}
+	}
+
+	if cliOptions.MatchOnlyPayloads {
+		var payloads []string
+		for _, payload := range interactshURLs {
+			payloads = append(payloads, strings.Split(payload, ".")[0])
+		}
+		if matcher == nil {
+			matcher = newRegexMatcher()
+		}
+		if err := matcher.addMatcher(payloads); err != nil {
 			gologger.Fatal().Msgf("Could not compile matchers: %s\n", err)
 		}
 	}
 	if len(cliOptions.Filter) > 0 {
-		if filter, err = newRegexMatcher(cliOptions.Filter); err != nil {
+		filter = newRegexMatcher()
+		if err = filter.addMatcher(cliOptions.Filter); err != nil {
 			gologger.Fatal().Msgf("Could not compile filter: %s\n", err)
 		}
 	}
@@ -317,16 +334,20 @@ type regexMatcher struct {
 	items []*regexp.Regexp
 }
 
-func newRegexMatcher(items []string) (*regexMatcher, error) {
+func newRegexMatcher() *regexMatcher {
 	matcher := &regexMatcher{}
+	return matcher
+}
+
+func (m *regexMatcher) addMatcher(items []string) error {
 	for _, item := range items {
 		if compiled, err := regexp.Compile(item); err != nil {
-			return nil, err
+			return err
 		} else {
-			matcher.items = append(matcher.items, compiled)
+			m.items = append(m.items, compiled)
 		}
 	}
-	return matcher, nil
+	return nil
 }
 
 func (m *regexMatcher) match(item string) bool {
