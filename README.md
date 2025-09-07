@@ -276,9 +276,9 @@ docker run projectdiscovery/interactsh-client:latest
 [INF] c59e3crp82ke7bcnedq0cfjqdpeyyyyyn.oast.pro
 ```
 
-## Burp Suite Extension
+## Burp Suite Original Extension
 
-[interactsh-collaborator](https://github.com/wdahlenburg/interactsh-collaborator) is Burp Suite extension developed and maintained by [@wdahlenb](https://twitter.com/wdahlenb)
+[interactsh-collaborator](https://github.com/wdahlenburg/interactsh-collaborator) is an original Burp Suite interactsh extension developed and maintained by [@wdahlenb](https://twitter.com/wdahlenb)
 
 - Download latest JAR file from [releases](https://github.com/wdahlenburg/interactsh-collaborator/releases) page.
 - Open Burp Suite &rarr; Extender &rarr; Add &rarr; Java &rarr; Select JAR file &rarr; Next
@@ -286,6 +286,17 @@ docker run projectdiscovery/interactsh-client:latest
 - See the [interactsh-collaborator](https://github.com/wdahlenburg/interactsh-collaborator) project for more info.
 
 <img width="2032" alt="burp" src="https://user-images.githubusercontent.com/8293321/135176099-0e3fa01c-bdce-4f04-a94f-de0a34c7abf6.png">
+
+## Burp Suite Revised Extension
+
+[interactsh-collaborator-rev](https://github.com/TheArqsz/interactsh-collaborator-rev) is a revised version of the original Burp Suite interactsh extension and is developed and maintained by [@Arqsz](https://arqsz.net/)
+
+- Download latest JAR file from [releases](https://github.com/TheArqsz/interactsh-collaborator-rev/releases) page.
+- Open Burp Suite &rarr; Extender &rarr; Add &rarr; Java &rarr; Select JAR file &rarr; Next
+- New tab named **Interactsh** will be appeared upon successful installation.
+- See the [interactsh-collaborator-rev](https://github.com/TheArqsz/interactsh-collaborator-rev) project for more info.
+
+<img width="2032" alt="burp" src="https://github.com/TheArqsz/interactsh-collaborator-rev/blob/master/assets/interactsh-extension.png?raw=true">
 
 ## ZAP Add-On
 
