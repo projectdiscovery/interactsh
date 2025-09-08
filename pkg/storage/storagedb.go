@@ -120,6 +120,15 @@ func (s *StorageDB) SetIDPublicKey(correlationID, secretKey, publicKey string) e
 
 func (s *StorageDB) SetID(ID string) error {
 	data := &CorrelationData{}
+
+	if s.Options.UseDisk() {
+		aesKey := make([]byte, 32)
+		if _, err := rand.Read(aesKey); err != nil {
+			return errors.Wrap(err, "could not generate AES key")
+		}
+		data.AESKey = aesKey
+	}
+
 	s.cache.Put(ID, data)
 	return nil
 }
