@@ -65,8 +65,8 @@ CONFIG:
    -t, -token string                        authentication token to connect protected interactsh server
    -pi, -poll-interval int                  poll interval in seconds to pull interaction data (default 5)
    -nf, -no-http-fallback                   disable http fallback registration
-   -cidl, -correlation-id-length int        length of the correlation id preamble (default 20)
-   -cidn, -correlation-id-nonce-length int  length of the correlation id nonce (default 13)
+   -cidl, -correlation-id-length int        minimum length of 3 for the correlation id preamble (default 20)
+   -cidn, -correlation-id-nonce-length int  minimum length of 3 for the correlation id nonce (default 13)
    -sf, -session-file string                store/read from session file
 
 FILTER:

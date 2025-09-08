@@ -53,8 +53,8 @@ func main() {
 		flagSet.StringVar(&cliOptions.OriginURL, "acao-url", "*", "origin url to send in acao header to use web-client)"), // cli flag set to deprecate
 		flagSet.BoolVarP(&cliOptions.SkipAcme, "skip-acme", "sa", false, "skip acme registration (certificate checks/handshake + TLS protocols will be disabled)"),
 		flagSet.BoolVarP(&cliOptions.ScanEverywhere, "scan-everywhere", "se", false, "scan canary token everywhere"),
-		flagSet.IntVarP(&cliOptions.CorrelationIdLength, "correlation-id-length", "cidl", settings.CorrelationIdLengthDefault, "length of the correlation id preamble"),
-		flagSet.IntVarP(&cliOptions.CorrelationIdNonceLength, "correlation-id-nonce-length", "cidn", settings.CorrelationIdNonceLengthDefault, "length of the correlation id nonce"),
+		flagSet.IntVarP(&cliOptions.CorrelationIdLength, "correlation-id-length", "cidl", settings.CorrelationIdLengthDefault, "minimum length of 3 for the correlation id preamble"),
+		flagSet.IntVarP(&cliOptions.CorrelationIdNonceLength, "correlation-id-nonce-length", "cidn", settings.CorrelationIdNonceLengthDefault, "minimum length of 3 for the correlation id nonce"),
 		flagSet.StringVar(&cliOptions.CertificatePath, "cert", "", "custom certificate path"),
 		flagSet.StringVar(&cliOptions.PrivateKeyPath, "privkey", "", "custom private key path"),
 		flagSet.StringVarP(&cliOptions.OriginIPHeader, "origin-ip-header", "oih", "", "HTTP header containing origin ip (interactsh behind a reverse proxy)"),
@@ -140,6 +140,13 @@ func main() {
 
 	if len(cliOptions.Domains) == 0 {
 		gologger.Fatal().Msgf("No domains specified\n")
+	}
+
+	if cliOptions.CorrelationIdLength < 3 {
+		gologger.Fatal().Msgf("CorrelationIdLength (cidl) must be at least 3\n")
+	}
+	if cliOptions.CorrelationIdNonceLength < 3 {
+		gologger.Fatal().Msgf("CorrelationIdNonceLength (cidn) must be at least 3\n")
 	}
 
 	if cliOptions.IPAddress == "" && cliOptions.ListenIP == "0.0.0.0" {
