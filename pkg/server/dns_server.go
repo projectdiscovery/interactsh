@@ -145,8 +145,9 @@ func (h *DNSServer) handleACMETXTChallenge(zone string, m *dns.Msg) error {
 
 	rrs := []dns.RR{}
 	for _, record := range records {
-		txtHdr := dns.RR_Header{Name: zone, Rrtype: dns.TypeTXT, Class: dns.ClassINET, Ttl: uint32(record.TTL)}
-		rrs = append(rrs, &dns.TXT{Hdr: txtHdr, Txt: []string{record.Value}})
+		rr := record.RR()
+		txtHdr := dns.RR_Header{Name: zone, Rrtype: dns.TypeTXT, Class: dns.ClassINET, Ttl: uint32(rr.TTL.Seconds())}
+		rrs = append(rrs, &dns.TXT{Hdr: txtHdr, Txt: []string{rr.Data}})
 	}
 	m.Answer = append(m.Answer, rrs...)
 	return nil
