@@ -26,7 +26,7 @@ var DefaultResolvers = []string{
 // CleanupStorage perform cleanup routines tasks
 func CleanupStorage() {
 	cleanupOptions := certmagic.CleanStorageOptions{OCSPStaples: true}
-	certmagic.CleanStorage(context.Background(), certmagic.Default.Storage, cleanupOptions)
+	_ = certmagic.CleanStorage(context.Background(), certmagic.Default.Storage, cleanupOptions)
 }
 
 type CertificateFiles struct {
