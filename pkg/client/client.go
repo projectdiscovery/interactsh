@@ -107,6 +107,14 @@ func New(options *Options) (*Client, error) {
 		options.CorrelationIdNonceLength = DefaultOptions.CorrelationIdNonceLength
 	}
 
+	// Validate minimum lengths
+	if options.CorrelationIdLength < settings.CorrelationIdLengthMinimum {
+		return nil, fmt.Errorf("CorrelationIdLength must be at least %d", settings.CorrelationIdLengthMinimum)
+	}
+	if options.CorrelationIdNonceLength < settings.CorrelationIdNonceLengthMinimum {
+		return nil, fmt.Errorf("CorrelationIdNonceLength must be at least %d", settings.CorrelationIdNonceLengthMinimum)
+	}
+
 	var httpclient *retryablehttp.Client
 	if options.HTTPClient != nil {
 		httpclient = options.HTTPClient

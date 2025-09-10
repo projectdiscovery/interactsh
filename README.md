@@ -65,8 +65,8 @@ CONFIG:
    -t, -token string                        authentication token to connect protected interactsh server
    -pi, -poll-interval int                  poll interval in seconds to pull interaction data (default 5)
    -nf, -no-http-fallback                   disable http fallback registration
-   -cidl, -correlation-id-length int        minimum length of 3 for the correlation id preamble (default 20)
-   -cidn, -correlation-id-nonce-length int  minimum length of 3 for the correlation id nonce (default 13)
+   -cidl, -correlation-id-length int        length of the correlation id preamble (min 3, default 20)
+   -cidn, -correlation-id-nonce-length int  length of the correlation id nonce (min 3, default 13)
    -sf, -session-file string                store/read from session file
 
 FILTER:
@@ -350,8 +350,8 @@ INPUT:
    -acao-url string                         origin url to send in acao header to use web-client) (default "*")
    -sa, -skip-acme                          skip acme registration (certificate checks/handshake + TLS protocols will be disabled)
    -se, -scan-everywhere                    scan canary token everywhere
-   -cidl, -correlation-id-length int        length of the correlation id preamble (default 20)
-   -cidn, -correlation-id-nonce-length int  length of the correlation id nonce (default 13)
+   -cidl, -correlation-id-length int        length of the correlation id preamble (min 3, default 20)
+   -cidn, -correlation-id-nonce-length int  length of the correlation id nonce (min 3, default 13)
    -cert string                             custom certificate path
    -privkey string                          custom private key path
    -oih, -origin-ip-header string           HTTP header containing origin ip (interactsh behind a reverse proxy)
