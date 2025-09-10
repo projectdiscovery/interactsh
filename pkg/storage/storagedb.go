@@ -120,6 +120,7 @@ func (s *StorageDB) SetIDPublicKey(correlationID, secretKey, publicKey string) e
 
 func (s *StorageDB) SetID(ID string) error {
 	data := &CorrelationData{}
+
 	s.cache.Put(ID, data)
 	return nil
 }
@@ -127,6 +128,10 @@ func (s *StorageDB) SetID(ID string) error {
 // AddInteraction adds an interaction data to the correlation ID after encrypting
 // it with Public Key for the provided correlation ID.
 func (s *StorageDB) AddInteraction(correlationID string, data []byte) error {
+	if len(data) == 0 {
+		return nil
+	}
+
 	item, found := s.cache.GetIfPresent(correlationID)
 	if !found {
 		return ErrCorrelationIdNotFound
@@ -137,10 +142,15 @@ func (s *StorageDB) AddInteraction(correlationID string, data []byte) error {
 	}
 
 	if s.Options.UseDisk() {
-		ct, err := AESEncrypt(value.AESKey, data)
-		if err != nil {
-			return errors.Wrap(err, "could not encrypt event data")
+		ct := string(data)
+		if len(value.AESKey) > 0 {
+			var err error
+			ct, err = AESEncrypt(value.AESKey, data)
+			if err != nil {
+				return errors.Wrap(err, "could not encrypt event data")
+			}
 		}
+
 		value.Lock()
 		existingData, _ := s.db.Get([]byte(correlationID), nil)
 		_ = s.db.Put([]byte(correlationID), AppendMany("\n", existingData, []byte(ct)), nil)
@@ -156,6 +166,10 @@ func (s *StorageDB) AddInteraction(correlationID string, data []byte) error {
 
 // AddInteractionWithId adds an interaction data to the id bucket
 func (s *StorageDB) AddInteractionWithId(id string, data []byte) error {
+	if len(data) == 0 {
+		return nil
+	}
+
 	item, ok := s.cache.GetIfPresent(id)
 	if !ok {
 		return ErrCorrelationIdNotFound
@@ -166,10 +180,15 @@ func (s *StorageDB) AddInteractionWithId(id string, data []byte) error {
 	}
 
 	if s.Options.UseDisk() {
-		ct, err := AESEncrypt(value.AESKey, data)
-		if err != nil {
-			return errors.Wrap(err, "could not encrypt event data")
+		ct := string(data)
+		if len(value.AESKey) > 0 {
+			var err error
+			ct, err = AESEncrypt(value.AESKey, data)
+			if err != nil {
+				return errors.Wrap(err, "could not encrypt event data")
+			}
 		}
+
 		value.Lock()
 		existingData, _ := s.db.Get([]byte(id), nil)
 		_ = s.db.Put([]byte(id), AppendMany("\n", existingData, []byte(ct)), nil)
