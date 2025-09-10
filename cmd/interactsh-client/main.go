@@ -52,8 +52,8 @@ func main() {
 		flagSet.StringVarP(&cliOptions.Token, "token", "t", "", "authentication token to connect protected interactsh server"),
 		flagSet.IntVarP(&cliOptions.PollInterval, "poll-interval", "pi", 5, "poll interval in seconds to pull interaction data"),
 		flagSet.BoolVarP(&cliOptions.DisableHTTPFallback, "no-http-fallback", "nf", false, "disable http fallback registration"),
-		flagSet.IntVarP(&cliOptions.CorrelationIdLength, "correlation-id-length", "cidl", settings.CorrelationIdLengthDefault, "length of the correlation id preamble"),
-		flagSet.IntVarP(&cliOptions.CorrelationIdNonceLength, "correlation-id-nonce-length", "cidn", settings.CorrelationIdNonceLengthDefault, "length of the correlation id nonce"),
+		flagSet.IntVarP(&cliOptions.CorrelationIdLength, "correlation-id-length", "cidl", settings.CorrelationIdLengthDefault, fmt.Sprintf("length of the correlation id preamble (min %d, default %d)", settings.CorrelationIdLengthMinimum, settings.CorrelationIdLengthDefault)),
+		flagSet.IntVarP(&cliOptions.CorrelationIdNonceLength, "correlation-id-nonce-length", "cidn", settings.CorrelationIdNonceLengthDefault, fmt.Sprintf("length of the correlation id nonce (min %d, default %d)", settings.CorrelationIdNonceLengthMinimum, settings.CorrelationIdNonceLengthDefault)),
 		flagSet.StringVarP(&cliOptions.SessionFile, "session-file", "sf", "", "store/read from session file"),
 		flagSet.DurationVarP(&cliOptions.KeepAliveInterval, "keep-alive-interval", "kai", time.Minute, "keep alive interval"),
 	)

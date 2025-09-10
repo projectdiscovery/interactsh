@@ -53,8 +53,8 @@ func main() {
 		flagSet.StringVar(&cliOptions.OriginURL, "acao-url", "*", "origin url to send in acao header to use web-client)"), // cli flag set to deprecate
 		flagSet.BoolVarP(&cliOptions.SkipAcme, "skip-acme", "sa", false, "skip acme registration (certificate checks/handshake + TLS protocols will be disabled)"),
 		flagSet.BoolVarP(&cliOptions.ScanEverywhere, "scan-everywhere", "se", false, "scan canary token everywhere"),
-		flagSet.IntVarP(&cliOptions.CorrelationIdLength, "correlation-id-length", "cidl", settings.CorrelationIdLengthDefault, "length of the correlation id preamble"),
-		flagSet.IntVarP(&cliOptions.CorrelationIdNonceLength, "correlation-id-nonce-length", "cidn", settings.CorrelationIdNonceLengthDefault, "length of the correlation id nonce"),
+		flagSet.IntVarP(&cliOptions.CorrelationIdLength, "correlation-id-length", "cidl", settings.CorrelationIdLengthDefault, fmt.Sprintf("length of the correlation id preamble (min %d, default %d)", settings.CorrelationIdLengthMinimum, settings.CorrelationIdLengthDefault)),
+		flagSet.IntVarP(&cliOptions.CorrelationIdNonceLength, "correlation-id-nonce-length", "cidn", settings.CorrelationIdNonceLengthDefault, fmt.Sprintf("length of the correlation id nonce (min %d, default %d)", settings.CorrelationIdNonceLengthMinimum, settings.CorrelationIdNonceLengthDefault)),
 		flagSet.StringVar(&cliOptions.CertificatePath, "cert", "", "custom certificate path"),
 		flagSet.StringVar(&cliOptions.PrivateKeyPath, "privkey", "", "custom private key path"),
 		flagSet.StringVarP(&cliOptions.OriginIPHeader, "origin-ip-header", "oih", "", "HTTP header containing origin ip (interactsh behind a reverse proxy)"),
@@ -140,6 +140,13 @@ func main() {
 
 	if len(cliOptions.Domains) == 0 {
 		gologger.Fatal().Msgf("No domains specified\n")
+	}
+
+	if cliOptions.CorrelationIdLength < settings.CorrelationIdLengthMinimum {
+		gologger.Fatal().Msgf("CorrelationIdLength (cidl) must be at least %d\n", settings.CorrelationIdLengthMinimum)
+	}
+	if cliOptions.CorrelationIdNonceLength < settings.CorrelationIdNonceLengthMinimum {
+		gologger.Fatal().Msgf("CorrelationIdNonceLength (cidn) must be at least %d\n", settings.CorrelationIdNonceLengthMinimum)
 	}
 
 	if cliOptions.IPAddress == "" && cliOptions.ListenIP == "0.0.0.0" {
