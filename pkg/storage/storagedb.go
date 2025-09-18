@@ -9,6 +9,7 @@ import (
 	"encoding/base64"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 
 	"github.com/goburrow/cache"
@@ -25,15 +26,21 @@ import (
 // Storage is an storage for interactsh interaction data as well
 // as correlation-id -> rsa-public-key data.
 type StorageDB struct {
-	Options *Options
-	cache   cache.Cache
-	db      *leveldb.DB
-	dbpath  string
+	Options       *Options
+	cache         cache.Cache
+	db            *leveldb.DB
+	dbpath        string
+	pool          *ObjectPool
+	memoryMonitor *MemoryMonitor
 }
 
 // New creates a new storage instance for interactsh data.
 func New(options *Options) (*StorageDB, error) {
-	storageDB := &StorageDB{Options: options}
+	storageDB := &StorageDB{
+		Options:       options,
+		pool:          NewObjectPool(),
+		memoryMonitor: NewMemoryMonitor(options.MaxMemoryMB),
+	}
 	cacheOptions := []cache.Option{
 		cache.WithMaximumSize(options.MaxSize),
 	}
@@ -45,6 +52,14 @@ func New(options *Options) (*StorageDB, error) {
 	}
 	cacheDb := cache.New(cacheOptions...)
 	storageDB.cache = cacheDb
+
+	// Add memory pressure callback to reduce cache size under pressure
+	storageDB.memoryMonitor.AddCallback(func(level MemoryPressureLevel, stats *runtime.MemStats) {
+		if level >= MemoryPressureHigh {
+			// Force garbage collection under high memory pressure
+			runtime.GC()
+		}
+	})
 
 	if options.UseDisk() {
 		// if the path exists we create a random temporary subfolder
@@ -107,17 +122,19 @@ func (s *StorageDB) SetIDPublicKey(correlationID, secretKey, publicKey string) e
 		return errors.New("could not encrypt event data")
 	}
 
-	data := &CorrelationData{
-		SecretKey:       secretKey,
-		AESKey:          []byte(aesKey),
-		AESKeyEncrypted: base64.StdEncoding.EncodeToString(ciphertext),
-	}
+	// Use pooled object to reduce allocations
+	data := s.pool.GetCorrelationData()
+	data.SecretKey = secretKey
+	data.AESKey = []byte(aesKey)
+	data.AESKeyEncrypted = base64.StdEncoding.EncodeToString(ciphertext)
+	
 	s.cache.Put(correlationID, data)
 	return nil
 }
 
 func (s *StorageDB) SetID(ID string) error {
-	data := &CorrelationData{}
+	// Use pooled object to reduce allocations
+	data := s.pool.GetCorrelationData()
 	s.cache.Put(ID, data)
 	return nil
 }
@@ -262,12 +279,19 @@ func (s *StorageDB) getInteractions(correlationData *CorrelationData, id string)
 			}
 			return nil, err
 		}
-		var dataString []string
+		// Use pooled string slice to reduce allocations
+		dataString := s.pool.GetStringSlice()
+		defer s.pool.PutStringSlice(dataString)
+		
 		for _, d := range bytes.Split(data, []byte("\n")) {
 			dataString = append(dataString, string(d))
 		}
 		_ = s.db.Delete([]byte(id), nil)
-		return dataString, nil
+		
+		// Return a copy since we're returning the slice to the pool
+		result := make([]string, len(dataString))
+		copy(result, dataString)
+		return result, nil
 	default:
 		// in memory data
 		var errs []error
@@ -290,11 +314,22 @@ func (s *StorageDB) getInteractions(correlationData *CorrelationData, id string)
 	}
 }
 
+// GetMemoryMonitor returns the memory monitor instance
+func (s *StorageDB) GetMemoryMonitor() *MemoryMonitor {
+	return s.memoryMonitor
+}
+
 func (s *StorageDB) Close() error {
 	var errdbClosed error
 	if s.db != nil {
 		errdbClosed = s.db.Close()
 	}
+	
+	// Stop memory monitor
+	if s.memoryMonitor != nil {
+		s.memoryMonitor.Stop()
+	}
+	
 	return multierr.Combine(
 		s.cache.Close(),
 		errdbClosed,

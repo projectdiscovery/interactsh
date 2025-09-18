@@ -71,6 +71,8 @@ func main() {
 		flagSet.StringVarP(&cliOptions.DiskStoragePath, "disk-path", "dsp", "", "disk storage path"),
 		flagSet.StringVarP(&cliOptions.HeaderServer, "server-header", "csh", "", "custom value of Server header in response"),
 		flagSet.BoolVarP(&cliOptions.NoVersionHeader, "disable-version", "dv", false, "disable publishing interactsh version in response header"),
+		flagSet.IntVarP(&cliOptions.MaxMemoryMB, "max-memory", "mem", 1024, "maximum memory usage in MB (0 = unlimited)"),
+		flagSet.BoolVar(&cliOptions.DisableMemoryOptimization, "disable-memory-optimization", false, "disable automatic memory optimization features"),
 	)
 
 	flagSet.CreateGroup("update", "Update",
@@ -221,6 +223,12 @@ func main() {
 	var store storage.Storage
 	storeOptions := storage.DefaultOptions
 	storeOptions.EvictionTTL = evictionTTL
+	
+	// Configure memory optimization
+	if cliOptions.MaxMemoryMB > 0 {
+		storeOptions.MaxMemoryMB = uint64(cliOptions.MaxMemoryMB)
+	}
+	
 	if cliOptions.DiskStorage {
 		if cliOptions.DiskStoragePath == "" {
 			gologger.Fatal().Msgf("disk storage path must be specified\n")
@@ -235,6 +243,12 @@ func main() {
 	}
 
 	serverOptions.Storage = store
+	
+	// Initialize memory optimization if enabled
+	if !cliOptions.DisableMemoryOptimization {
+		server.SetMemoryLimitFromEnv()
+		gologger.Info().Msg("Memory optimization enabled")
+	}
 
 	if serverOptions.Auth {
 		_ = serverOptions.Storage.SetID(serverOptions.Token)

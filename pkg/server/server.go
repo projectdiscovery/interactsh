@@ -107,6 +107,10 @@ type Options struct {
 	NoVersionHeader bool
 	// HeaderServer use custom string in HTTP response Server header instead of domain
 	HeaderServer string
+	// MaxMemoryMB sets the maximum memory usage in MB for memory optimization
+	MaxMemoryMB uint64
+	// DisableMemoryOptimization disables automatic memory optimization features
+	DisableMemoryOptimization bool
 
 	ACMEStore *acme.Provider
 	Stats     *Metrics
