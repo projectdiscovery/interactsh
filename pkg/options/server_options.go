@@ -54,6 +54,8 @@ type CLIServerOptions struct {
 	DisableUpdateCheck       bool
 	NoVersionHeader          bool
 	HeaderServer             string
+	MaxMemoryMB              int
+	DisableMemoryOptimization bool
 }
 
 func (cliServerOptions *CLIServerOptions) AsServerOptions() *server.Options {
@@ -93,5 +95,7 @@ func (cliServerOptions *CLIServerOptions) AsServerOptions() *server.Options {
 		EnableMetrics:            cliServerOptions.EnableMetrics,
 		NoVersionHeader:          cliServerOptions.NoVersionHeader,
 		HeaderServer:             cliServerOptions.HeaderServer,
+		MaxMemoryMB:              uint64(cliServerOptions.MaxMemoryMB),
+		DisableMemoryOptimization: cliServerOptions.DisableMemoryOptimization,
 	}
 }
