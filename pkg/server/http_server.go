@@ -2,6 +2,7 @@ package server
 
 import (
 	"bytes"
+	"context"
 	"crypto/tls"
 	"encoding/base64"
 	"fmt"
@@ -92,7 +93,9 @@ func (h *HTTPServer) ListenAndServe(tlsConfig *tls.Config, httpAlive, httpsAlive
 
 		httpsAlive <- true
 		if err := h.tlsserver.ListenAndServeTLS("", ""); err != nil {
-			gologger.Error().Msgf("Could not serve http on tls: %s\n", err)
+			if err != http.ErrServerClosed {
+				gologger.Error().Msgf("Could not serve http on tls: %s\n", err)
+			}
 			httpsAlive <- false
 		}
 	}()
@@ -100,8 +103,25 @@ func (h *HTTPServer) ListenAndServe(tlsConfig *tls.Config, httpAlive, httpsAlive
 	httpAlive <- true
 	if err := h.nontlsserver.ListenAndServe(); err != nil {
 		httpAlive <- false
-		gologger.Error().Msgf("Could not serve http: %s\n", err)
+		if err != http.ErrServerClosed {
+			gologger.Error().Msgf("Could not serve http: %s\n", err)
+		}
 	}
+}
+
+// Close gracefully shuts down both HTTP and HTTPS servers
+func (h *HTTPServer) Close(ctx context.Context) error {
+	var err1, err2 error
+	if h.nontlsserver.Addr != "" {
+		err1 = h.nontlsserver.Shutdown(ctx)
+	}
+	if h.tlsserver.Addr != "" {
+		err2 = h.tlsserver.Shutdown(ctx)
+	}
+	if err1 != nil {
+		return err1
+	}
+	return err2
 }
 
 func (h *HTTPServer) logger(handler http.Handler) http.HandlerFunc {
