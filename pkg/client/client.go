@@ -64,6 +64,7 @@ type Client struct {
 	pubKey                   *rsa.PublicKey
 	quitChan                 chan struct{}
 	quitKeepAliveChan        chan struct{}
+	keepAliveInterval        time.Duration
 	disableHTTPFallback      bool
 	token                    string
 	correlationIdLength      int
@@ -157,6 +158,7 @@ func New(options *Options) (*Client, error) {
 		httpClient:               httpclient,
 		token:                    token,
 		disableHTTPFallback:      options.DisableHTTPFallback,
+		keepAliveInterval:        options.KeepAliveInterval,
 		correlationIdLength:      options.CorrelationIdLength,
 		CorrelationIdNonceLength: options.CorrelationIdNonceLength,
 	}
@@ -192,39 +194,41 @@ func New(options *Options) (*Client, error) {
 		}
 	}
 
-	// start a keep alive routine
-	client.quitKeepAliveChan = make(chan struct{})
-	if options.KeepAliveInterval > 0 {
-		ticker := time.NewTicker(options.KeepAliveInterval)
-		go func() {
-			for {
-				// exit if the client is closed
-				if client.State.Load() == Closed {
-					return
-				}
-				select {
-				case <-ticker.C:
-					// todo: internal logic needs a complete redesign
-					pubKeyData, err := encodePublicKey(client.pubKey)
-					if err != nil {
-						return
-					}
-					// attempts to re-register - server will reject is already existing
-					registrationRequest, err := encodeRegistrationRequest(pubKeyData, client.secretKey, client.correlationID)
-					if err != nil {
-						return
-					}
-					// silently fails to re-register if the session is still alive
-					_ = client.performRegistration(client.serverURL.String(), registrationRequest)
-				case <-client.quitKeepAliveChan:
-					ticker.Stop()
-					return
-				}
-			}
-		}()
-	}
-
 	return client, nil
+}
+
+// startKeepAlive starts the keepalive goroutine if configured
+func (c *Client) startKeepAlive() {
+	if c.keepAliveInterval <= 0 {
+		return
+	}
+	if c.quitKeepAliveChan != nil {
+		return
+	}
+	c.quitKeepAliveChan = make(chan struct{})
+	ticker := time.NewTicker(c.keepAliveInterval)
+	go func() {
+		for {
+			if c.State.Load() == Closed {
+				return
+			}
+			select {
+			case <-ticker.C:
+				pubKeyData, err := encodePublicKey(c.pubKey)
+				if err != nil {
+					return
+				}
+				registrationRequest, err := encodeRegistrationRequest(pubKeyData, c.secretKey, c.correlationID)
+				if err != nil {
+					return
+				}
+				_ = c.performRegistration(c.serverURL.String(), registrationRequest)
+			case <-c.quitKeepAliveChan:
+				ticker.Stop()
+				return
+			}
+		}
+	}()
 }
 
 // initializeRSAKeys does the one-time initialization for RSA crypto mechanism
@@ -367,6 +371,7 @@ func (c *Client) StartPolling(duration time.Duration, callback InteractionCallba
 	}
 
 	c.State.Store(Polling)
+	c.startKeepAlive()
 
 	ticker := time.NewTicker(duration)
 	c.quitChan = make(chan struct{})
@@ -518,6 +523,10 @@ func (c *Client) StopPolling() error {
 		return errors.New("client is not polling")
 	}
 	close(c.quitChan)
+	if c.quitKeepAliveChan != nil {
+		close(c.quitKeepAliveChan)
+		c.quitKeepAliveChan = nil
+	}
 
 	c.State.Store(Idle)
 
@@ -537,7 +546,10 @@ func (c *Client) Close() error {
 		return errors.New("client is already closed")
 	}
 
-	close(c.quitKeepAliveChan)
+	if c.quitKeepAliveChan != nil {
+		close(c.quitKeepAliveChan)
+		c.quitKeepAliveChan = nil
+	}
 
 	register := server.DeregisterRequest{
 		CorrelationID: c.correlationID,

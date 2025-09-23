@@ -25,6 +25,7 @@ require (
 	github.com/rs/xid v1.5.0
 	github.com/stretchr/testify v1.9.0
 	github.com/syndtr/goleveldb v1.0.0
+	go.uber.org/goleak v1.2.0
 	go.uber.org/multierr v1.11.0
 	go.uber.org/ratelimit v0.3.0
 	go.uber.org/zap v1.25.0
