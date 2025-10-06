@@ -286,8 +286,8 @@ github.com/projectdiscovery/goflags v0.1.74 h1:n85uTRj5qMosm0PFBfsvOL24I7TdWRcWq
 github.com/projectdiscovery/goflags v0.1.74/go.mod h1:UMc9/7dFz2oln+10tv6cy+7WZKTHf9UGhaNkF95emh4=
 github.com/projectdiscovery/gologger v1.1.56 h1:XZCJs534F0pTaHToQWtqCrAzUJwaF572qLzrSn5adOA=
 github.com/projectdiscovery/gologger v1.1.56/go.mod h1:RtAcBG7KzTWmAEVEVWiBbKGKsYpqzxKXzn3yhAFkfic=
-github.com/projectdiscovery/hmap v0.0.94 h1:Q2/89U2rkDVz59j/WBzaRPmpRrYamDWnzQgauk+K03E=
-github.com/projectdiscovery/hmap v0.0.94/go.mod h1:QtqZlGUwq3/SNiwEfArayfwrZU4g0/tpw6lJlxP1XEI=
+github.com/projectdiscovery/hmap v0.0.95 h1:OO6MCySlK2xMzvJmsYUwdaI7YWv/U437OtsN0Ovw72k=
+github.com/projectdiscovery/hmap v0.0.95/go.mod h1:KiTRdGd/GzX7uaoFWPrPBxPf4X/uZ9HTQ9dQ8x7x1bo=
 github.com/projectdiscovery/ldapserver v1.0.2-0.20240219154113-dcc758ebc0cb h1:MGtI4oE12ruWv11ZlPXXd7hl/uAaQZrFvrIDYDeVMd8=
 github.com/projectdiscovery/ldapserver v1.0.2-0.20240219154113-dcc758ebc0cb/go.mod h1:vmgC0DTFCfoCLp0RAfsfYTZZan0QMVs+cmTbH6blfjk=
 github.com/projectdiscovery/machineid v0.0.0-20250715113114-c77eb3567582 h1:eR+0HE//Ciyfwy3HC7fjRyKShSJHYoX2Pv7pPshjK/Q=
