@@ -292,8 +292,8 @@ github.com/projectdiscovery/ldapserver v1.0.2-0.20240219154113-dcc758ebc0cb h1:M
 github.com/projectdiscovery/ldapserver v1.0.2-0.20240219154113-dcc758ebc0cb/go.mod h1:vmgC0DTFCfoCLp0RAfsfYTZZan0QMVs+cmTbH6blfjk=
 github.com/projectdiscovery/machineid v0.0.0-20250715113114-c77eb3567582 h1:eR+0HE//Ciyfwy3HC7fjRyKShSJHYoX2Pv7pPshjK/Q=
 github.com/projectdiscovery/machineid v0.0.0-20250715113114-c77eb3567582/go.mod h1:3G3BRKui7nMuDFAZKR/M2hiOLtaOmyukT20g88qRQjI=
-github.com/projectdiscovery/mapcidr v1.1.95 h1:SHbVanfeTkqCQ6WX/iYa1q8IlfgrPAubwV6AjAOxK5A=
-github.com/projectdiscovery/mapcidr v1.1.95/go.mod h1:ykv6dnTPeU+tigZjonpO8VG6UYieZbfIOtkRft3ynr8=
+github.com/projectdiscovery/mapcidr v1.1.96 h1:MHDKi7rxrTVYsQWzLxfYcop/EPYa3ldUjB+oMbmuLBI=
+github.com/projectdiscovery/mapcidr v1.1.96/go.mod h1:be4kT3vBPxsJeeu3e50/0ZuhhfPMNjxOCCEeD4bryqE=
 github.com/projectdiscovery/networkpolicy v0.1.26 h1:RxZJoOyDM/Ru4GNHmrlsjBHqWz0TFMchK35S2W3Suw8=
 github.com/projectdiscovery/networkpolicy v0.1.26/go.mod h1:wC25awxBHp9y4o30hMeSobFaMHw+gWlcy55tL3Z84fM=
 github.com/projectdiscovery/retryabledns v1.0.108 h1:47LYRW2LY/0cDnZQfUhoOHNxe9rNc9NQ9ZfNrV/GbyM=
