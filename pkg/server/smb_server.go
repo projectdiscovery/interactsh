@@ -3,7 +3,6 @@ package server
 import (
 	"bytes"
 	"fmt"
-	"net"
 	"os"
 	"os/exec"
 	"strings"
@@ -26,18 +25,13 @@ var smbMonitorList map[string]string = map[string]string{
 type SMBServer struct {
 	options   *Options
 	LogFile   string
-	ipAddress net.IP
 	cmd       *exec.Cmd
 	tmpFile   string
 }
 
 // NewSMBServer returns a new SMB server.
 func NewSMBServer(options *Options) (*SMBServer, error) {
-	server := &SMBServer{
-		options:   options,
-		ipAddress: net.ParseIP(options.IPAddress),
-	}
-	return server, nil
+	return &SMBServer{options: options}, nil
 }
 
 // ListenAndServe listens on smb port
