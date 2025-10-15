@@ -77,8 +77,8 @@ func NewHTTPServer(options *Options) (*HTTPServer, error) {
 	if server.options.EnableMetrics {
 		router.Handle("/metrics", server.corsMiddleware(server.authMiddleware(http.HandlerFunc(server.metricsHandler))))
 	}
-	server.tlsserver = http.Server{Addr: options.ListenIP + fmt.Sprintf(":%d", options.HttpsPort), Handler: router, ErrorLog: log.New(&noopLogger{}, "", 0)}
-	server.nontlsserver = http.Server{Addr: options.ListenIP + fmt.Sprintf(":%d", options.HttpPort), Handler: router, ErrorLog: log.New(&noopLogger{}, "", 0)}
+	server.tlsserver = http.Server{Addr: formatAddress(options.ListenIP, options.HttpsPort), Handler: router, ErrorLog: log.New(&noopLogger{}, "", 0)}
+	server.nontlsserver = http.Server{Addr: formatAddress(options.ListenIP, options.HttpPort), Handler: router, ErrorLog: log.New(&noopLogger{}, "", 0)}
 	return server, nil
 }
 

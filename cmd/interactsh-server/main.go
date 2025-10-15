@@ -11,6 +11,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -44,7 +45,7 @@ func main() {
 
 	flagSet.CreateGroup("input", "Input",
 		flagSet.StringSliceVarP(&cliOptions.Domains, "domain", "d", []string{}, "single/multiple configured domain to use for server", goflags.CommaSeparatedStringSliceOptions),
-		flagSet.StringVar(&cliOptions.IPAddress, "ip", "", "public ip address to use for interactsh server"),
+		flagSet.StringSliceVarP(&cliOptions.IPAddresses, "ip", "i", []string{}, "public IP address(es) to use for interactsh server (comma-separated, supports both IPv4 & IPv6)", goflags.CommaSeparatedStringSliceOptions),
 		flagSet.StringVarP(&cliOptions.ListenIP, "listen-ip", "lip", "0.0.0.0", "public ip address to listen on"),
 		flagSet.IntVarP(&cliOptions.Eviction, "eviction", "e", 30, "number of days to persist interaction data in memory"),
 		flagSet.BoolVarP(&cliOptions.NoEviction, "no-eviction", "ne", false, "disable periodic data eviction from memory"),
@@ -149,7 +150,7 @@ func main() {
 		gologger.Fatal().Msgf("CorrelationIdNonceLength (cidn) must be at least %d\n", settings.CorrelationIdNonceLengthMinimum)
 	}
 
-	if cliOptions.IPAddress == "" && cliOptions.ListenIP == "0.0.0.0" {
+	if len(cliOptions.IPAddresses) == 0 && cliOptions.ListenIP == "0.0.0.0" {
 		publicIP, _ := getPublicIP()
 		outboundIP, _ := iputil.GetSourceIP("scanme.sh")
 
@@ -179,7 +180,11 @@ func main() {
 			gologger.Fatal().Msgf("%s\nNo bindable address could be found for port %d\nPlease ensure to have proper privileges and/or choose the correct ip:\n%s\n", err, cliOptions.DnsPort, addressesBuilder.String())
 		}
 		cliOptions.ListenIP = bindableIP
-		cliOptions.IPAddress = publicIP
+		cliOptions.IPAddresses = append(cliOptions.IPAddresses, publicIP)
+	}
+
+	if len(cliOptions.IPAddresses) > 0 {
+		gologger.Info().Msgf("Configured IP addresses: %s\n", strings.Join(cliOptions.IPAddresses, ", "))
 	}
 
 	for _, domain := range cliOptions.Domains {
@@ -424,8 +429,9 @@ func main() {
 				network = "TCP"
 				port = serverOptions.LdapPort
 			}
+			address := net.JoinHostPort(serverOptions.ListenIP, strconv.Itoa(port))
 			if status {
-				gologger.Silent().Msgf("[%s] Listening on %s %s:%d", service, network, serverOptions.ListenIP, port)
+				gologger.Silent().Msgf("[%s] Listening on %s %s", service, network, address)
 			} else if fatal {
 				gologger.Fatal().Msgf("The %s %s service has unexpectedly stopped", network, service)
 			} else {

@@ -1,7 +1,10 @@
 package options
 
 import (
+	"net"
+
 	"github.com/projectdiscovery/goflags"
+	"github.com/projectdiscovery/gologger"
 	"github.com/projectdiscovery/interactsh/pkg/server"
 )
 
@@ -12,7 +15,7 @@ type CLIServerOptions struct {
 	Debug                    bool
 	Domains                  goflags.StringSlice
 	DnsPort                  int
-	IPAddress                string
+	IPAddresses              goflags.StringSlice
 	ListenIP                 string
 	HttpPort                 int
 	HttpsPort                int
@@ -57,10 +60,25 @@ type CLIServerOptions struct {
 }
 
 func (cliServerOptions *CLIServerOptions) AsServerOptions() *server.Options {
+	var ipAddresses []net.IP
+
+	for _, ipAddress := range cliServerOptions.IPAddresses {
+		parsedIP := net.ParseIP(ipAddress)
+		if parsedIP != nil {
+			ipAddresses = append(ipAddresses, parsedIP)
+		} else {
+			if cliServerOptions.Debug {
+				gologger.Warning().Msgf("Invalid IP address '%s' will be ignored\n", ipAddress)
+			}
+		}
+	}
+
+	ipAddresses = uniqueIPs(ipAddresses)
+
 	return &server.Options{
 		Domains:                  cliServerOptions.Domains,
 		DnsPort:                  cliServerOptions.DnsPort,
-		IPAddress:                cliServerOptions.IPAddress,
+		IPAddresses:              ipAddresses,
 		ListenIP:                 cliServerOptions.ListenIP,
 		HttpPort:                 cliServerOptions.HttpPort,
 		HttpsPort:                cliServerOptions.HttpsPort,
@@ -94,4 +112,20 @@ func (cliServerOptions *CLIServerOptions) AsServerOptions() *server.Options {
 		NoVersionHeader:          cliServerOptions.NoVersionHeader,
 		HeaderServer:             cliServerOptions.HeaderServer,
 	}
+}
+
+// uniqueIPs removes duplicate IP addresses from a slice
+func uniqueIPs(ips []net.IP) []net.IP {
+	seen := make(map[string]bool)
+	result := []net.IP{}
+
+	for _, ip := range ips {
+		key := ip.String()
+		if !seen[key] {
+			seen[key] = true
+			result = append(result, ip)
+		}
+	}
+
+	return result
 }
