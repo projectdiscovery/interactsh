@@ -31,4 +31,5 @@ type CLIClientOptions struct {
 	DisableUpdateCheck       bool
 	KeepAliveInterval        time.Duration
 	PdcpAuth                 string
+	MatchOnlyPayloads        bool
 }

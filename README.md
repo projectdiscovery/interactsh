@@ -76,11 +76,12 @@ FILTER:
    -dns-only             display only dns interaction in CLI output
    -http-only            display only http interaction in CLI output
    -smtp-only            display only smtp interactions in CLI output
+   -po, -payloads-only   match only generated payloads
 
 UPDATE:
    -up, -update                 update interactsh-client to latest version
    -duc, -disable-update-check  disable automatic interactsh-client update check
-   
+
 OUTPUT:
    -o string                         output file to write interaction data
    -json                             write output in JSONL(ines) format
