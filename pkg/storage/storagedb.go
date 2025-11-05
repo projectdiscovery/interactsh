@@ -37,7 +37,14 @@ func New(options *Options) (*StorageDB, error) {
 		cache.WithMaximumSize(options.MaxSize),
 	}
 	if options.EvictionTTL > 0 {
-		cacheOptions = append(cacheOptions, cache.WithExpireAfterAccess(options.EvictionTTL))
+		switch options.EvictionStrategy {
+		case EvictionStrategyFixed:
+			cacheOptions = append(cacheOptions, cache.WithExpireAfterWrite(options.EvictionTTL))
+		case EvictionStrategySliding:
+			fallthrough
+		default:
+			cacheOptions = append(cacheOptions, cache.WithExpireAfterAccess(options.EvictionTTL))
+		}
 	}
 	if options.UseDisk() {
 		cacheOptions = append(cacheOptions, cache.WithRemovalListener(storageDB.OnCacheRemovalCallback))
