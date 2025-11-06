@@ -602,6 +602,7 @@ Index page for http server can be customized while running custom interactsh ser
 interactsh-server -d hackwithautomation.com -http-index banner.html
 ```
 
+`{REFLECTION}` placeholder is supported in index file to replace with the inverted ID in case it exists.
 `{DOMAIN}` placeholder is also supported in index file to replace with server domain name.
 
 ![image](https://user-images.githubusercontent.com/8293321/179397016-f6ee12e0-5b0b-42b6-83e7-f0972a804655.png)
