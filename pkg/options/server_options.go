@@ -1,8 +1,8 @@
 package options
 
 import (
+	"github.com/AkewakBiru/interactsh/pkg/server"
 	"github.com/projectdiscovery/goflags"
-	"github.com/projectdiscovery/interactsh/pkg/server"
 )
 
 type CLIServerOptions struct {

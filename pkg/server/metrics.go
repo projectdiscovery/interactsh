@@ -3,9 +3,9 @@ package server
 import (
 	"runtime"
 
+	"github.com/AkewakBiru/interactsh/pkg/storage"
 	units "github.com/docker/go-units"
 	"github.com/mackerelio/go-osstat/network"
-	"github.com/projectdiscovery/interactsh/pkg/storage"
 )
 
 type Metrics struct {

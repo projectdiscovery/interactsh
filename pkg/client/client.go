@@ -24,14 +24,14 @@ import (
 
 	"errors"
 
+	"github.com/AkewakBiru/interactsh/pkg/options"
+	"github.com/AkewakBiru/interactsh/pkg/server"
+	"github.com/AkewakBiru/interactsh/pkg/settings"
+	"github.com/AkewakBiru/interactsh/pkg/storage"
 	"github.com/google/uuid"
 	jsoniter "github.com/json-iterator/go"
 	asnmap "github.com/projectdiscovery/asnmap/libs"
 	"github.com/projectdiscovery/gologger"
-	"github.com/projectdiscovery/interactsh/pkg/options"
-	"github.com/projectdiscovery/interactsh/pkg/server"
-	"github.com/projectdiscovery/interactsh/pkg/settings"
-	"github.com/projectdiscovery/interactsh/pkg/storage"
 	"github.com/projectdiscovery/retryablehttp-go"
 	errorutil "github.com/projectdiscovery/utils/errors"
 	iputil "github.com/projectdiscovery/utils/ip"

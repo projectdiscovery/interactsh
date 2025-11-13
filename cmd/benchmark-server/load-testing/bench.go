@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"log"
 
+	"github.com/AkewakBiru/interactsh/pkg/client"
 	"github.com/miekg/dns"
-	"github.com/projectdiscovery/interactsh/pkg/client"
 	"github.com/projectdiscovery/retryabledns"
 	"github.com/remeh/sizedwaitgroup"
 )

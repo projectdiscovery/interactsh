@@ -5,8 +5,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/projectdiscovery/interactsh/pkg/server/acme"
-	"github.com/projectdiscovery/interactsh/pkg/storage"
+	"github.com/AkewakBiru/interactsh/pkg/server/acme"
+	"github.com/AkewakBiru/interactsh/pkg/storage"
 	stringsutil "github.com/projectdiscovery/utils/strings"
 )
 

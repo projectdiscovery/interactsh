@@ -6,7 +6,7 @@ import (
 	"runtime"
 	"strings"
 
-	"github.com/projectdiscovery/interactsh/pkg/options"
+	"github.com/AkewakBiru/interactsh/pkg/options"
 	fileutil "github.com/projectdiscovery/utils/file"
 )
 
