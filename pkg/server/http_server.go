@@ -456,15 +456,26 @@ func (h *HTTPServer) pollHandler(w http.ResponseWriter, req *http.Request) {
 
 func (h *HTTPServer) corsMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		origin := h.options.OriginURL
+		if strings.EqualFold(origin, "ref_req_origin") {
+			origin = req.Header.Get("Origin")
+			if len(origin) == 0 {
+				if len(req.URL.Scheme) == 0 {
+					origin = fmt.Sprintf("https://%s", req.Host)
+				} else {
+					origin = fmt.Sprintf("%s://%s", req.URL.Scheme, req.Host)
+				}
+			}
+		}
 		// Set CORS headers for the preflight request
 		if req.Method == http.MethodOptions {
-			w.Header().Set("Access-Control-Allow-Origin", h.options.OriginURL)
+			w.Header().Set("Access-Control-Allow-Origin", origin)
 			w.Header().Set("Access-Control-Allow-Credentials", "true")
 			w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
 			w.WriteHeader(http.StatusNoContent)
 			return
 		}
-		w.Header().Set("Access-Control-Allow-Origin", h.options.OriginURL)
+		w.Header().Set("Access-Control-Allow-Origin", origin)
 		w.Header().Set("Access-Control-Allow-Credentials", "true")
 		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
 		next.ServeHTTP(w, req)
