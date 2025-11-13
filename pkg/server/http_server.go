@@ -113,6 +113,8 @@ func (h *HTTPServer) logger(handler http.Handler) http.HandlerFunc {
 		rec := httptest.NewRecorder()
 		handler.ServeHTTP(rec, r)
 
+		rec.Result().ProtoMajor = r.ProtoMajor
+		rec.Result().ProtoMinor = r.ProtoMinor
 		resp, _ := httputil.DumpResponse(rec.Result(), true)
 		respString := string(resp)
 
