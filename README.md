@@ -353,7 +353,6 @@ INPUT:
    -lip, -listen-ip string                  public ip address to listen on (default "0.0.0.0")
    -e, -eviction int                        number of days to persist interaction data in memory (default 30)
    -ne, -no-eviction                        disable periodic data eviction from memory
-   -es, -eviction-strategy string           eviction strategy for interactions (sliding, fixed) (default "sliding")
    -a, -auth                                enable authentication to server using random generated token
    -t, -token string                        enable authentication to server using given token
    -acao-url string                         origin url to send in acao header to use web-client) (default "*")

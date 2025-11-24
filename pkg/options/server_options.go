@@ -20,7 +20,6 @@ type CLIServerOptions struct {
 	LdapWithFullLogger       bool
 	Eviction                 int
 	NoEviction               bool
-	EvictionStrategy         string
 	Responder                bool
 	Smb                      bool
 	SmbPort                  int
