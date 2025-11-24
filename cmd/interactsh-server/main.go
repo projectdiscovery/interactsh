@@ -48,7 +48,6 @@ func main() {
 		flagSet.StringVarP(&cliOptions.ListenIP, "listen-ip", "lip", "0.0.0.0", "public ip address to listen on"),
 		flagSet.IntVarP(&cliOptions.Eviction, "eviction", "e", 30, "number of days to persist interaction data in memory"),
 		flagSet.BoolVarP(&cliOptions.NoEviction, "no-eviction", "ne", false, "disable periodic data eviction from memory"),
-		flagSet.StringVarP(&cliOptions.EvictionStrategy, "eviction-strategy", "es", "sliding", "eviction strategy for interactions (sliding, fixed)"),
 		flagSet.BoolVarP(&cliOptions.Auth, "auth", "a", false, "enable authentication to server using random generated token"),
 		flagSet.StringVarP(&cliOptions.Token, "token", "t", "", "enable authentication to server using given token"),
 		flagSet.StringVar(&cliOptions.OriginURL, "acao-url", "*", "origin url to send in acao header to use web-client)"), // cli flag set to deprecate
@@ -219,22 +218,9 @@ func main() {
 	if cliOptions.NoEviction {
 		evictionTTL = -1
 	}
-
-	// Parse eviction strategy
-	var evictionStrategy storage.EvictionStrategy
-	switch strings.ToLower(cliOptions.EvictionStrategy) {
-	case "fixed":
-		evictionStrategy = storage.EvictionStrategyFixed
-	case "sliding":
-		evictionStrategy = storage.EvictionStrategySliding
-	default:
-		gologger.Fatal().Msgf("invalid eviction strategy '%s', must be 'sliding' or 'fixed'\n", cliOptions.EvictionStrategy)
-	}
-
 	var store storage.Storage
 	storeOptions := storage.DefaultOptions
 	storeOptions.EvictionTTL = evictionTTL
-	storeOptions.EvictionStrategy = evictionStrategy
 	if cliOptions.DiskStorage {
 		if cliOptions.DiskStoragePath == "" {
 			gologger.Fatal().Msgf("disk storage path must be specified\n")
