@@ -277,12 +277,11 @@ func (h *HTTPServer) defaultHandler(w http.ResponseWriter, req *http.Request) {
 			}
 		}
 		h.staticHandler.ServeHTTP(w, req)
+	} else if req.URL.Path == "/" && h.customBanner != "" {
+		b := strings.ReplaceAll(h.customBanner, "{REFLECTION}", reflection)
+		fmt.Fprint(w, strings.ReplaceAll(b, "{DOMAIN}", domain))
 	} else if req.URL.Path == "/" && reflection == "" {
-		if h.customBanner != "" {
-			fmt.Fprint(w, strings.ReplaceAll(h.customBanner, "{DOMAIN}", domain))
-		} else {
-			fmt.Fprintf(w, banner, domain)
-		}
+		fmt.Fprintf(w, banner, domain)
 	} else if strings.EqualFold(req.URL.Path, "/robots.txt") {
 		fmt.Fprintf(w, "User-agent: *\nDisallow: / # %s", reflection)
 	} else if stringsutil.HasSuffixI(req.URL.Path, ".json") {
