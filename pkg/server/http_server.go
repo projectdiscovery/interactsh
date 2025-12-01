@@ -277,12 +277,6 @@ func (h *HTTPServer) defaultHandler(w http.ResponseWriter, req *http.Request) {
 			}
 		}
 		h.staticHandler.ServeHTTP(w, req)
-	} else if req.URL.Path == "/" && reflection == "" {
-		if h.customBanner != "" {
-			_, _ = fmt.Fprint(w, strings.ReplaceAll(h.customBanner, "{DOMAIN}", domain))
-		} else {
-			_, _ = fmt.Fprintf(w, banner, domain)
-		}
 	} else if strings.EqualFold(req.URL.Path, "/robots.txt") {
 		_, _ = fmt.Fprintf(w, "User-agent: *\nDisallow: / # %s", reflection)
 	} else if stringsutil.HasSuffixI(req.URL.Path, ".json") {
@@ -291,12 +285,18 @@ func (h *HTTPServer) defaultHandler(w http.ResponseWriter, req *http.Request) {
 	} else if stringsutil.HasSuffixI(req.URL.Path, ".xml") {
 		_, _ = fmt.Fprintf(w, "<data>%s</data>", reflection)
 		w.Header().Set("Content-Type", "application/xml")
-	} else {
-		if h.options.DynamicResp && (len(req.URL.Query()) > 0 || stringsutil.HasPrefixI(req.URL.Path, "/b64_body:")) {
+	} else if h.options.DynamicResp {
+		if len(req.URL.Query()) > 0 || stringsutil.HasPrefixI(req.URL.Path, "/b64_body:") {
 			writeResponseFromDynamicRequest(w, req)
 			return
 		}
 		_, _ = fmt.Fprintf(w, "<html><head></head><body>%s</body></html>", reflection)
+	} else {
+		if h.customBanner != "" {
+			_, _ = fmt.Fprint(w, strings.ReplaceAll(h.customBanner, "{DOMAIN}", domain))
+		} else {
+			_, _ = fmt.Fprintf(w, banner, domain)
+		}
 	}
 }
 
