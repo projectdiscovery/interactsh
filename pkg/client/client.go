@@ -33,7 +33,7 @@ import (
 	"github.com/projectdiscovery/interactsh/pkg/settings"
 	"github.com/projectdiscovery/interactsh/pkg/storage"
 	"github.com/projectdiscovery/retryablehttp-go"
-	errorutil "github.com/projectdiscovery/utils/errors"
+	"github.com/projectdiscovery/utils/errkit"
 	iputil "github.com/projectdiscovery/utils/ip"
 	sliceutil "github.com/projectdiscovery/utils/slice"
 	stringsutil "github.com/projectdiscovery/utils/strings"
@@ -42,7 +42,7 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-var authError = errors.New("couldn't authenticate to the server")
+var errAuth = errors.New("couldn't authenticate to the server")
 
 type State uint8
 
@@ -107,6 +107,14 @@ func New(options *Options) (*Client, error) {
 		options.CorrelationIdNonceLength = DefaultOptions.CorrelationIdNonceLength
 	}
 
+	// Validate minimum lengths
+	if options.CorrelationIdLength < settings.CorrelationIdLengthMinimum {
+		return nil, fmt.Errorf("CorrelationIdLength must be at least %d", settings.CorrelationIdLengthMinimum)
+	}
+	if options.CorrelationIdNonceLength < settings.CorrelationIdNonceLengthMinimum {
+		return nil, fmt.Errorf("CorrelationIdNonceLength must be at least %d", settings.CorrelationIdNonceLengthMinimum)
+	}
+
 	var httpclient *retryablehttp.Client
 	if options.HTTPClient != nil {
 		httpclient = options.HTTPClient
@@ -131,7 +139,7 @@ func New(options *Options) (*Client, error) {
 			interactshServerURL = fmt.Sprintf("https://%s", interactshServerURL)
 		}
 		if _, err := httpclient.HTTPClient.Get(interactshServerURL); err != nil {
-			return nil, errorutil.NewWithErr(err).Msgf("certificate verification failed")
+			return nil, errkit.Wrap(err, "certificate verification failed")
 		}
 	}
 
@@ -168,7 +176,7 @@ func New(options *Options) (*Client, error) {
 		}
 		pubKey, err := decodePublicKey(options.SessionInfo.PublicKey)
 		if err != nil {
-			return nil, errorutil.NewWithErr(err).Msgf("failed to decode public key")
+			return nil, errkit.Wrap(err, "failed to decode public key")
 		}
 		client.pubKey = pubKey
 		if serverURL, err := url.Parse(options.SessionInfo.ServerURL); err == nil {
@@ -184,11 +192,11 @@ func New(options *Options) (*Client, error) {
 	} else {
 		payload, err := client.initializeRSAKeys()
 		if err != nil {
-			return nil, errorutil.NewWithErr(err).Msgf("could not initialize rsa keys")
+			return nil, errkit.Wrap(err, "could not initialize rsa keys")
 		}
 
 		if err := client.parseServerURLs(options.ServerURL, payload); err != nil {
-			return nil, errorutil.NewWithErr(err).Msgf("could not register to servers")
+			return nil, errkit.Wrap(err, "could not register to servers")
 		}
 	}
 
@@ -233,7 +241,7 @@ func (c *Client) initializeRSAKeys() ([]byte, error) {
 	// Generate a 2048-bit private-key
 	priv, err := rsa.GenerateKey(rand.Reader, 2048)
 	if err != nil {
-		return nil, errorutil.NewWithErr(err).Msgf("could not generate rsa private key")
+		return nil, errkit.Wrap(err, "could not generate rsa private key")
 	}
 	c.privKey = priv
 	c.pubKey = &priv.PublicKey
@@ -255,7 +263,7 @@ func encodeRegistrationRequest(publicKey, secretkey, correlationID string) ([]by
 
 	data, err := jsoniter.Marshal(register)
 	if err != nil {
-		return nil, errorutil.NewWithErr(err).Msgf("could not marshal register request")
+		return nil, errkit.Wrap(err, "could not marshal register request")
 	}
 	return data, nil
 }
@@ -263,7 +271,7 @@ func encodeRegistrationRequest(publicKey, secretkey, correlationID string) ([]by
 func encodePublicKey(pubKey *rsa.PublicKey) (string, error) {
 	pubkeyBytes, err := x509.MarshalPKIXPublicKey(pubKey)
 	if err != nil {
-		return "", errorutil.NewWithErr(err).Msgf("could not marshal public key")
+		return "", errkit.Wrap(err, "could not marshal public key")
 	}
 	pubkeyPem := pem.EncodeToMemory(&pem.Block{
 		Type:  "RSA PUBLIC KEY",
@@ -317,7 +325,7 @@ func (c *Client) parseServerURLs(serverURL string, payload []byte) error {
 		}
 		parsed, err := url.Parse(value)
 		if err != nil {
-			return errorutil.NewWithErr(err).Msgf("could not parse server URL")
+			return errkit.Wrap(err, "could not parse server URL")
 		}
 	makeReq:
 		if err := c.performRegistration(parsed.String(), payload); err != nil {
@@ -380,9 +388,9 @@ func (c *Client) StartPolling(duration time.Duration, callback InteractionCallba
 			case <-ticker.C:
 				err := c.getInteractions(callback)
 				if err != nil {
-					if errorutil.IsAny(err, authError) {
+					if errkit.Is(err, errAuth) {
 						gologger.Error().Msgf("Could not authenticate to the server %v", err)
-					} else if errorutil.IsAny(err, storage.ErrCorrelationIdNotFound) {
+					} else if errkit.Is(err, storage.ErrCorrelationIdNotFound) {
 						gologger.Error().Msgf("The correlation id was not found (probably evicted due to inactivity): %v", err)
 					}
 				}
@@ -428,11 +436,11 @@ func (c *Client) getInteractions(callback InteractionCallback) error {
 	}
 	if resp.StatusCode != http.StatusOK {
 		if resp.StatusCode == http.StatusUnauthorized {
-			return authError
+			return errAuth
 		}
 		data, err := io.ReadAll(resp.Body)
 		if err != nil {
-			return errorutil.NewWithErr(err).Msgf("could not read response body")
+			return errkit.Wrap(err, "could not read response body")
 		}
 		if stringsutil.ContainsAny(string(data), storage.ErrCorrelationIdNotFound.Error()) {
 			return storage.ErrCorrelationIdNotFound
@@ -470,6 +478,9 @@ func (c *Client) getInteractions(callback InteractionCallback) error {
 
 	// handle root-tld data if any
 	for _, data := range response.TLDData {
+		if len(data) == 0 {
+			continue
+		}
 		interaction := &server.Interaction{}
 		if err := jsoniter.UnmarshalFromString(data, interaction); err != nil {
 			gologger.Error().Msgf("Could not unmarshal interaction data interaction: %v\n", err)
@@ -545,12 +556,12 @@ func (c *Client) Close() error {
 	}
 	data, err := jsoniter.Marshal(register)
 	if err != nil {
-		return errorutil.NewWithErr(err).Msgf("could not marshal deregister request")
+		return errkit.Wrap(err, "could not marshal deregister request")
 	}
 	URL := c.serverURL.String() + "/deregister"
 	req, err := retryablehttp.NewRequest("POST", URL, bytes.NewReader(data))
 	if err != nil {
-		return errorutil.NewWithErr(err).Msgf("could not create new request")
+		return errkit.Wrap(err, "could not create new request")
 	}
 	req.ContentLength = int64(len(data))
 
@@ -566,7 +577,7 @@ func (c *Client) Close() error {
 		}
 	}()
 	if err != nil {
-		return errorutil.NewWithErr(err).Msgf("could not make deregister request")
+		return errkit.Wrap(err, "could not make deregister request")
 	}
 	if resp.StatusCode != http.StatusOK {
 		data, _ := io.ReadAll(resp.Body)
@@ -587,7 +598,7 @@ func (c *Client) performRegistration(serverURL string, payload []byte) error {
 	URL := serverURL + "/register"
 	req, err := retryablehttp.NewRequestWithContext(ctx, "POST", URL, bytes.NewReader(payload))
 	if err != nil {
-		return errorutil.NewWithErr(err).Msgf("could not create new request")
+		return errkit.Wrap(err, "could not create new request")
 	}
 	req.ContentLength = int64(len(payload))
 
@@ -603,7 +614,7 @@ func (c *Client) performRegistration(serverURL string, payload []byte) error {
 		}
 	}()
 	if err != nil {
-		return errorutil.NewWithErr(err).Msgf("could not make register request")
+		return errkit.Wrap(err, "could not make register request")
 	}
 	if resp.StatusCode == http.StatusUnauthorized {
 		return errors.New("invalid token provided for interactsh server")
@@ -614,7 +625,7 @@ func (c *Client) performRegistration(serverURL string, payload []byte) error {
 	}
 	response := make(map[string]interface{})
 	if err := jsoniter.NewDecoder(resp.Body).Decode(&response); err != nil {
-		return errorutil.NewWithErr(err).Msgf("could not register to server")
+		return errkit.Wrap(err, "could not register to server")
 	}
 	message, ok := response["message"]
 	if !ok {
@@ -683,7 +694,7 @@ func (c *Client) decryptMessage(key string, secureMessage string) ([]byte, error
 	cipherText = cipherText[aes.BlockSize:]
 
 	// XORKeyStream can work in-place if the two arguments are the same.
-	stream := cipher.NewCFBDecrypter(block, iv)
+	stream := cipher.NewCTR(block, iv)
 	decoded := make([]byte, len(cipherText))
 	stream.XORKeyStream(decoded, cipherText)
 	return decoded, nil

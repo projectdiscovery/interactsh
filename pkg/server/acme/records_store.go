@@ -29,7 +29,9 @@ func (p *Provider) getZoneRecords(_ context.Context, zoneName string) *RecordSto
 }
 
 func compareRecords(a, b libdns.Record) bool {
-	return a.Type == b.Type && a.Name == b.Name && a.Value == b.Value && a.TTL == b.TTL
+	rrA := a.RR()
+	rrB := b.RR()
+	return rrA.Type == rrB.Type && rrA.Name == rrB.Name && rrA.Data == rrB.Data && rrA.TTL == rrB.TTL
 }
 
 func (r *RecordStore) deleteRecords(recs []libdns.Record) []libdns.Record {

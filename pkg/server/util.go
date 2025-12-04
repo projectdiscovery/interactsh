@@ -1,6 +1,8 @@
 package server
 
 import (
+	"net"
+	"strconv"
 	"strings"
 
 	"github.com/asaskevich/govalidator"
@@ -17,4 +19,8 @@ func (options *Options) isCorrelationID(s string) bool {
 		}
 	}
 	return false
+}
+
+func formatAddress(host string, port int) string {
+	return net.JoinHostPort(host, strconv.Itoa(port))
 }
