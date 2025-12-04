@@ -296,8 +296,8 @@ github.com/projectdiscovery/mapcidr v1.1.97 h1:7FkxNNVXp+m1rIu5Nv/2SrF9k4+LwP8Qu
 github.com/projectdiscovery/mapcidr v1.1.97/go.mod h1:9dgTJh1SP02gYZdpzMjm6vtYFkEHQHoTyaVNvaeJ7lA=
 github.com/projectdiscovery/networkpolicy v0.1.28 h1:Rwg8iZmM4n+CRWyUClthaSrTqDAW8zBI2HULRO1CF3k=
 github.com/projectdiscovery/networkpolicy v0.1.28/go.mod h1:/3XfgnxKNuxaTZc6wZ/Pq6fiKvK8N4OQyLmfcUeDk2E=
-github.com/projectdiscovery/retryabledns v1.0.108 h1:47LYRW2LY/0cDnZQfUhoOHNxe9rNc9NQ9ZfNrV/GbyM=
-github.com/projectdiscovery/retryabledns v1.0.108/go.mod h1:j7H7K6JZePh9PeNleeRUtDSrkUKMpwDhZw3Ogewzio8=
+github.com/projectdiscovery/retryabledns v1.0.110 h1:24p1PzWBdfsRnGsBf6ZxXPzvK0sYaL4q/ju4+2OhJzU=
+github.com/projectdiscovery/retryabledns v1.0.110/go.mod h1:GFj5HjxfaGrZeoYf79zI/R99XljBNjmOqNvwOqPepRU=
 github.com/projectdiscovery/retryablehttp-go v1.0.131 h1:OU2x9fVDIWnDoKvT8tKbaCONTL1gHnTOIFQFXmnEOE0=
 github.com/projectdiscovery/retryablehttp-go v1.0.131/go.mod h1:ttW+Zka1L8IwEUhJ4zArbC+pKZum7b47fzV+4VGN6cA=
 github.com/projectdiscovery/utils v0.7.1 h1:3zzDzA0T6SxLripNGoTbO/znDCDWE2xlk9nazRCLBV4=
