@@ -110,7 +110,7 @@ func TestStorageAddGetInteractions(t *testing.T) {
 	cipherText = cipherText[aes.BlockSize:]
 
 	// XORKeyStream can work in-place if the two arguments are the same.
-	stream := cipher.NewCFBDecrypter(block, iv)
+	stream := cipher.NewCTR(block, iv)
 	decoded := make([]byte, len(cipherText))
 	stream.XORKeyStream(decoded, cipherText)
 
@@ -132,4 +132,50 @@ func doStuffWithOtherCache(cache cache.Cache) {
 		cache.Put(strconv.Itoa(i), "test")
 		_, _ = cache.GetIfPresent(strconv.Itoa(i))
 	}
+}
+
+func TestSlidingEvictionStrategy(t *testing.T) {
+	testTTL := 100 * time.Millisecond
+	smallDelay := 10 * time.Millisecond
+	mem, err := New(&Options{EvictionTTL: testTTL, EvictionStrategy: EvictionStrategySliding})
+	require.Nil(t, err)
+	defer mem.Close()
+
+	err = mem.SetID("test-sliding")
+	require.Nil(t, err)
+
+	// Access after half TTL - should extend expiration
+	time.Sleep(testTTL / 2)
+	_, ok := mem.cache.GetIfPresent("test-sliding")
+	require.True(t, ok)
+
+	// Still present after original TTL due to sliding window
+	time.Sleep(testTTL / 2 + smallDelay)
+	_, ok = mem.cache.GetIfPresent("test-sliding")
+	require.True(t, ok)
+
+	// Should be expired after full TTL despite access
+	time.Sleep(testTTL + smallDelay)
+	_, ok = mem.cache.GetIfPresent("test-sliding")
+	require.False(t, ok)
+}
+
+func TestFixedEvictionStrategy(t *testing.T) {
+	testTTL := 100 * time.Millisecond
+	mem, err := New(&Options{EvictionTTL: testTTL, EvictionStrategy: EvictionStrategyFixed})
+	require.Nil(t, err)
+	defer mem.Close()
+
+	err = mem.SetID("test-fixed")
+	require.Nil(t, err)
+
+	// Access after half TTL - should NOT extend expiration
+	time.Sleep(testTTL / 2)
+	_, ok := mem.cache.GetIfPresent("test-fixed")
+	require.True(t, ok)
+
+	// Should be expired after full TTL despite access
+	time.Sleep(testTTL / 2 + 10 * time.Millisecond)
+	_, ok = mem.cache.GetIfPresent("test-fixed")
+	require.False(t, ok)
 }

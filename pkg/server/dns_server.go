@@ -9,6 +9,7 @@ import (
 	"strings"
 	"sync/atomic"
 	"time"
+	"unicode"
 
 	jsoniter "github.com/json-iterator/go"
 	"github.com/miekg/dns"
@@ -24,7 +25,7 @@ type DNSServer struct {
 	options       *Options
 	mxDomains     map[string]string
 	nsDomains     map[string][]string
-	ipAddress     net.IP
+	ipAddresses   []net.IP
 	timeToLive    uint32
 	server        *dns.Server
 	customRecords *customDNSRecords
@@ -49,14 +50,14 @@ func NewDNSServer(network string, options *Options) *DNSServer {
 
 	server := &DNSServer{
 		options:       options,
-		ipAddress:     net.ParseIP(options.IPAddress),
+		ipAddresses:   options.IPAddresses,
 		mxDomains:     mxDomains,
 		nsDomains:     nsDomains,
 		timeToLive:    3600,
 		customRecords: newCustomDNSRecordsServer(options.CustomRecords),
 	}
 	server.server = &dns.Server{
-		Addr:    options.ListenIP + fmt.Sprintf(":%d", options.DnsPort),
+		Addr:    formatAddress(options.ListenIP, options.DnsPort),
 		Net:     network,
 		Handler: server,
 	}
@@ -145,8 +146,9 @@ func (h *DNSServer) handleACMETXTChallenge(zone string, m *dns.Msg) error {
 
 	rrs := []dns.RR{}
 	for _, record := range records {
-		txtHdr := dns.RR_Header{Name: zone, Rrtype: dns.TypeTXT, Class: dns.ClassINET, Ttl: uint32(record.TTL)}
-		rrs = append(rrs, &dns.TXT{Hdr: txtHdr, Txt: []string{record.Value}})
+		rr := record.RR()
+		txtHdr := dns.RR_Header{Name: zone, Rrtype: dns.TypeTXT, Class: dns.ClassINET, Ttl: uint32(rr.TTL.Seconds())}
+		rrs = append(rrs, &dns.TXT{Hdr: txtHdr, Txt: []string{rr.Data}})
 	}
 	m.Answer = append(m.Answer, rrs...)
 	return nil
@@ -156,24 +158,35 @@ func (h *DNSServer) handleACMETXTChallenge(zone string, m *dns.Msg) error {
 func (h *DNSServer) handleACNAMEANY(zone string, m *dns.Msg) {
 	nsHeader := dns.RR_Header{Name: zone, Rrtype: dns.TypeNS, Class: dns.ClassINET, Ttl: h.timeToLive}
 
-	// If we have a custom record serve it, or default IP
+	// If we have a custom record serve it, or default IPs
 	record := h.customRecords.checkCustomResponse(zone)
-	switch {
-	case record != "":
-		h.resultFunction(nsHeader, zone, net.ParseIP(record), m)
-	default:
-		h.resultFunction(nsHeader, zone, h.ipAddress, m)
+	answerIPs := uniqueIPs(parseIPList(record))
+	if len(answerIPs) == 0 {
+		answerIPs = h.ipAddresses
+	}
+	if len(answerIPs) > 0 {
+		h.resultFunction(nsHeader, zone, answerIPs, m)
 	}
 }
 
-func (h *DNSServer) resultFunction(nsHeader dns.RR_Header, zone string, ipAddress net.IP, m *dns.Msg) {
-	m.Answer = append(m.Answer, &dns.A{Hdr: dns.RR_Header{Name: zone, Rrtype: dns.TypeA, Class: dns.ClassINET, Ttl: h.timeToLive}, A: ipAddress})
+func (h *DNSServer) resultFunction(nsHeader dns.RR_Header, zone string, ipAddresses []net.IP, m *dns.Msg) {
+	unique := uniqueIPs(ipAddresses)
+	var answered bool
+	for _, ipAddress := range unique {
+		if h.appendAnswerRecord(zone, ipAddress, m) {
+			answered = true
+		}
+	}
+	if !answered {
+		return
+	}
+
 	dotDomains := []string{zone, dns.Fqdn(h.options.Domains[0])}
 	for _, dotDomain := range dotDomains {
 		if nsDomains, ok := h.nsDomains[dotDomain]; ok {
 			for _, nsDomain := range nsDomains {
 				m.Ns = append(m.Ns, &dns.NS{Hdr: nsHeader, Ns: nsDomain})
-				m.Extra = append(m.Extra, &dns.A{Hdr: dns.RR_Header{Name: nsDomain, Rrtype: dns.TypeA, Class: dns.ClassINET, Ttl: h.timeToLive}, A: h.ipAddress})
+				h.appendGlueRecords(nsDomain, m)
 			}
 			return
 		}
@@ -347,6 +360,94 @@ func (h *DNSServer) handleInteraction(domain string, w dns.ResponseWriter, r *dn
 	}
 }
 
+// appendAnswerRecord appends an A/AAAA record to the DNS message based on the
+// provided IP address.
+func (h *DNSServer) appendAnswerRecord(zone string, ip net.IP, m *dns.Msg) bool {
+	if ip == nil {
+		return false
+	}
+
+	if ipv4 := ip.To4(); ipv4 != nil {
+		m.Answer = append(m.Answer, &dns.A{Hdr: dns.RR_Header{Name: zone, Rrtype: dns.TypeA, Class: dns.ClassINET, Ttl: h.timeToLive}, A: ipv4})
+		return true
+	}
+
+	if ipv6 := ip.To16(); ipv6 != nil {
+		m.Answer = append(m.Answer, &dns.AAAA{Hdr: dns.RR_Header{Name: zone, Rrtype: dns.TypeAAAA, Class: dns.ClassINET, Ttl: h.timeToLive}, AAAA: ipv6})
+		return true
+	}
+
+	return false
+}
+
+// appendGlueRecords appends A/AAAA glue records for the given nameserver domain.
+func (h *DNSServer) appendGlueRecords(nsDomain string, m *dns.Msg) {
+	for _, ip := range uniqueIPs(h.ipAddresses) {
+		if ipv4 := ip.To4(); ipv4 != nil {
+			m.Extra = append(m.Extra, &dns.A{Hdr: dns.RR_Header{Name: nsDomain, Rrtype: dns.TypeA, Class: dns.ClassINET, Ttl: h.timeToLive}, A: ipv4})
+			continue
+		}
+
+		if ipv6 := ip.To16(); ipv6 != nil {
+			m.Extra = append(m.Extra, &dns.AAAA{Hdr: dns.RR_Header{Name: nsDomain, Rrtype: dns.TypeAAAA, Class: dns.ClassINET, Ttl: h.timeToLive}, AAAA: ipv6})
+		}
+	}
+}
+
+// parseIPList parses a string containing multiple IP addresses separated by
+// commas, semicolons, or whitespace and returns a slice of [net.IP] objects.
+func parseIPList(value string) []net.IP {
+	if strings.TrimSpace(value) == "" {
+		return nil
+	}
+
+	parts := strings.FieldsFunc(value, func(r rune) bool {
+		return r == ',' || r == ';' || unicode.IsSpace(r)
+	})
+
+	var ips []net.IP
+
+	for _, part := range parts {
+		trimmed := strings.TrimSpace(part)
+		if trimmed == "" {
+			continue
+		}
+
+		if ip := net.ParseIP(trimmed); ip != nil {
+			ips = append(ips, ip)
+		}
+	}
+
+	return ips
+}
+
+// uniqueIPs deduplicates a slice of [net.IP] objects and returns a new slice
+// containing only unique IP addresses.
+func uniqueIPs(ips []net.IP) []net.IP {
+	if len(ips) == 0 {
+		return nil
+	}
+
+	seen := make(map[string]struct{}, len(ips))
+
+	var result []net.IP
+	for _, ip := range ips {
+		if ip == nil {
+			continue
+		}
+
+		key := ip.String()
+		if _, ok := seen[key]; ok {
+			continue
+		}
+
+		seen[key] = struct{}{}
+		result = append(result, ip)
+	}
+
+	return result
+}
+
 // customDNSRecords is a server for custom dns records
 type customDNSRecords struct {
 	records map[string]string
@@ -378,7 +479,11 @@ func (c *customDNSRecords) readRecordsFromFile(input string) error {
 	if err != nil {
 		return errors.Wrap(err, "could not open file")
 	}
-	defer file.Close()
+	defer func() {
+		if err := file.Close(); err != nil {
+			gologger.Error().Msgf("Could not close file: %s", err)
+		}
+	}()
 
 	var data map[string]string
 	if err := yaml.NewDecoder(file).Decode(&data); err != nil {

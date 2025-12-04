@@ -52,8 +52,8 @@ func main() {
 		flagSet.StringVarP(&cliOptions.Token, "token", "t", "", "authentication token to connect protected interactsh server"),
 		flagSet.IntVarP(&cliOptions.PollInterval, "poll-interval", "pi", 5, "poll interval in seconds to pull interaction data"),
 		flagSet.BoolVarP(&cliOptions.DisableHTTPFallback, "no-http-fallback", "nf", false, "disable http fallback registration"),
-		flagSet.IntVarP(&cliOptions.CorrelationIdLength, "correlation-id-length", "cidl", settings.CorrelationIdLengthDefault, "length of the correlation id preamble"),
-		flagSet.IntVarP(&cliOptions.CorrelationIdNonceLength, "correlation-id-nonce-length", "cidn", settings.CorrelationIdNonceLengthDefault, "length of the correlation id nonce"),
+		flagSet.IntVarP(&cliOptions.CorrelationIdLength, "correlation-id-length", "cidl", settings.CorrelationIdLengthDefault, fmt.Sprintf("length of the correlation id preamble (min %d, default %d)", settings.CorrelationIdLengthMinimum, settings.CorrelationIdLengthDefault)),
+		flagSet.IntVarP(&cliOptions.CorrelationIdNonceLength, "correlation-id-nonce-length", "cidn", settings.CorrelationIdNonceLengthDefault, fmt.Sprintf("length of the correlation id nonce (min %d, default %d)", settings.CorrelationIdNonceLengthMinimum, settings.CorrelationIdNonceLengthDefault)),
 		flagSet.StringVarP(&cliOptions.SessionFile, "session-file", "sf", "", "store/read from session file"),
 		flagSet.DurationVarP(&cliOptions.KeepAliveInterval, "keep-alive-interval", "kai", time.Minute, "keep alive interval"),
 	)
@@ -145,7 +145,11 @@ func main() {
 		if outputFile, err = os.Create(cliOptions.Output); err != nil {
 			gologger.Fatal().Msgf("Could not create output file: %s\n", err)
 		}
-		defer outputFile.Close()
+		defer func() {
+			if err := outputFile.Close(); err != nil {
+				gologger.Error().Msgf("Error closing output file: %v\n", err)
+			}
+		}()
 	}
 
 	var sessionInfo *options.SessionInfo
@@ -213,49 +217,49 @@ func main() {
 			switch interaction.Protocol {
 			case "dns":
 				if noFilter || cliOptions.DNSOnly {
-					builder.WriteString(fmt.Sprintf("[%s] Received DNS interaction (%s) from %s at %s", interaction.FullId, interaction.QType, interaction.RemoteAddress, interaction.Timestamp.Format("2006-01-02 15:04:05")))
+					fmt.Fprintf(builder, "[%s] Received DNS interaction (%s) from %s at %s", interaction.FullId, interaction.QType, interaction.RemoteAddress, interaction.Timestamp.Format("2006-01-02 15:04:05"))
 					if cliOptions.Verbose {
-						builder.WriteString(fmt.Sprintf("\n-----------\nDNS Request\n-----------\n\n%s\n\n------------\nDNS Response\n------------\n\n%s\n\n", interaction.RawRequest, interaction.RawResponse))
+						fmt.Fprintf(builder, "\n-----------\nDNS Request\n-----------\n\n%s\n\n------------\nDNS Response\n------------\n\n%s\n\n", interaction.RawRequest, interaction.RawResponse)
 					}
 					writeOutput(outputFile, builder)
 				}
 			case "http":
 				if noFilter || cliOptions.HTTPOnly {
-					builder.WriteString(fmt.Sprintf("[%s] Received HTTP interaction from %s at %s", interaction.FullId, interaction.RemoteAddress, interaction.Timestamp.Format("2006-01-02 15:04:05")))
+					fmt.Fprintf(builder, "[%s] Received HTTP interaction from %s at %s", interaction.FullId, interaction.RemoteAddress, interaction.Timestamp.Format("2006-01-02 15:04:05"))
 					if cliOptions.Verbose {
-						builder.WriteString(fmt.Sprintf("\n------------\nHTTP Request\n------------\n\n%s\n\n-------------\nHTTP Response\n-------------\n\n%s\n\n", interaction.RawRequest, interaction.RawResponse))
+						fmt.Fprintf(builder, "\n------------\nHTTP Request\n------------\n\n%s\n\n-------------\nHTTP Response\n-------------\n\n%s\n\n", interaction.RawRequest, interaction.RawResponse)
 					}
 					writeOutput(outputFile, builder)
 				}
 			case "smtp":
 				if noFilter || cliOptions.SmtpOnly {
-					builder.WriteString(fmt.Sprintf("[%s] Received SMTP interaction from %s at %s", interaction.FullId, interaction.RemoteAddress, interaction.Timestamp.Format("2006-01-02 15:04:05")))
+					fmt.Fprintf(builder, "[%s] Received SMTP interaction from %s at %s", interaction.FullId, interaction.RemoteAddress, interaction.Timestamp.Format("2006-01-02 15:04:05"))
 					if cliOptions.Verbose {
-						builder.WriteString(fmt.Sprintf("\n------------\nSMTP Interaction\n------------\n\n%s\n\n", interaction.RawRequest))
+						fmt.Fprintf(builder, "\n------------\nSMTP Interaction\n------------\n\n%s\n\n", interaction.RawRequest)
 					}
 					writeOutput(outputFile, builder)
 				}
 			case "ftp":
 				if noFilter {
-					builder.WriteString(fmt.Sprintf("Received FTP interaction from %s at %s", interaction.RemoteAddress, interaction.Timestamp.Format("2006-01-02 15:04:05")))
+					fmt.Fprintf(builder, "Received FTP interaction from %s at %s", interaction.RemoteAddress, interaction.Timestamp.Format("2006-01-02 15:04:05"))
 					if cliOptions.Verbose {
-						builder.WriteString(fmt.Sprintf("\n------------\nFTP Interaction\n------------\n\n%s\n\n", interaction.RawRequest))
+						fmt.Fprintf(builder, "\n------------\nFTP Interaction\n------------\n\n%s\n\n", interaction.RawRequest)
 					}
 					writeOutput(outputFile, builder)
 				}
 			case "responder", "smb":
 				if noFilter {
-					builder.WriteString(fmt.Sprintf("Received Responder/Smb interaction at %s", interaction.Timestamp.Format("2006-01-02 15:04:05")))
+					fmt.Fprintf(builder, "Received Responder/Smb interaction at %s", interaction.Timestamp.Format("2006-01-02 15:04:05"))
 					if cliOptions.Verbose {
-						builder.WriteString(fmt.Sprintf("\n------------\nResponder/SMB Interaction\n------------\n\n%s\n\n", interaction.RawRequest))
+						fmt.Fprintf(builder, "\n------------\nResponder/SMB Interaction\n------------\n\n%s\n\n", interaction.RawRequest)
 					}
 					writeOutput(outputFile, builder)
 				}
 			case "ldap":
 				if noFilter {
-					builder.WriteString(fmt.Sprintf("[%s] Received LDAP interaction from %s at %s", interaction.FullId, interaction.RemoteAddress, interaction.Timestamp.Format("2006-01-02 15:04:05")))
+					fmt.Fprintf(builder, "[%s] Received LDAP interaction from %s at %s", interaction.FullId, interaction.RemoteAddress, interaction.Timestamp.Format("2006-01-02 15:04:05"))
 					if cliOptions.Verbose {
-						builder.WriteString(fmt.Sprintf("\n------------\nLDAP Interaction\n------------\n\n%s\n\n", interaction.RawRequest))
+						fmt.Fprintf(builder, "\n------------\nLDAP Interaction\n------------\n\n%s\n\n", interaction.RawRequest)
 					}
 					writeOutput(outputFile, builder)
 				}
@@ -265,8 +269,8 @@ func main() {
 			if err != nil {
 				gologger.Error().Msgf("Could not marshal json output: %s\n", err)
 			} else {
-				os.Stdout.Write(b)
-				os.Stdout.Write([]byte("\n"))
+				_, _ = os.Stdout.Write(b)
+				_, _ = os.Stdout.Write([]byte("\n"))
 			}
 			if outputFile != nil {
 				_, _ = outputFile.Write(b)
@@ -287,7 +291,7 @@ func main() {
 		_ = client.StopPolling()
 		// whether the session is saved/loaded it shouldn't be destroyed {
 		if cliOptions.SessionFile == "" {
-			client.Close()
+			_ = client.Close()
 		}
 		os.Exit(1)
 	}
