@@ -1,6 +1,7 @@
 package server
 
 import (
+	"crypto/tls"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -9,6 +10,18 @@ import (
 
 	"github.com/stretchr/testify/require"
 )
+
+func TestHttpProtocol(t *testing.T) {
+	t.Run("plaintext", func(t *testing.T) {
+		r := httptest.NewRequest("GET", "http://example.com/", nil)
+		require.Equal(t, "http", httpProtocol(r))
+	})
+	t.Run("tls", func(t *testing.T) {
+		r := httptest.NewRequest("GET", "https://example.com/", nil)
+		r.TLS = &tls.ConnectionState{}
+		require.Equal(t, "https", httpProtocol(r))
+	})
+}
 
 func TestWriteResponseFromDynamicRequest(t *testing.T) {
 	t.Run("status", func(t *testing.T) {

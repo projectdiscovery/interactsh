@@ -150,7 +150,7 @@ func (h *HTTPServer) logger(handler http.Handler) http.HandlerFunc {
 					ID := domain
 					host, _, _ := net.SplitHostPort(r.RemoteAddr)
 					interaction := &Interaction{
-						Protocol:      "http",
+						Protocol:      httpProtocol(r),
 						UniqueID:      r.Host,
 						FullId:        r.Host,
 						RawRequest:    reqString,
@@ -177,7 +177,7 @@ func (h *HTTPServer) logger(handler http.Handler) http.HandlerFunc {
 				for part := range stringsutil.SlideWithLength(chunk, h.options.GetIdLength()) {
 					normalizedPart := strings.ToLower(part)
 					if h.options.isCorrelationID(normalizedPart) {
-						h.handleInteraction(normalizedPart, part, reqString, respString, host)
+						h.handleInteraction(r, normalizedPart, part, reqString, respString, host)
 					}
 				}
 			}
@@ -191,7 +191,7 @@ func (h *HTTPServer) logger(handler http.Handler) http.HandlerFunc {
 						if i+1 <= len(parts) {
 							fullID = strings.Join(parts[:i+1], ".")
 						}
-						h.handleInteraction(normalizedPartChunk, fullID, reqString, respString, host)
+						h.handleInteraction(r, normalizedPartChunk, fullID, reqString, respString, host)
 					}
 				}
 			}
@@ -199,11 +199,18 @@ func (h *HTTPServer) logger(handler http.Handler) http.HandlerFunc {
 	}
 }
 
-func (h *HTTPServer) handleInteraction(uniqueID, fullID, reqString, respString, hostPort string) {
+func httpProtocol(r *http.Request) string {
+	if r.TLS != nil {
+		return "https"
+	}
+	return "http"
+}
+
+func (h *HTTPServer) handleInteraction(r *http.Request, uniqueID, fullID, reqString, respString, hostPort string) {
 	correlationID := uniqueID[:h.options.CorrelationIdLength]
 
 	interaction := &Interaction{
-		Protocol:      "http",
+		Protocol:      httpProtocol(r),
 		UniqueID:      uniqueID,
 		FullId:        fullID,
 		RawRequest:    reqString,
