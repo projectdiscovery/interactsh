@@ -1,5 +1,5 @@
 package storage
 
-import "errors"
+import "github.com/projectdiscovery/utils/errkit"
 
-var ErrCorrelationIdNotFound = errors.New("could not get correlation-id from cache")
+var ErrCorrelationIdNotFound = errkit.New("could not get correlation-id from cache")

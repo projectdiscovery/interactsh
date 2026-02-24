@@ -12,7 +12,6 @@ import (
 	"strings"
 
 	"github.com/goburrow/cache"
-	"github.com/google/uuid"
 	"github.com/pkg/errors"
 	fileutil "github.com/projectdiscovery/utils/file"
 	permissionutil "github.com/projectdiscovery/utils/permission"
@@ -38,7 +37,14 @@ func New(options *Options) (*StorageDB, error) {
 		cache.WithMaximumSize(options.MaxSize),
 	}
 	if options.EvictionTTL > 0 {
-		cacheOptions = append(cacheOptions, cache.WithExpireAfterAccess(options.EvictionTTL))
+		switch options.EvictionStrategy {
+		case EvictionStrategyFixed:
+			cacheOptions = append(cacheOptions, cache.WithExpireAfterWrite(options.EvictionTTL))
+		case EvictionStrategySliding:
+			fallthrough
+		default:
+			cacheOptions = append(cacheOptions, cache.WithExpireAfterAccess(options.EvictionTTL))
+		}
 	}
 	if options.UseDisk() {
 		cacheOptions = append(cacheOptions, cache.WithRemovalListener(storageDB.OnCacheRemovalCallback))
@@ -100,16 +106,19 @@ func (s *StorageDB) SetIDPublicKey(correlationID, secretKey, publicKey string) e
 	if err != nil {
 		return errors.Wrap(err, "could not read public Key")
 	}
-	aesKey := uuid.New().String()[:32]
+	aesKey := make([]byte, 32)
+	if _, err := rand.Read(aesKey); err != nil {
+		return errors.Wrap(err, "could not generate AES key")
+	}
 
-	ciphertext, err := rsa.EncryptOAEP(sha256.New(), rand.Reader, publicKeyData, []byte(aesKey), []byte(""))
+	ciphertext, err := rsa.EncryptOAEP(sha256.New(), rand.Reader, publicKeyData, aesKey, []byte(""))
 	if err != nil {
 		return errors.New("could not encrypt event data")
 	}
 
 	data := &CorrelationData{
 		SecretKey:       secretKey,
-		AESKey:          []byte(aesKey),
+		AESKey:          aesKey,
 		AESKeyEncrypted: base64.StdEncoding.EncodeToString(ciphertext),
 	}
 	s.cache.Put(correlationID, data)
@@ -118,6 +127,7 @@ func (s *StorageDB) SetIDPublicKey(correlationID, secretKey, publicKey string) e
 
 func (s *StorageDB) SetID(ID string) error {
 	data := &CorrelationData{}
+
 	s.cache.Put(ID, data)
 	return nil
 }
@@ -125,6 +135,10 @@ func (s *StorageDB) SetID(ID string) error {
 // AddInteraction adds an interaction data to the correlation ID after encrypting
 // it with Public Key for the provided correlation ID.
 func (s *StorageDB) AddInteraction(correlationID string, data []byte) error {
+	if len(data) == 0 {
+		return nil
+	}
+
 	item, found := s.cache.GetIfPresent(correlationID)
 	if !found {
 		return ErrCorrelationIdNotFound
@@ -135,10 +149,15 @@ func (s *StorageDB) AddInteraction(correlationID string, data []byte) error {
 	}
 
 	if s.Options.UseDisk() {
-		ct, err := AESEncrypt(value.AESKey, data)
-		if err != nil {
-			return errors.Wrap(err, "could not encrypt event data")
+		ct := string(data)
+		if len(value.AESKey) > 0 {
+			var err error
+			ct, err = AESEncrypt(value.AESKey, data)
+			if err != nil {
+				return errors.Wrap(err, "could not encrypt event data")
+			}
 		}
+
 		value.Lock()
 		existingData, _ := s.db.Get([]byte(correlationID), nil)
 		_ = s.db.Put([]byte(correlationID), AppendMany("\n", existingData, []byte(ct)), nil)
@@ -154,6 +173,10 @@ func (s *StorageDB) AddInteraction(correlationID string, data []byte) error {
 
 // AddInteractionWithId adds an interaction data to the id bucket
 func (s *StorageDB) AddInteractionWithId(id string, data []byte) error {
+	if len(data) == 0 {
+		return nil
+	}
+
 	item, ok := s.cache.GetIfPresent(id)
 	if !ok {
 		return ErrCorrelationIdNotFound
@@ -164,10 +187,15 @@ func (s *StorageDB) AddInteractionWithId(id string, data []byte) error {
 	}
 
 	if s.Options.UseDisk() {
-		ct, err := AESEncrypt(value.AESKey, data)
-		if err != nil {
-			return errors.Wrap(err, "could not encrypt event data")
+		ct := string(data)
+		if len(value.AESKey) > 0 {
+			var err error
+			ct, err = AESEncrypt(value.AESKey, data)
+			if err != nil {
+				return errors.Wrap(err, "could not encrypt event data")
+			}
 		}
+
 		value.Lock()
 		existingData, _ := s.db.Get([]byte(id), nil)
 		_ = s.db.Put([]byte(id), AppendMany("\n", existingData, []byte(ct)), nil)
@@ -264,6 +292,9 @@ func (s *StorageDB) getInteractions(correlationData *CorrelationData, id string)
 		}
 		var dataString []string
 		for _, d := range bytes.Split(data, []byte("\n")) {
+			if len(d) == 0 {
+				continue
+			}
 			dataString = append(dataString, string(d))
 		}
 		_ = s.db.Delete([]byte(id), nil)

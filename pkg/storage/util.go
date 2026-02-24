@@ -36,7 +36,7 @@ func ParseB64RSAPublicKeyFromPEM(pubPEM string) (*rsa.PublicKey, error) {
 	default:
 		break // fall through
 	}
-	return nil, errors.New("Key type is not RSA")
+	return nil, errors.New("key type is not RSA")
 }
 
 // AESEncrypt encrypts a message using AES and puts IV at the beginning of ciphertext.
@@ -51,7 +51,7 @@ func AESEncrypt(key []byte, message []byte) (string, error) {
 	if _, err = io.ReadFull(rand.Reader, iv); err != nil {
 		return "", err
 	}
-	stream := cipher.NewCFBEncrypter(block, iv)
+	stream := cipher.NewCTR(block, iv)
 	stream.XORKeyStream(cipherText[aes.BlockSize:], message)
 	encMessage := make([]byte, base64.StdEncoding.EncodedLen(len(cipherText)))
 	base64.StdEncoding.Encode(encMessage, cipherText)

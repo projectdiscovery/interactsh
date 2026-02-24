@@ -2,10 +2,18 @@ package storage
 
 import "time"
 
+type EvictionStrategy int
+
+const (
+	EvictionStrategySliding EvictionStrategy = iota // expire-after-access
+	EvictionStrategyFixed                           // expire-after-write
+)
+
 type Options struct {
-	DbPath      string
-	EvictionTTL time.Duration
-	MaxSize     int
+	DbPath           string
+	EvictionTTL      time.Duration
+	MaxSize          int
+	EvictionStrategy EvictionStrategy
 }
 
 func (options *Options) UseDisk() bool {
@@ -13,5 +21,6 @@ func (options *Options) UseDisk() bool {
 }
 
 var DefaultOptions = Options{
-	MaxSize: 2500000,
+	MaxSize:          2500000,
+	EvictionStrategy: EvictionStrategySliding,
 }

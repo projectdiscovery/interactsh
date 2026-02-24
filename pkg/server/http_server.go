@@ -25,11 +25,12 @@ import (
 // HTTPServer is a http server instance that listens both
 // TLS and Non-TLS based servers.
 type HTTPServer struct {
-	options       *Options
-	tlsserver     http.Server
-	nontlsserver  http.Server
-	customBanner  string
-	staticHandler http.Handler
+	options         *Options
+	tlsserver       http.Server
+	nontlsserver    http.Server
+	customBanner    string
+	defaultResponse string
+	staticHandler   http.Handler
 }
 
 type noopLogger struct {
@@ -63,10 +64,20 @@ func NewHTTPServer(options *Options) (*HTTPServer, error) {
 	// If custom index, read the custom index file and serve it.
 	// Supports {DOMAIN} placeholders.
 	if options.HTTPIndex != "" {
-		abs, _ := filepath.Abs(options.HTTPDirectory)
+		abs, _ := filepath.Abs(options.HTTPIndex)
 		gologger.Info().Msgf("Using custom server index: %s", abs)
 		if data, err := os.ReadFile(options.HTTPIndex); err == nil {
 			server.customBanner = string(data)
+		}
+	}
+	// If default response file is specified, read it and serve for all requests.
+	// This takes priority over all other response options.
+	// Supports {DOMAIN} placeholders.
+	if options.DefaultHTTPResponseFile != "" {
+		abs, _ := filepath.Abs(options.DefaultHTTPResponseFile)
+		gologger.Info().Msgf("Using default HTTP response file for all requests: %s", abs)
+		if data, err := os.ReadFile(options.DefaultHTTPResponseFile); err == nil {
+			server.defaultResponse = string(data)
 		}
 	}
 	router := &http.ServeMux{}
@@ -77,8 +88,8 @@ func NewHTTPServer(options *Options) (*HTTPServer, error) {
 	if server.options.EnableMetrics {
 		router.Handle("/metrics", server.corsMiddleware(server.authMiddleware(http.HandlerFunc(server.metricsHandler))))
 	}
-	server.tlsserver = http.Server{Addr: options.ListenIP + fmt.Sprintf(":%d", options.HttpsPort), Handler: router, ErrorLog: log.New(&noopLogger{}, "", 0)}
-	server.nontlsserver = http.Server{Addr: options.ListenIP + fmt.Sprintf(":%d", options.HttpPort), Handler: router, ErrorLog: log.New(&noopLogger{}, "", 0)}
+	server.tlsserver = http.Server{Addr: formatAddress(options.ListenIP, options.HttpsPort), Handler: router, ErrorLog: log.New(&noopLogger{}, "", 0)}
+	server.nontlsserver = http.Server{Addr: formatAddress(options.ListenIP, options.HttpPort), Handler: router, ErrorLog: log.New(&noopLogger{}, "", 0)}
 	return server, nil
 }
 
@@ -255,6 +266,13 @@ func (h *HTTPServer) defaultHandler(w http.ResponseWriter, req *http.Request) {
 	}
 
 	reflection := h.options.URLReflection(req.Host)
+
+	// If default response is set, serve it for all requests (highest priority)
+	if h.defaultResponse != "" {
+		_, _ = fmt.Fprint(w, strings.ReplaceAll(h.defaultResponse, "{DOMAIN}", domain))
+		return
+	}
+
 	if stringsutil.HasPrefixI(req.URL.Path, "/s/") && h.staticHandler != nil {
 		if h.options.DynamicResp && len(req.URL.Query()) > 0 {
 			values := req.URL.Query()
@@ -279,24 +297,24 @@ func (h *HTTPServer) defaultHandler(w http.ResponseWriter, req *http.Request) {
 		h.staticHandler.ServeHTTP(w, req)
 	} else if req.URL.Path == "/" && reflection == "" {
 		if h.customBanner != "" {
-			fmt.Fprint(w, strings.ReplaceAll(h.customBanner, "{DOMAIN}", domain))
+			_, _ = fmt.Fprint(w, strings.ReplaceAll(h.customBanner, "{DOMAIN}", domain))
 		} else {
-			fmt.Fprintf(w, banner, domain)
+			_, _ = fmt.Fprintf(w, banner, domain)
 		}
 	} else if strings.EqualFold(req.URL.Path, "/robots.txt") {
-		fmt.Fprintf(w, "User-agent: *\nDisallow: / # %s", reflection)
+		_, _ = fmt.Fprintf(w, "User-agent: *\nDisallow: / # %s", reflection)
 	} else if stringsutil.HasSuffixI(req.URL.Path, ".json") {
-		fmt.Fprintf(w, "{\"data\":\"%s\"}", reflection)
+		_, _ = fmt.Fprintf(w, "{\"data\":\"%s\"}", reflection)
 		w.Header().Set("Content-Type", "application/json")
 	} else if stringsutil.HasSuffixI(req.URL.Path, ".xml") {
-		fmt.Fprintf(w, "<data>%s</data>", reflection)
+		_, _ = fmt.Fprintf(w, "<data>%s</data>", reflection)
 		w.Header().Set("Content-Type", "application/xml")
 	} else {
 		if h.options.DynamicResp && (len(req.URL.Query()) > 0 || stringsutil.HasPrefixI(req.URL.Path, "/b64_body:")) {
 			writeResponseFromDynamicRequest(w, req)
 			return
 		}
-		fmt.Fprintf(w, "<html><head></head><body>%s</body></html>", reflection)
+		_, _ = fmt.Fprintf(w, "<html><head></head><body>%s</body></html>", reflection)
 	}
 }
 

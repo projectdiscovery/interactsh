@@ -26,7 +26,7 @@ var DefaultResolvers = []string{
 // CleanupStorage perform cleanup routines tasks
 func CleanupStorage() {
 	cleanupOptions := certmagic.CleanStorageOptions{OCSPStaples: true}
-	certmagic.CleanStorage(context.Background(), certmagic.Default.Storage, cleanupOptions)
+	_ = certmagic.CleanStorage(context.Background(), certmagic.Default.Storage, cleanupOptions)
 }
 
 type CertificateFiles struct {
@@ -44,13 +44,15 @@ func HandleWildcardCertificates(domain, email string, store *Provider, debug boo
 	certmagic.DefaultACME.Agreed = true
 	certmagic.DefaultACME.Email = email
 	certmagic.DefaultACME.DNS01Solver = &certmagic.DNS01Solver{
-		DNSProvider: store,
-		Resolvers: func() []string {
-			if len(customResolvers) == 0 {
-				return DefaultResolvers
-			}
-			return customResolvers
-		}(),
+		DNSManager: certmagic.DNSManager{
+			DNSProvider: store,
+			Resolvers: func() []string {
+				if len(customResolvers) == 0 {
+					return DefaultResolvers
+				}
+				return customResolvers
+			}(),
+		},
 	}
 	originalDomain := strings.TrimPrefix(domain, "*.")
 

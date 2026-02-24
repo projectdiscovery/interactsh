@@ -11,6 +11,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -44,17 +45,18 @@ func main() {
 
 	flagSet.CreateGroup("input", "Input",
 		flagSet.StringSliceVarP(&cliOptions.Domains, "domain", "d", []string{}, "single/multiple configured domain to use for server", goflags.CommaSeparatedStringSliceOptions),
-		flagSet.StringVar(&cliOptions.IPAddress, "ip", "", "public ip address to use for interactsh server"),
+		flagSet.StringSliceVarP(&cliOptions.IPAddresses, "ip", "i", []string{}, "public IP address(es) to use for interactsh server (comma-separated, supports both IPv4 & IPv6)", goflags.CommaSeparatedStringSliceOptions),
 		flagSet.StringVarP(&cliOptions.ListenIP, "listen-ip", "lip", "0.0.0.0", "public ip address to listen on"),
 		flagSet.IntVarP(&cliOptions.Eviction, "eviction", "e", 30, "number of days to persist interaction data in memory"),
 		flagSet.BoolVarP(&cliOptions.NoEviction, "no-eviction", "ne", false, "disable periodic data eviction from memory"),
+		flagSet.StringVarP(&cliOptions.EvictionStrategy, "eviction-strategy", "es", "sliding", "eviction strategy for interactions (sliding, fixed)"),
 		flagSet.BoolVarP(&cliOptions.Auth, "auth", "a", false, "enable authentication to server using random generated token"),
 		flagSet.StringVarP(&cliOptions.Token, "token", "t", "", "enable authentication to server using given token"),
 		flagSet.StringVar(&cliOptions.OriginURL, "acao-url", "*", "origin url to send in acao header to use web-client)"), // cli flag set to deprecate
 		flagSet.BoolVarP(&cliOptions.SkipAcme, "skip-acme", "sa", false, "skip acme registration (certificate checks/handshake + TLS protocols will be disabled)"),
 		flagSet.BoolVarP(&cliOptions.ScanEverywhere, "scan-everywhere", "se", false, "scan canary token everywhere"),
-		flagSet.IntVarP(&cliOptions.CorrelationIdLength, "correlation-id-length", "cidl", settings.CorrelationIdLengthDefault, "length of the correlation id preamble"),
-		flagSet.IntVarP(&cliOptions.CorrelationIdNonceLength, "correlation-id-nonce-length", "cidn", settings.CorrelationIdNonceLengthDefault, "length of the correlation id nonce"),
+		flagSet.IntVarP(&cliOptions.CorrelationIdLength, "correlation-id-length", "cidl", settings.CorrelationIdLengthDefault, fmt.Sprintf("length of the correlation id preamble (min %d, default %d)", settings.CorrelationIdLengthMinimum, settings.CorrelationIdLengthDefault)),
+		flagSet.IntVarP(&cliOptions.CorrelationIdNonceLength, "correlation-id-nonce-length", "cidn", settings.CorrelationIdNonceLengthDefault, fmt.Sprintf("length of the correlation id nonce (min %d, default %d)", settings.CorrelationIdNonceLengthMinimum, settings.CorrelationIdNonceLengthDefault)),
 		flagSet.StringVar(&cliOptions.CertificatePath, "cert", "", "custom certificate path"),
 		flagSet.StringVar(&cliOptions.PrivateKeyPath, "privkey", "", "custom private key path"),
 		flagSet.StringVarP(&cliOptions.OriginIPHeader, "origin-ip-header", "oih", "", "HTTP header containing origin ip (interactsh behind a reverse proxy)"),
@@ -67,6 +69,7 @@ func main() {
 		flagSet.StringVarP(&cliOptions.CustomRecords, "custom-records", "cr", "", "custom dns records YAML file for DNS server"),
 		flagSet.StringVarP(&cliOptions.HTTPIndex, "http-index", "hi", "", "custom index file for http server"),
 		flagSet.StringVarP(&cliOptions.HTTPDirectory, "http-directory", "hd", "", "directory with files to serve with http server"),
+		flagSet.StringVarP(&cliOptions.DefaultHTTPResponseFile, "default-http-response", "dhr", "", "file to serve for all http requests (takes priority over other options)"),
 		flagSet.BoolVarP(&cliOptions.DiskStorage, "disk", "ds", false, "disk based storage"),
 		flagSet.StringVarP(&cliOptions.DiskStoragePath, "disk-path", "dsp", "", "disk storage path"),
 		flagSet.StringVarP(&cliOptions.HeaderServer, "server-header", "csh", "", "custom value of Server header in response"),
@@ -142,7 +145,14 @@ func main() {
 		gologger.Fatal().Msgf("No domains specified\n")
 	}
 
-	if cliOptions.IPAddress == "" && cliOptions.ListenIP == "0.0.0.0" {
+	if cliOptions.CorrelationIdLength < settings.CorrelationIdLengthMinimum {
+		gologger.Fatal().Msgf("CorrelationIdLength (cidl) must be at least %d\n", settings.CorrelationIdLengthMinimum)
+	}
+	if cliOptions.CorrelationIdNonceLength < settings.CorrelationIdNonceLengthMinimum {
+		gologger.Fatal().Msgf("CorrelationIdNonceLength (cidn) must be at least %d\n", settings.CorrelationIdNonceLengthMinimum)
+	}
+
+	if len(cliOptions.IPAddresses) == 0 && cliOptions.ListenIP == "0.0.0.0" {
 		publicIP, _ := getPublicIP()
 		outboundIP, _ := iputil.GetSourceIP("scanme.sh")
 
@@ -172,7 +182,11 @@ func main() {
 			gologger.Fatal().Msgf("%s\nNo bindable address could be found for port %d\nPlease ensure to have proper privileges and/or choose the correct ip:\n%s\n", err, cliOptions.DnsPort, addressesBuilder.String())
 		}
 		cliOptions.ListenIP = bindableIP
-		cliOptions.IPAddress = publicIP
+		cliOptions.IPAddresses = append(cliOptions.IPAddresses, publicIP)
+	}
+
+	if len(cliOptions.IPAddresses) > 0 {
+		gologger.Info().Msgf("Configured IP addresses: %s\n", strings.Join(cliOptions.IPAddresses, ", "))
 	}
 
 	for _, domain := range cliOptions.Domains {
@@ -218,9 +232,22 @@ func main() {
 	if cliOptions.NoEviction {
 		evictionTTL = -1
 	}
+
+	// Parse eviction strategy
+	var evictionStrategy storage.EvictionStrategy
+	switch strings.ToLower(cliOptions.EvictionStrategy) {
+	case "fixed":
+		evictionStrategy = storage.EvictionStrategyFixed
+	case "sliding":
+		evictionStrategy = storage.EvictionStrategySliding
+	default:
+		gologger.Fatal().Msgf("invalid eviction strategy '%s', must be 'sliding' or 'fixed'\n", cliOptions.EvictionStrategy)
+	}
+
 	var store storage.Storage
 	storeOptions := storage.DefaultOptions
 	storeOptions.EvictionTTL = evictionTTL
+	storeOptions.EvictionStrategy = evictionStrategy
 	if cliOptions.DiskStorage {
 		if cliOptions.DiskStoragePath == "" {
 			gologger.Fatal().Msgf("disk storage path must be specified\n")
@@ -325,7 +352,11 @@ func main() {
 		gologger.Fatal().Msgf("Could not create LDAP server: %s", err)
 	}
 	go ldapServer.ListenAndServe(tlsConfig, ldapAlive)
-	defer ldapServer.Close()
+	defer func() {
+		if err := ldapServer.Close(); err != nil {
+			gologger.Error().Msgf("Error closing LDAP server: %v", err)
+		}
+	}()
 
 	ftpAlive := make(chan bool)
 	ftpsAlive := make(chan bool)
@@ -413,8 +444,9 @@ func main() {
 				network = "TCP"
 				port = serverOptions.LdapPort
 			}
+			address := net.JoinHostPort(serverOptions.ListenIP, strconv.Itoa(port))
 			if status {
-				gologger.Silent().Msgf("[%s] Listening on %s %s:%d", service, network, serverOptions.ListenIP, port)
+				gologger.Silent().Msgf("[%s] Listening on %s %s", service, network, address)
 			} else if fatal {
 				gologger.Fatal().Msgf("The %s %s service has unexpectedly stopped", network, service)
 			} else {
@@ -442,7 +474,9 @@ func main() {
 			gologger.Warning().Msgf("Couldn't close the storage: %s\n", err)
 		}
 		if pprofServer != nil {
-			pprofServer.Close()
+			if err := pprofServer.Close(); err != nil {
+				gologger.Warning().Msgf("Couldn't close the pprof server: %s\n", err)
+			}
 		}
 		os.Exit(1)
 	}

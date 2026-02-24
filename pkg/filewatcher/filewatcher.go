@@ -49,7 +49,7 @@ func (f *FileWatcher) Watch() (chan string, error) {
 				}
 
 			}
-			r.Close()
+			_ = r.Close()
 		}
 	}()
 	return out, nil

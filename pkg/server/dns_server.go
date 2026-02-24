@@ -24,7 +24,7 @@ type DNSServer struct {
 	options       *Options
 	mxDomains     map[string]string
 	nsDomains     map[string][]string
-	ipAddress     net.IP
+	ipAddresses   []net.IP
 	timeToLive    uint32
 	server        *dns.Server
 	customRecords *customDNSRecords
@@ -49,14 +49,14 @@ func NewDNSServer(network string, options *Options) *DNSServer {
 
 	server := &DNSServer{
 		options:       options,
-		ipAddress:     net.ParseIP(options.IPAddress),
+		ipAddresses:   options.IPAddresses,
 		mxDomains:     mxDomains,
 		nsDomains:     nsDomains,
 		timeToLive:    3600,
 		customRecords: newCustomDNSRecordsServer(options.CustomRecords, options.Domains),
 	}
 	server.server = &dns.Server{
-		Addr:    options.ListenIP + fmt.Sprintf(":%d", options.DnsPort),
+		Addr:    formatAddress(options.ListenIP, options.DnsPort),
 		Net:     network,
 		Handler: server,
 	}
@@ -145,8 +145,9 @@ func (h *DNSServer) handleACMETXTChallenge(zone string, m *dns.Msg) error {
 
 	rrs := []dns.RR{}
 	for _, record := range records {
-		txtHdr := dns.RR_Header{Name: zone, Rrtype: dns.TypeTXT, Class: dns.ClassINET, Ttl: uint32(record.TTL)}
-		rrs = append(rrs, &dns.TXT{Hdr: txtHdr, Txt: []string{record.Value}})
+		rr := record.RR()
+		txtHdr := dns.RR_Header{Name: zone, Rrtype: dns.TypeTXT, Class: dns.ClassINET, Ttl: uint32(rr.TTL.Seconds())}
+		rrs = append(rrs, &dns.TXT{Hdr: txtHdr, Txt: []string{rr.Data}})
 	}
 	m.Answer = append(m.Answer, rrs...)
 	return nil
@@ -155,7 +156,7 @@ func (h *DNSServer) handleACMETXTChallenge(zone string, m *dns.Msg) error {
 // handleACNAMEANY handles A, CNAME or ANY queries for DNS server
 func (h *DNSServer) handleACNAMEANY(zone string, m *dns.Msg) {
 	// Determine the query type from the question
-	var qtype uint16 = dns.TypeA
+	var qtype = dns.TypeA
 	if len(m.Question) > 0 {
 		qtype = m.Question[0].Qtype
 	}
@@ -164,24 +165,34 @@ func (h *DNSServer) handleACNAMEANY(zone string, m *dns.Msg) {
 	customRecords := h.customRecords.checkCustomResponse(zone, qtype)
 	if len(customRecords) > 0 {
 		for _, record := range customRecords {
-			h.addCustomRecordToMessage(record, zone, m)
+			_ = h.addCustomRecordToMessage(record, zone, m)
 		}
 		return
 	}
 
 	// No custom records, use default IP
 	nsHeader := dns.RR_Header{Name: zone, Rrtype: dns.TypeNS, Class: dns.ClassINET, Ttl: h.timeToLive}
-	h.resultFunction(nsHeader, zone, h.ipAddress, m)
+	h.resultFunction(nsHeader, zone, h.ipAddresses, m)
 }
 
-func (h *DNSServer) resultFunction(nsHeader dns.RR_Header, zone string, ipAddress net.IP, m *dns.Msg) {
-	m.Answer = append(m.Answer, &dns.A{Hdr: dns.RR_Header{Name: zone, Rrtype: dns.TypeA, Class: dns.ClassINET, Ttl: h.timeToLive}, A: ipAddress})
+func (h *DNSServer) resultFunction(nsHeader dns.RR_Header, zone string, ipAddresses []net.IP, m *dns.Msg) {
+	unique := uniqueIPs(ipAddresses)
+	var answered bool
+	for _, ipAddress := range unique {
+		if h.appendAnswerRecord(zone, ipAddress, m) {
+			answered = true
+		}
+	}
+	if !answered {
+		return
+	}
+
 	dotDomains := []string{zone, dns.Fqdn(h.options.Domains[0])}
 	for _, dotDomain := range dotDomains {
 		if nsDomains, ok := h.nsDomains[dotDomain]; ok {
 			for _, nsDomain := range nsDomains {
 				m.Ns = append(m.Ns, &dns.NS{Hdr: nsHeader, Ns: nsDomain})
-				m.Extra = append(m.Extra, &dns.A{Hdr: dns.RR_Header{Name: nsDomain, Rrtype: dns.TypeA, Class: dns.ClassINET, Ttl: h.timeToLive}, A: h.ipAddress})
+				h.appendGlueRecords(nsDomain, m)
 			}
 			return
 		}
@@ -193,7 +204,7 @@ func (h *DNSServer) handleMX(zone string, m *dns.Msg) {
 	customRecords := h.customRecords.checkCustomResponse(zone, dns.TypeMX)
 	if len(customRecords) > 0 {
 		for _, record := range customRecords {
-			h.addCustomRecordToMessage(record, zone, m)
+			_ = h.addCustomRecordToMessage(record, zone, m)
 		}
 		return
 	}
@@ -214,7 +225,7 @@ func (h *DNSServer) handleNS(zone string, m *dns.Msg) {
 	customRecords := h.customRecords.checkCustomResponse(zone, dns.TypeNS)
 	if len(customRecords) > 0 {
 		for _, record := range customRecords {
-			h.addCustomRecordToMessage(record, zone, m)
+			_ = h.addCustomRecordToMessage(record, zone, m)
 		}
 		return
 	}
@@ -250,7 +261,7 @@ func (h *DNSServer) handleTXT(zone string, m *dns.Msg) {
 	customRecords := h.customRecords.checkCustomResponse(zone, dns.TypeTXT)
 	if len(customRecords) > 0 {
 		for _, record := range customRecords {
-			h.addCustomRecordToMessage(record, zone, m)
+			_ = h.addCustomRecordToMessage(record, zone, m)
 		}
 		return
 	}
@@ -393,6 +404,67 @@ type CustomRecordConfig struct {
 
 // DNSRecordsConfig represents the structured DNS records configuration (YAML format)
 type DNSRecordsConfig map[string][]CustomRecordConfig
+
+// appendAnswerRecord appends an A/AAAA record to the DNS message based on the
+// provided IP address.
+func (h *DNSServer) appendAnswerRecord(zone string, ip net.IP, m *dns.Msg) bool {
+	if ip == nil {
+		return false
+	}
+
+	if ipv4 := ip.To4(); ipv4 != nil {
+		m.Answer = append(m.Answer, &dns.A{Hdr: dns.RR_Header{Name: zone, Rrtype: dns.TypeA, Class: dns.ClassINET, Ttl: h.timeToLive}, A: ipv4})
+		return true
+	}
+
+	if ipv6 := ip.To16(); ipv6 != nil {
+		m.Answer = append(m.Answer, &dns.AAAA{Hdr: dns.RR_Header{Name: zone, Rrtype: dns.TypeAAAA, Class: dns.ClassINET, Ttl: h.timeToLive}, AAAA: ipv6})
+		return true
+	}
+
+	return false
+}
+
+// appendGlueRecords appends A/AAAA glue records for the given nameserver domain.
+func (h *DNSServer) appendGlueRecords(nsDomain string, m *dns.Msg) {
+	for _, ip := range uniqueIPs(h.ipAddresses) {
+		if ipv4 := ip.To4(); ipv4 != nil {
+			m.Extra = append(m.Extra, &dns.A{Hdr: dns.RR_Header{Name: nsDomain, Rrtype: dns.TypeA, Class: dns.ClassINET, Ttl: h.timeToLive}, A: ipv4})
+			continue
+		}
+
+		if ipv6 := ip.To16(); ipv6 != nil {
+			m.Extra = append(m.Extra, &dns.AAAA{Hdr: dns.RR_Header{Name: nsDomain, Rrtype: dns.TypeAAAA, Class: dns.ClassINET, Ttl: h.timeToLive}, AAAA: ipv6})
+		}
+	}
+}
+
+// uniqueIPs deduplicates a slice of [net.IP] objects and returns a new slice
+// containing only unique IP addresses.
+func uniqueIPs(ips []net.IP) []net.IP {
+	if len(ips) == 0 {
+		return nil
+	}
+
+	seen := make(map[string]struct{}, len(ips))
+
+	var result []net.IP
+	for _, ip := range ips {
+		if ip == nil {
+			continue
+		}
+
+		key := ip.String()
+		if _, ok := seen[key]; ok {
+			continue
+		}
+
+		seen[key] = struct{}{}
+		result = append(result, ip)
+	}
+
+	return result
+}
 
 // customDNSRecords is a server for custom dns records
 type customDNSRecords struct {
