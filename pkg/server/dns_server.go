@@ -165,7 +165,9 @@ func (h *DNSServer) handleACNAMEANY(zone string, m *dns.Msg) {
 	customRecords := h.customRecords.checkCustomResponse(zone, qtype)
 	if len(customRecords) > 0 {
 		for _, record := range customRecords {
-			_ = h.addCustomRecordToMessage(record, zone, m)
+			if err := h.addCustomRecordToMessage(record, zone, m); err != nil {
+				gologger.Warning().Msgf("Could not add custom %s record for %s: %s", record.Type, zone, err)
+			}
 		}
 		return
 	}
@@ -204,7 +206,9 @@ func (h *DNSServer) handleMX(zone string, m *dns.Msg) {
 	customRecords := h.customRecords.checkCustomResponse(zone, dns.TypeMX)
 	if len(customRecords) > 0 {
 		for _, record := range customRecords {
-			_ = h.addCustomRecordToMessage(record, zone, m)
+			if err := h.addCustomRecordToMessage(record, zone, m); err != nil {
+				gologger.Warning().Msgf("Could not add custom %s record for %s: %s", record.Type, zone, err)
+			}
 		}
 		return
 	}
@@ -225,7 +229,9 @@ func (h *DNSServer) handleNS(zone string, m *dns.Msg) {
 	customRecords := h.customRecords.checkCustomResponse(zone, dns.TypeNS)
 	if len(customRecords) > 0 {
 		for _, record := range customRecords {
-			_ = h.addCustomRecordToMessage(record, zone, m)
+			if err := h.addCustomRecordToMessage(record, zone, m); err != nil {
+				gologger.Warning().Msgf("Could not add custom %s record for %s: %s", record.Type, zone, err)
+			}
 		}
 		return
 	}
@@ -261,7 +267,9 @@ func (h *DNSServer) handleTXT(zone string, m *dns.Msg) {
 	customRecords := h.customRecords.checkCustomResponse(zone, dns.TypeTXT)
 	if len(customRecords) > 0 {
 		for _, record := range customRecords {
-			_ = h.addCustomRecordToMessage(record, zone, m)
+			if err := h.addCustomRecordToMessage(record, zone, m); err != nil {
+				gologger.Warning().Msgf("Could not add custom %s record for %s: %s", record.Type, zone, err)
+			}
 		}
 		return
 	}
@@ -624,14 +632,22 @@ func (h *DNSServer) addCustomRecordToMessage(record CustomRecordConfig, zone str
 	// Create the appropriate DNS record based on type
 	switch record.Type {
 	case "A":
+		ip := net.ParseIP(record.Value)
+		if ip == nil {
+			return fmt.Errorf("invalid IPv4 address for A record: %s", record.Value)
+		}
 		m.Answer = append(m.Answer, &dns.A{
 			Hdr: dns.RR_Header{Name: zone, Rrtype: dns.TypeA, Class: dns.ClassINET, Ttl: ttl},
-			A:   net.ParseIP(record.Value),
+			A:   ip.To4(),
 		})
 	case "AAAA":
+		ip := net.ParseIP(record.Value)
+		if ip == nil {
+			return fmt.Errorf("invalid IPv6 address for AAAA record: %s", record.Value)
+		}
 		m.Answer = append(m.Answer, &dns.AAAA{
 			Hdr:  dns.RR_Header{Name: zone, Rrtype: dns.TypeAAAA, Class: dns.ClassINET, Ttl: ttl},
-			AAAA: net.ParseIP(record.Value),
+			AAAA: ip.To16(),
 		})
 	case "CNAME":
 		m.Answer = append(m.Answer, &dns.CNAME{
