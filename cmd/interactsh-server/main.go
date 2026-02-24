@@ -18,7 +18,6 @@ import (
 
 	_ "net/http/pprof"
 
-	"github.com/caddyserver/certmagic"
 	"github.com/projectdiscovery/goflags"
 	"github.com/projectdiscovery/gologger"
 	"github.com/projectdiscovery/gologger/levels"
@@ -306,20 +305,23 @@ func main() {
 			}
 		}
 	case !cliOptions.SkipAcme && len(cliOptions.Domains) > 0:
-		var cmCfg *certmagic.Config
-		for idx, domain := range cliOptions.Domains {
-			trimmedDomain := strings.TrimSuffix(domain, ".")
-			hostmaster := serverOptions.Hostmasters[idx]
-			var acmeErr error
-			domainCerts, certFiles, cmCfg, acmeErr = acme.HandleWildcardCertificates(fmt.Sprintf("*.%s", trimmedDomain), hostmaster, acmeStore, cliOptions.Debug, cliOptions.Resolvers)
-			if acmeErr != nil {
-				gologger.Error().Msgf("An error occurred while applying for a certificate, error: %v", acmeErr)
-				gologger.Error().Msgf("Could not generate certs for auto TLS, https will be disabled")
+		cfg, cfgErr := acme.NewCertmagicConfig(serverOptions.Hostmasters[0], acmeStore, cliOptions.Debug, cliOptions.Resolvers)
+		if cfgErr != nil {
+			gologger.Error().Msgf("Could not configure ACME: %s", cfgErr)
+		} else {
+			for _, domain := range cliOptions.Domains {
+				trimmedDomain := strings.TrimSuffix(domain, ".")
+				certs, files, acmeErr := acme.HandleWildcardCertificates(cfg, fmt.Sprintf("*.%s", trimmedDomain))
+				if acmeErr != nil {
+					gologger.Error().Msgf("An error occurred while applying for a certificate for %s: %v", domain, acmeErr)
+					gologger.Error().Msgf("Could not generate certs for auto TLS, https will be disabled")
+				} else {
+					domainCerts = append(domainCerts, certs...)
+					certFiles = append(certFiles, files...)
+				}
 			}
-		}
-		if cmCfg != nil {
 			tlsConfig = &tls.Config{
-				GetCertificate: cmCfg.GetCertificate,
+				GetCertificate: cfg.GetCertificate,
 				NextProtos:     []string{"h2", "http/1.1"},
 			}
 		}

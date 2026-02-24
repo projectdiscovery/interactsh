@@ -34,13 +34,12 @@ type CertificateFiles struct {
 	PrivKeyPath string
 }
 
-// HandleWildcardCertificates handles ACME wildcard cert generation with DNS
-// challenge using certmagic library from caddyserver.
-// The returned *certmagic.Config can be used with GetCertificate for dynamic TLS cert serving.
-func HandleWildcardCertificates(domain, email string, store *Provider, debug bool, customResolvers []string) ([]tls.Certificate, []CertificateFiles, *certmagic.Config, error) {
+// NewCertmagicConfig creates and configures a *certmagic.Config for ACME DNS-01 challenge.
+// The returned config can be reused across multiple HandleWildcardCertificates calls.
+func NewCertmagicConfig(email string, store *Provider, debug bool, customResolvers []string) (*certmagic.Config, error) {
 	logger, err := zap.NewProduction()
 	if err != nil {
-		return nil, nil, nil, err
+		return nil, err
 	}
 	certmagic.DefaultACME.Agreed = true
 	certmagic.DefaultACME.Email = email
@@ -55,8 +54,6 @@ func HandleWildcardCertificates(domain, email string, store *Provider, debug boo
 			}(),
 		},
 	}
-	originalDomain := strings.TrimPrefix(domain, "*.")
-
 	certmagic.DefaultACME.CA = certmagic.LetsEncryptProductionCA
 	if debug {
 		certmagic.DefaultACME.Logger = logger
@@ -68,6 +65,13 @@ func HandleWildcardCertificates(domain, email string, store *Provider, debug boo
 	if debug {
 		cfg.Logger = logger
 	}
+	return cfg, nil
+}
+
+// HandleWildcardCertificates handles ACME wildcard cert generation with DNS
+// challenge using certmagic library from caddyserver.
+func HandleWildcardCertificates(cfg *certmagic.Config, domain string) ([]tls.Certificate, []CertificateFiles, error) {
+	originalDomain := strings.TrimPrefix(domain, "*.")
 
 	var creating bool
 	if !certAlreadyExists(cfg, &certmagic.DefaultACME, domain) {
@@ -79,7 +83,7 @@ func HandleWildcardCertificates(domain, email string, store *Provider, debug boo
 
 	// this obtains certificates or renews them if necessary
 	if syncErr := cfg.ObtainCertSync(context.Background(), domain); syncErr != nil {
-		return nil, nil, nil, syncErr
+		return nil, nil, syncErr
 	}
 
 	domains := []string{domain, originalDomain}
@@ -102,7 +106,7 @@ func HandleWildcardCertificates(domain, email string, store *Provider, debug boo
 	retry_cert:
 		certPath, privKeyPath, err := ExtractCaddyPaths(cfg, &certmagic.DefaultACME, domain)
 		if err != nil {
-			return nil, nil, nil, err
+			return nil, nil, err
 		}
 		certFiles = append(certFiles, CertificateFiles{CertPath: certPath, PrivKeyPath: privKeyPath})
 		cert, err := tls.LoadX509KeyPair(certPath, privKeyPath)
@@ -123,12 +127,12 @@ func HandleWildcardCertificates(domain, email string, store *Provider, debug boo
 			}
 		}
 		if err != nil {
-			return nil, nil, nil, err
+			return nil, nil, err
 		}
 		certs = append(certs, cert)
 	}
 
-	return certs, certFiles, cfg, nil
+	return certs, certFiles, nil
 }
 
 // certAlreadyExists returns true if a cert already exists
