@@ -36,10 +36,11 @@ type CertificateFiles struct {
 
 // HandleWildcardCertificates handles ACME wildcard cert generation with DNS
 // challenge using certmagic library from caddyserver.
-func HandleWildcardCertificates(domain, email string, store *Provider, debug bool, customResolvers []string) ([]tls.Certificate, []CertificateFiles, error) {
+// The returned *certmagic.Config can be used with GetCertificate for dynamic TLS cert serving.
+func HandleWildcardCertificates(domain, email string, store *Provider, debug bool, customResolvers []string) ([]tls.Certificate, []CertificateFiles, *certmagic.Config, error) {
 	logger, err := zap.NewProduction()
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 	certmagic.DefaultACME.Agreed = true
 	certmagic.DefaultACME.Email = email
@@ -78,7 +79,7 @@ func HandleWildcardCertificates(domain, email string, store *Provider, debug boo
 
 	// this obtains certificates or renews them if necessary
 	if syncErr := cfg.ObtainCertSync(context.Background(), domain); syncErr != nil {
-		return nil, nil, syncErr
+		return nil, nil, nil, syncErr
 	}
 
 	domains := []string{domain, originalDomain}
@@ -101,7 +102,7 @@ func HandleWildcardCertificates(domain, email string, store *Provider, debug boo
 	retry_cert:
 		certPath, privKeyPath, err := ExtractCaddyPaths(cfg, &certmagic.DefaultACME, domain)
 		if err != nil {
-			return nil, nil, err
+			return nil, nil, nil, err
 		}
 		certFiles = append(certFiles, CertificateFiles{CertPath: certPath, PrivKeyPath: privKeyPath})
 		cert, err := tls.LoadX509KeyPair(certPath, privKeyPath)
@@ -122,12 +123,12 @@ func HandleWildcardCertificates(domain, email string, store *Provider, debug boo
 			}
 		}
 		if err != nil {
-			return nil, nil, err
+			return nil, nil, nil, err
 		}
 		certs = append(certs, cert)
 	}
 
-	return certs, certFiles, nil
+	return certs, certFiles, cfg, nil
 }
 
 // certAlreadyExists returns true if a cert already exists
@@ -158,27 +159,3 @@ func ExtractCaddyPaths(cfg *certmagic.Config, issuer certmagic.Issuer, domain st
 	return
 }
 
-// BuildTlsConfigWithCertAndKeyPaths Build TlsConfig with certificates
-func BuildTlsConfigWithCertAndKeyPaths(certPath, privKeyPath, domain string) (*tls.Config, error) {
-	cert, err := tls.LoadX509KeyPair(certPath, privKeyPath)
-	if err != nil {
-		return nil, errors.New("Could not load certs and private key")
-	}
-	return BuildTlsConfigWithCerts(domain, cert)
-}
-
-// BuildTlsConfigWithCerts Build TlsConfig with existing certificates
-func BuildTlsConfigWithCerts(domain string, certs ...tls.Certificate) (*tls.Config, error) {
-	if certs == nil {
-		return nil, errors.New("no certificates provided")
-	}
-	tlsConfig := &tls.Config{
-		InsecureSkipVerify: true,
-		Certificates:       certs,
-	}
-	if domain != "" {
-		tlsConfig.ServerName = domain
-	}
-	tlsConfig.NextProtos = []string{"h2", "http/1.1"}
-	return tlsConfig, nil
-}

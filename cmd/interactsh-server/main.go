@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"crypto/rand"
 	"crypto/tls"
 	"encoding/hex"
@@ -17,6 +18,7 @@ import (
 
 	_ "net/http/pprof"
 
+	"github.com/caddyserver/certmagic"
 	"github.com/projectdiscovery/goflags"
 	"github.com/projectdiscovery/gologger"
 	"github.com/projectdiscovery/gologger/levels"
@@ -293,34 +295,33 @@ func main() {
 	)
 	switch {
 	case cliOptions.CertificatePath != "" && cliOptions.PrivateKeyPath != "":
-		var domain string
-		if len(cliOptions.Domains) > 0 {
-			domain = cliOptions.Domains[0]
-		}
-		acmeManagerTLS, acmeErr := acme.BuildTlsConfigWithCertAndKeyPaths(cliOptions.CertificatePath, cliOptions.PrivateKeyPath, domain)
-		if acmeErr != nil {
-			gologger.Error().Msgf("https will be disabled: %s", acmeErr)
+		reloader, reloaderErr := acme.NewCertReloader(cliOptions.CertificatePath, cliOptions.PrivateKeyPath)
+		if reloaderErr != nil {
+			gologger.Error().Msgf("https will be disabled: %s", reloaderErr)
 		} else {
-			tlsConfig = acmeManagerTLS
+			go reloader.Start(context.Background())
+			tlsConfig = &tls.Config{
+				GetCertificate: reloader.GetCertificate,
+				NextProtos:     []string{"h2", "http/1.1"},
+			}
 		}
 	case !cliOptions.SkipAcme && len(cliOptions.Domains) > 0:
-		var certs []tls.Certificate
+		var cmCfg *certmagic.Config
 		for idx, domain := range cliOptions.Domains {
 			trimmedDomain := strings.TrimSuffix(domain, ".")
 			hostmaster := serverOptions.Hostmasters[idx]
 			var acmeErr error
-			domainCerts, certFiles, acmeErr = acme.HandleWildcardCertificates(fmt.Sprintf("*.%s", trimmedDomain), hostmaster, acmeStore, cliOptions.Debug, cliOptions.Resolvers)
+			domainCerts, certFiles, cmCfg, acmeErr = acme.HandleWildcardCertificates(fmt.Sprintf("*.%s", trimmedDomain), hostmaster, acmeStore, cliOptions.Debug, cliOptions.Resolvers)
 			if acmeErr != nil {
 				gologger.Error().Msgf("An error occurred while applying for a certificate, error: %v", acmeErr)
 				gologger.Error().Msgf("Could not generate certs for auto TLS, https will be disabled")
-			} else {
-				certs = append(certs, domainCerts...)
 			}
 		}
-		var tlsErr error
-		tlsConfig, tlsErr = acme.BuildTlsConfigWithCerts("", certs...)
-		if tlsErr != nil {
-			gologger.Error().Msgf("An error occurred while preparing tls configuration, error: %v", tlsErr)
+		if cmCfg != nil {
+			tlsConfig = &tls.Config{
+				GetCertificate: cmCfg.GetCertificate,
+				NextProtos:     []string{"h2", "http/1.1"},
+			}
 		}
 	}
 
