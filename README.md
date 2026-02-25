@@ -700,6 +700,13 @@ $ interactsh-server -domain hackwithautomation.com -wildcard
 [DNS] Listening on UDP 157.230.223.165:53
 ```
 
+In wildcard mode, each connected client independently receives all interactions for the shared domain. The server keeps a buffer of recent interactions so that multiple clients can poll without missing data. By default, the buffer holds up to **10,000** interactions per shared key. This can be adjusted via the `INTERACTSH_MAX_SHARED_INTERACTIONS` environment variable:
+
+```console
+$ export INTERACTSH_MAX_SHARED_INTERACTIONS=50000
+$ interactsh-server -domain hackwithautomation.com -wildcard
+```
+
 ## LDAP Interaction
 
 As default, Interactsh server support LDAP interaction for the payload included in [search query](https://ldapwiki.com/wiki/LDAP%20Query%20Examples), additionally `ldap` flag can be used for complete logging.

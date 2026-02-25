@@ -27,4 +27,6 @@ type CorrelationData struct {
 	AESKeyEncrypted string `json:"aes-key"`
 	// decrypted AES key for signing
 	AESKey []byte `json:"-"`
+	ReadOffsets map[string]int       `json:"-"`
+	LastSeen    map[string]time.Time `json:"-"`
 }
