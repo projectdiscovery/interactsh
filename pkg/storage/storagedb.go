@@ -74,8 +74,8 @@ func New(options *Options) (*StorageDB, error) {
 }
 
 func (s *StorageDB) OnCacheRemovalCallback(key cache.Key, value cache.Value) {
-	if key, ok := value.([]byte); ok {
-		_ = s.db.Delete(key, &opt.WriteOptions{})
+	if k, ok := key.(string); ok {
+		_ = s.db.Delete([]byte(k), &opt.WriteOptions{})
 	}
 }
 
@@ -120,6 +120,12 @@ func (s *StorageDB) SetIDPublicKey(correlationID, secretKey, publicKey string) e
 		SecretKey:       secretKey,
 		AESKey:          aesKey,
 		AESKeyEncrypted: base64.StdEncoding.EncodeToString(ciphertext),
+	}
+	// Clear any stale data from a previous registration (e.g. after cache eviction
+	// and session restore). Old data would be encrypted with a different AES key
+	// and cause decryption failures on the client.
+	if s.Options.UseDisk() {
+		_ = s.db.Delete([]byte(correlationID), nil)
 	}
 	s.cache.Put(correlationID, data)
 	return nil

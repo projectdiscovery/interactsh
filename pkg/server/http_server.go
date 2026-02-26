@@ -1,7 +1,6 @@
 package server
 
 import (
-	"bytes"
 	"crypto/tls"
 	"encoding/base64"
 	"fmt"
@@ -158,12 +157,12 @@ func (h *HTTPServer) logger(handler http.Handler) http.HandlerFunc {
 						RemoteAddress: host,
 						Timestamp:     time.Now(),
 					}
-					buffer := &bytes.Buffer{}
-					if err := jsoniter.NewEncoder(buffer).Encode(interaction); err != nil {
+					data, err := jsoniter.Marshal(interaction)
+					if err != nil {
 						gologger.Warning().Msgf("Could not encode root tld http interaction: %s\n", err)
 					} else {
-						gologger.Debug().Msgf("Root TLD HTTP Interaction: \n%s\n", buffer.String())
-						if err := h.options.Storage.AddInteractionWithId(ID, buffer.Bytes()); err != nil {
+						gologger.Debug().Msgf("Root TLD HTTP Interaction: \n%s\n", string(data))
+						if err := h.options.Storage.AddInteractionWithId(ID, data); err != nil {
 							gologger.Warning().Msgf("Could not store root tld http interaction: %s\n", err)
 						}
 					}
@@ -218,13 +217,13 @@ func (h *HTTPServer) handleInteraction(r *http.Request, uniqueID, fullID, reqStr
 		RemoteAddress: hostPort,
 		Timestamp:     time.Now(),
 	}
-	buffer := &bytes.Buffer{}
-	if err := jsoniter.NewEncoder(buffer).Encode(interaction); err != nil {
+	data, err := jsoniter.Marshal(interaction)
+	if err != nil {
 		gologger.Warning().Msgf("Could not encode http interaction: %s\n", err)
 	} else {
-		gologger.Debug().Msgf("HTTP Interaction: \n%s\n", buffer.String())
+		gologger.Debug().Msgf("HTTP Interaction: \n%s\n", string(data))
 
-		if err := h.options.Storage.AddInteraction(correlationID, buffer.Bytes()); err != nil {
+		if err := h.options.Storage.AddInteraction(correlationID, data); err != nil {
 			gologger.Warning().Msgf("Could not store http interaction: %s\n", err)
 		}
 	}
