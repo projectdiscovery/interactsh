@@ -1,7 +1,6 @@
 package server
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 	"net"
@@ -295,12 +294,12 @@ func (h *DNSServer) handleInteraction(domain string, w dns.ResponseWriter, r *dn
 			h.options.OnResult(interaction)
 		}
 
-		buffer := &bytes.Buffer{}
-		if err := jsoniter.NewEncoder(buffer).Encode(interaction); err != nil {
+		data, err := jsoniter.Marshal(interaction)
+		if err != nil {
 			gologger.Warning().Msgf("Could not encode root tld dns interaction: %s\n", err)
 		} else {
-			gologger.Debug().Msgf("Root TLD DNS Interaction: \n%s\n", buffer.String())
-			if err := h.options.Storage.AddInteractionWithId(correlationID, buffer.Bytes()); err != nil {
+			gologger.Debug().Msgf("Root TLD DNS Interaction: \n%s\n", string(data))
+			if err := h.options.Storage.AddInteractionWithId(correlationID, data); err != nil {
 				gologger.Warning().Msgf("Could not store dns interaction: %s\n", err)
 			}
 		}
@@ -348,12 +347,12 @@ func (h *DNSServer) handleInteraction(domain string, w dns.ResponseWriter, r *dn
 			RemoteAddress: host,
 			Timestamp:     time.Now(),
 		}
-		buffer := &bytes.Buffer{}
-		if err := jsoniter.NewEncoder(buffer).Encode(interaction); err != nil {
+		data, err := jsoniter.Marshal(interaction)
+		if err != nil {
 			gologger.Warning().Msgf("Could not encode dns interaction: %s\n", err)
 		} else {
-			gologger.Debug().Msgf("DNS Interaction: \n%s\n", buffer.String())
-			if err := h.options.Storage.AddInteraction(correlationID, buffer.Bytes()); err != nil {
+			gologger.Debug().Msgf("DNS Interaction: \n%s\n", string(data))
+			if err := h.options.Storage.AddInteraction(correlationID, data); err != nil {
 				gologger.Warning().Msgf("Could not store dns interaction: %s\n", err)
 			}
 		}

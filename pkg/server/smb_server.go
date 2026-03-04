@@ -1,7 +1,6 @@
 package server
 
 import (
-	"bytes"
 	"fmt"
 	"os"
 	"os/exec"
@@ -101,12 +100,12 @@ func (h *SMBServer) ListenAndServe(smbAlive chan bool) error {
 						RawRequest: smbData,
 						Timestamp:  time.Now(),
 					}
-					buffer := &bytes.Buffer{}
-					if err := jsoniter.NewEncoder(buffer).Encode(interaction); err != nil {
+					data, err := jsoniter.Marshal(interaction)
+					if err != nil {
 						gologger.Warning().Msgf("Could not encode smb interaction: %s\n", err)
 					} else {
-						gologger.Debug().Msgf("SMB Interaction: \n%s\n", buffer.String())
-						if err := h.options.Storage.AddInteractionWithId(h.options.Token, buffer.Bytes()); err != nil {
+						gologger.Debug().Msgf("SMB Interaction: \n%s\n", string(data))
+						if err := h.options.Storage.AddInteractionWithId(h.options.Token, data); err != nil {
 							gologger.Warning().Msgf("Could not store dns interaction: %s\n", err)
 						}
 					}
