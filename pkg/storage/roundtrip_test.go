@@ -116,11 +116,10 @@ func TestFullRoundTripInMemory(t *testing.T) {
 			RemoteAddress: "10.0.0.1",
 			Timestamp:     time.Now(),
 		}
-		buffer := &bytes.Buffer{}
-		err = jsoniter.NewEncoder(buffer).Encode(inter)
+		data, err := jsoniter.Marshal(inter)
 		require.NoError(t, err, "encode interaction %d", i)
 
-		err = mem.AddInteraction(correlationID, buffer.Bytes())
+		err = mem.AddInteraction(correlationID, data)
 		require.NoError(t, err, "add interaction %d", i)
 	}
 
@@ -170,11 +169,10 @@ func TestFullRoundTripDisk(t *testing.T) {
 			RemoteAddress: "10.0.0.1",
 			Timestamp:     time.Now(),
 		}
-		buffer := &bytes.Buffer{}
-		err = jsoniter.NewEncoder(buffer).Encode(inter)
+		data, err := jsoniter.Marshal(inter)
 		require.NoError(t, err, "encode interaction %d", i)
 
-		err = db.AddInteraction(correlationID, buffer.Bytes())
+		err = db.AddInteraction(correlationID, data)
 		require.NoError(t, err, "add interaction %d", i)
 	}
 
@@ -227,10 +225,9 @@ func TestPollResponseRoundTrip(t *testing.T) {
 		RemoteAddress: "10.0.0.1",
 		Timestamp:     time.Now(),
 	}
-	buffer := &bytes.Buffer{}
-	err = jsoniter.NewEncoder(buffer).Encode(inter)
+	interData, err := jsoniter.Marshal(inter)
 	require.NoError(t, err)
-	err = mem.AddInteraction(correlationID, buffer.Bytes())
+	err = mem.AddInteraction(correlationID, interData)
 	require.NoError(t, err)
 
 	// Retrieve (server side)
