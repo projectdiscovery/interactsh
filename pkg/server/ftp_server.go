@@ -1,7 +1,6 @@
 package server
 
 import (
-	"bytes"
 	"crypto/tls"
 	"fmt"
 	"io"
@@ -131,12 +130,12 @@ func (h *FTPServer) recordInteraction(remoteAddress, data string) {
 		RawRequest:    data,
 		Timestamp:     time.Now(),
 	}
-	buffer := &bytes.Buffer{}
-	if err := jsoniter.NewEncoder(buffer).Encode(interaction); err != nil {
+	dataBytes, err := jsoniter.Marshal(interaction)
+	if err != nil {
 		gologger.Warning().Msgf("Could not encode ftp interaction: %s\n", err)
 	} else {
-		gologger.Debug().Msgf("FTP Interaction: \n%s\n", buffer.String())
-		if err := h.options.Storage.AddInteractionWithId(h.options.Token, buffer.Bytes()); err != nil {
+		gologger.Debug().Msgf("FTP Interaction: \n%s\n", string(dataBytes))
+		if err := h.options.Storage.AddInteractionWithId(h.options.Token, dataBytes); err != nil {
 			gologger.Warning().Msgf("Could not store ftp interaction: %s\n", err)
 		}
 	}

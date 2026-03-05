@@ -459,6 +459,7 @@ func (c *Client) getInteractions(callback InteractionCallback) error {
 			gologger.Error().Msgf("Could not decrypt interaction: %v\n", err)
 			continue
 		}
+		plaintext = bytes.TrimRight(plaintext, " \t\r\n")
 		interaction := &server.Interaction{}
 		if err := jsoniter.Unmarshal(plaintext, interaction); err != nil {
 			gologger.Error().Msgf("Could not unmarshal interaction data interaction: %v\n", err)

@@ -254,6 +254,11 @@ func main() {
 		}
 		storeOptions.DbPath = cliOptions.DiskStoragePath
 	}
+	if v := os.Getenv("INTERACTSH_MAX_SHARED_INTERACTIONS"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil && n > 0 {
+			storeOptions.MaxSharedInteractions = n
+		}
+	}
 
 	var err error
 	store, err = storage.New(&storeOptions)

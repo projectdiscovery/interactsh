@@ -1,7 +1,6 @@
 package server
 
 import (
-	"bytes"
 	"crypto/tls"
 	"net"
 	"strings"
@@ -107,12 +106,12 @@ func (h *SMTPServer) defaultHandler(remoteAddr net.Addr, from string, to []strin
 						RemoteAddress: host,
 						Timestamp:     time.Now(),
 					}
-					buffer := &bytes.Buffer{}
-					if err := jsoniter.NewEncoder(buffer).Encode(interaction); err != nil {
+					data, err := jsoniter.Marshal(interaction)
+					if err != nil {
 						gologger.Warning().Msgf("Could not encode root tld SMTP interaction: %s\n", err)
 					} else {
-						gologger.Debug().Msgf("Root TLD SMTP Interaction: \n%s\n", buffer.String())
-						if err := h.options.Storage.AddInteractionWithId(ID, buffer.Bytes()); err != nil {
+						gologger.Debug().Msgf("Root TLD SMTP Interaction: \n%s\n", string(data))
+						if err := h.options.Storage.AddInteractionWithId(ID, data); err != nil {
 							gologger.Warning().Msgf("Could not store root tld smtp interaction: %s\n", err)
 						}
 					}
@@ -148,12 +147,12 @@ func (h *SMTPServer) defaultHandler(remoteAddr net.Addr, from string, to []strin
 			RemoteAddress: host,
 			Timestamp:     time.Now(),
 		}
-		buffer := &bytes.Buffer{}
-		if err := jsoniter.NewEncoder(buffer).Encode(interaction); err != nil {
+		data, err := jsoniter.Marshal(interaction)
+		if err != nil {
 			gologger.Warning().Msgf("Could not encode smtp interaction: %s\n", err)
 		} else {
-			gologger.Debug().Msgf("%s\n", buffer.String())
-			if err := h.options.Storage.AddInteraction(correlationID, buffer.Bytes()); err != nil {
+			gologger.Debug().Msgf("%s\n", string(data))
+			if err := h.options.Storage.AddInteraction(correlationID, data); err != nil {
 				gologger.Warning().Msgf("Could not store smtp interaction: %s\n", err)
 			}
 		}
