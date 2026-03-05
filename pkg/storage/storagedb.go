@@ -73,10 +73,26 @@ func New(options *Options) (*StorageDB, error) {
 	return storageDB, nil
 }
 
+// OnCacheRemovalCallback is called by the in-memory cache when a correlation
+// ID entry is evicted (e.g. TTL expiry).  It removes the corresponding
+// LevelDB entry so that stale encrypted data from the old AES key is not
+// returned to a client that later re-registers the same correlation ID with
+// a new key.
+//
+// The previous implementation had two bugs:
+//   1. It asserted `value.([]byte)`, but the cache stores `*CorrelationData`,
+//      so the assertion always failed and the LevelDB entry was never deleted.
+//   2. Even if the assertion succeeded, `key` (the shadow variable) would be
+//      the value bytes, not the correlation-ID string — deleting the wrong key.
 func (s *StorageDB) OnCacheRemovalCallback(key cache.Key, value cache.Value) {
-	if key, ok := value.([]byte); ok {
-		_ = s.db.Delete(key, &opt.WriteOptions{})
+	if !s.Options.UseDisk() {
+		return
 	}
+	correlationID, ok := key.(string)
+	if !ok {
+		return
+	}
+	_ = s.db.Delete([]byte(correlationID), &opt.WriteOptions{})
 }
 
 func (s *StorageDB) GetCacheMetrics() (*CacheMetrics, error) {
