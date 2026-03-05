@@ -423,6 +423,14 @@ func (h *HTTPServer) deregisterHandler(w http.ResponseWriter, req *http.Request)
 		jsonError(w, fmt.Sprintf("could not remove id: %s", err), http.StatusBadRequest)
 		return
 	}
+	if h.options.RootTLD {
+		for _, domain := range h.options.Domains {
+			_ = h.options.Storage.RemoveConsumer(domain, r.CorrelationID)
+		}
+	}
+	if h.options.Token != "" {
+		_ = h.options.Storage.RemoveConsumer(h.options.Token, r.CorrelationID)
+	}
 	jsonMsg(w, "deregistration successful", http.StatusOK)
 	gologger.Debug().Msgf("Deregistered correlationID %s for key\n", r.CorrelationID)
 }
@@ -459,14 +467,14 @@ func (h *HTTPServer) pollHandler(w http.ResponseWriter, req *http.Request) {
 	var tlddata, extradata []string
 	if h.options.RootTLD {
 		for _, domain := range h.options.Domains {
-			interactions, _ := h.options.Storage.GetInteractionsWithId(domain)
+			interactions, _ := h.options.Storage.GetInteractionsWithIdForConsumer(domain, ID)
 			// root domains interaction are not encrypted
 			tlddata = append(tlddata, interactions...)
 		}
 	}
 	if h.options.Token != "" {
 		// auth token interactions are not encrypted
-		extradata, _ = h.options.Storage.GetInteractionsWithId(h.options.Token)
+		extradata, _ = h.options.Storage.GetInteractionsWithIdForConsumer(h.options.Token, ID)
 	}
 	response := &PollResponse{Data: data, AESKey: aesKey, TLDData: tlddata, Extra: extradata}
 
