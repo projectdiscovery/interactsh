@@ -34,12 +34,12 @@ type CertificateFiles struct {
 	PrivKeyPath string
 }
 
-// HandleWildcardCertificates handles ACME wildcard cert generation with DNS
-// challenge using certmagic library from caddyserver.
-func HandleWildcardCertificates(domain, email string, store *Provider, debug bool, customResolvers []string) ([]tls.Certificate, []CertificateFiles, error) {
+// NewCertmagicConfig creates and configures a *certmagic.Config for ACME DNS-01 challenge.
+// The returned config can be reused across multiple HandleWildcardCertificates calls.
+func NewCertmagicConfig(email string, store *Provider, debug bool, customResolvers []string) (*certmagic.Config, error) {
 	logger, err := zap.NewProduction()
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 	certmagic.DefaultACME.Agreed = true
 	certmagic.DefaultACME.Email = email
@@ -54,8 +54,6 @@ func HandleWildcardCertificates(domain, email string, store *Provider, debug boo
 			}(),
 		},
 	}
-	originalDomain := strings.TrimPrefix(domain, "*.")
-
 	certmagic.DefaultACME.CA = certmagic.LetsEncryptProductionCA
 	if debug {
 		certmagic.DefaultACME.Logger = logger
@@ -67,6 +65,13 @@ func HandleWildcardCertificates(domain, email string, store *Provider, debug boo
 	if debug {
 		cfg.Logger = logger
 	}
+	return cfg, nil
+}
+
+// HandleWildcardCertificates handles ACME wildcard cert generation with DNS
+// challenge using certmagic library from caddyserver.
+func HandleWildcardCertificates(cfg *certmagic.Config, domain string) ([]tls.Certificate, []CertificateFiles, error) {
+	originalDomain := strings.TrimPrefix(domain, "*.")
 
 	var creating bool
 	if !certAlreadyExists(cfg, &certmagic.DefaultACME, domain) {
@@ -158,27 +163,3 @@ func ExtractCaddyPaths(cfg *certmagic.Config, issuer certmagic.Issuer, domain st
 	return
 }
 
-// BuildTlsConfigWithCertAndKeyPaths Build TlsConfig with certificates
-func BuildTlsConfigWithCertAndKeyPaths(certPath, privKeyPath, domain string) (*tls.Config, error) {
-	cert, err := tls.LoadX509KeyPair(certPath, privKeyPath)
-	if err != nil {
-		return nil, errors.New("Could not load certs and private key")
-	}
-	return BuildTlsConfigWithCerts(domain, cert)
-}
-
-// BuildTlsConfigWithCerts Build TlsConfig with existing certificates
-func BuildTlsConfigWithCerts(domain string, certs ...tls.Certificate) (*tls.Config, error) {
-	if certs == nil {
-		return nil, errors.New("no certificates provided")
-	}
-	tlsConfig := &tls.Config{
-		InsecureSkipVerify: true,
-		Certificates:       certs,
-	}
-	if domain != "" {
-		tlsConfig.ServerName = domain
-	}
-	tlsConfig.NextProtos = []string{"h2", "http/1.1"}
-	return tlsConfig, nil
-}
