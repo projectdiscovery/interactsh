@@ -4,7 +4,6 @@ import (
 	"context"
 	"crypto/tls"
 	"os"
-	"sync"
 	"sync/atomic"
 	"time"
 
@@ -28,8 +27,7 @@ type CertReloader struct {
 	certPath string
 	keyPath  string
 	cert     atomic.Pointer[tls.Certificate]
-	modTime  time.Time
-	mu       sync.Mutex // protects reload; reads are lock-free via atomic
+	modTime time.Time
 }
 
 // NewCertReloader loads the initial certificate and returns a reloader.
@@ -75,9 +73,6 @@ func (r *CertReloader) Start(ctx context.Context) {
 }
 
 func (r *CertReloader) tryReload() {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-
 	mt, err := latestModTime(r.certPath, r.keyPath)
 	if err != nil {
 		gologger.Warning().Msgf("Could not stat certificate files: %s", err)
