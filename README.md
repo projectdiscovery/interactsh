@@ -248,7 +248,7 @@ interactsh-client | notify
 
 ## Interactsh Web Client
 
-[Interactsh-web](https://github.com/projectdiscovery/interactsh-web) is a free and open-source web client that displays Interactsh interactions in a well-managed dashboard in your browser. It uses the browser's local storage to store and display all incoming interactions. By default, the web client is configured to use **interact.sh** as default interactsh server, and supports other self-hosted public/authencaited interactsh servers as well.
+[Interactsh-web](https://github.com/projectdiscovery/interactsh-web) is a free and open-source web client that displays Interactsh interactions in a well-managed dashboard in your browser. It uses the browser's local storage to store and display all incoming interactions. By default, the web client is configured to use **oast.fun** as default interactsh server, and supports other self-hosted public/authencaited interactsh servers as well.
 
 A hosted instance of **interactsh-web** client is available at https://app.interactsh.com
 
@@ -277,9 +277,9 @@ $ docker run projectdiscovery/interactsh-client:latest
 [INF] c59e3crp82ke7bcnedq0cfjqdpeyyyyyn.oast.pro
 ```
 
-## Burp Suite Extension
+## Burp Suite Original Extension
 
-[interactsh-collaborator](https://github.com/wdahlenburg/interactsh-collaborator) is Burp Suite extension developed and maintained by [@wdahlenb](https://twitter.com/wdahlenb)
+[interactsh-collaborator](https://github.com/wdahlenburg/interactsh-collaborator) is an original Burp Suite interactsh extension developed and maintained by [@wdahlenb](https://twitter.com/wdahlenb)
 
 - Download latest JAR file from [releases](https://github.com/wdahlenburg/interactsh-collaborator/releases) page.
 - Open Burp Suite &rarr; Extender &rarr; Add &rarr; Java &rarr; Select JAR file &rarr; Next
@@ -288,9 +288,20 @@ $ docker run projectdiscovery/interactsh-client:latest
 
 <img width="2032" alt="burp" src="https://user-images.githubusercontent.com/8293321/135176099-0e3fa01c-bdce-4f04-a94f-de0a34c7abf6.png">
 
-## OWASP ZAP Add-On
+## Burp Suite Revised Extension
 
-Interactsh can be used with OWASP ZAP via the [OAST add-on for ZAP](https://www.zaproxy.org/docs/desktop/addons/oast-support/). With ZAP's scripting capabilities, you can create powerful out-of-band scan rules that leverage Interactsh's features. A standalone script template has been provided as an example (it is added automatically when you install the add-on).
+[interactsh-collaborator-rev](https://github.com/TheArqsz/interactsh-collaborator-rev) is a revised version of the original Burp Suite interactsh extension and is developed and maintained by [@Arqsz](https://arqsz.net/)
+
+- Download latest JAR file from [releases](https://github.com/TheArqsz/interactsh-collaborator-rev/releases) page.
+- Open Burp Suite &rarr; Extender &rarr; Add &rarr; Java &rarr; Select JAR file &rarr; Next
+- New tab named **Interactsh** will be appeared upon successful installation.
+- See the [interactsh-collaborator-rev](https://github.com/TheArqsz/interactsh-collaborator-rev) project for more info.
+
+<img width="2032" alt="burp" src="https://github.com/TheArqsz/interactsh-collaborator-rev/blob/master/assets/interactsh-extension.png?raw=true">
+
+## ZAP Add-On
+
+Interactsh can be used with ZAP via the [OAST add-on for ZAP](https://www.zaproxy.org/docs/desktop/addons/oast-support/). With ZAP's scripting capabilities, you can create powerful out-of-band scan rules that leverage Interactsh's features. A standalone script template has been provided as an example (it is added automatically when you install the add-on).
 
 - Install the OAST add-on from the [ZAP Marketplace](https://www.zaproxy.org/addons/).
 - Go to Tools &rarr; Options &rarr; OAST and select **Interactsh**.
@@ -302,9 +313,6 @@ Interactsh can be used with OWASP ZAP via the [OAST add-on for ZAP](https://www.
 
 ![zap](https://user-images.githubusercontent.com/16446369/135211920-ed24ba5a-5547-4cd4-b6d8-656af9592c20.png)
 *Interactsh in ZAP*
-
-![Options > OAST > General](https://github.com/hahwul/interactsh/assets/13212227/005bb527-3f60-4822-8b76-f9a3fd06df83)
-*`Options` > `OAST` > `General`*
 
 ## Caido Extension
 
@@ -878,8 +886,8 @@ Currently supported metadata services:
 
 Example:
 
-* **aws.interact.sh** points to 169.254.169.254
-* **alibaba.interact.sh** points to 100.100.100.200
+* **aws.oast.fun** points to 169.254.169.254
+* **alibaba.oast.fun** points to 100.100.100.200
 
 -----
 

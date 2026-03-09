@@ -1,8 +1,93 @@
 # This is a reference custom DNS records file
+#
+# Custom DNS records can be specified in two formats:
+#
+# 1. Standard format (supports multiple record types):
+#    subdomain:
+#      - type: RECORD_TYPE
+#        value: "record_value"
+#        ttl: 3600             # optional, defaults to server TTL
+#        priority: 10          # optional, for MX records only
+#
+# 2. LEGACY FORMAT (Simple key-value, assumes A records):
+#    subdomain: "ip_address"
+#
+# Supported record types: A, AAAA, CNAME, MX, TXT, NS
 
-# The default custom records can be specified using this YAML
-# file using the below declaration.
-aws: "169.254.169.254"
-alibaba: "100.100.100.200"
-localhost: "127.0.0.1"
-oracle: "192.0.0.192"
+# ============================================
+# STANDARD FORMAT EXAMPLES
+# ============================================
+
+# A record example
+api:
+  - type: A
+    value: "192.0.2.1"
+    ttl: 3600
+
+# Multiple A records for the same subdomain
+webserver:
+  - type: A
+    value: "203.0.113.10"
+  - type: A
+    value: "203.0.113.11"
+
+# AAAA record (IPv6)
+ipv6:
+  - type: AAAA
+    value: "2001:db8::1"
+
+# CNAME record
+cdn:
+  - type: CNAME
+    value: "example.cdn.net"
+
+# MX record (mail server)
+mail:
+  - type: MX
+    value: "mail.example.com"
+    priority: 10
+    ttl: 7200
+
+# Multiple MX records with different priorities
+mailserver:
+  - type: MX
+    value: "mail1.example.com"
+    priority: 10
+  - type: MX
+    value: "mail2.example.com"
+    priority: 20
+
+# TXT record (useful for SPF, DKIM, verification, etc.)
+spf:
+  - type: TXT
+    value: "v=spf1 include:_spf.example.com ~all"
+
+# Multi-level subdomain example (DKIM key)
+something._domainkey:
+  - type: TXT
+    value: "v=DKIM1; k=rsa; p=MIGfMA0GCS..."
+
+# NS record (nameserver)
+custom-ns:
+  - type: NS
+    value: "ns1.example.com"
+  - type: NS
+    value: "ns2.example.com"
+
+# Mixed record types for the same subdomain
+multi:
+  - type: A
+    value: "198.51.100.1"
+  - type: AAAA
+    value: "2001:db8::2"
+  - type: TXT
+    value: "v=spf1 mx ~all"
+
+# ============================================
+# LEGACY FORMAT EXAMPLES (backwards compatible)
+# ============================================
+# These simple entries will be interpreted as A records
+# aws: "169.254.169.254"
+# alibaba: "100.100.100.200"
+# localhost: "127.0.0.1"
+# oracle: "192.0.0.192"
