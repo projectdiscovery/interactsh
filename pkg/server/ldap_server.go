@@ -1,7 +1,6 @@
 package server
 
 import (
-	"bytes"
 	"crypto/tls"
 	"fmt"
 	"strings"
@@ -145,12 +144,12 @@ func (ldapServer *LDAPServer) handleInteraction(uniqueID, fullID, reqString, hos
 			RemoteAddress: host,
 			Timestamp:     time.Now(),
 		}
-		buffer := &bytes.Buffer{}
-		if err := jsoniter.NewEncoder(buffer).Encode(interaction); err != nil {
+		data, err := jsoniter.Marshal(interaction)
+		if err != nil {
 			gologger.Warning().Msgf("Could not encode ldap interaction: %s\n", err)
 		} else {
-			gologger.Debug().Msgf("LDAP Interaction: \n%s\n", buffer.String())
-			if err := ldapServer.options.Storage.AddInteraction(correlationID, buffer.Bytes()); err != nil {
+			gologger.Debug().Msgf("LDAP Interaction: \n%s\n", string(data))
+			if err := ldapServer.options.Storage.AddInteraction(correlationID, data); err != nil {
 				gologger.Warning().Msgf("Could not store ldap interaction: %s\n", err)
 			}
 		}
@@ -411,12 +410,12 @@ func (ldapServer *LDAPServer) logInteraction(interaction Interaction) {
 	// Correlation id doesn't apply here, we skip encryption
 	interaction.Protocol = "ldap"
 	interaction.Timestamp = time.Now()
-	buffer := &bytes.Buffer{}
-	if err := jsoniter.NewEncoder(buffer).Encode(interaction); err != nil {
+	data, err := jsoniter.Marshal(interaction)
+	if err != nil {
 		gologger.Warning().Msgf("Could not encode ldap interaction: %s\n", err)
 	} else {
-		gologger.Debug().Msgf("LDAP Interaction: \n%s\n", buffer.String())
-		if err := ldapServer.options.Storage.AddInteractionWithId(ldapServer.options.Token, buffer.Bytes()); err != nil {
+		gologger.Debug().Msgf("LDAP Interaction: \n%s\n", string(data))
+		if err := ldapServer.options.Storage.AddInteractionWithId(ldapServer.options.Token, data); err != nil {
 			gologger.Warning().Msgf("Could not store ldap interaction: %s\n", err)
 		}
 	}

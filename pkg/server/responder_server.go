@@ -1,7 +1,6 @@
 package server
 
 import (
-	"bytes"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -89,12 +88,12 @@ func (h *ResponderServer) ListenAndServe(responderAlive chan bool) error {
 						RawRequest: responderData,
 						Timestamp:  time.Now(),
 					}
-					buffer := &bytes.Buffer{}
-					if err := jsoniter.NewEncoder(buffer).Encode(interaction); err != nil {
+					data, err := jsoniter.Marshal(interaction)
+					if err != nil {
 						gologger.Warning().Msgf("Could not encode responder interaction: %s\n", err)
 					} else {
-						gologger.Debug().Msgf("Responder Interaction: \n%s\n", buffer.String())
-						if err := h.options.Storage.AddInteractionWithId(h.options.Token, buffer.Bytes()); err != nil {
+						gologger.Debug().Msgf("Responder Interaction: \n%s\n", string(data))
+						if err := h.options.Storage.AddInteractionWithId(h.options.Token, data); err != nil {
 							gologger.Warning().Msgf("Could not store dns interaction: %s\n", err)
 						}
 					}

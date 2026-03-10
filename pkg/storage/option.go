@@ -10,17 +10,21 @@ const (
 )
 
 type Options struct {
-	DbPath           string
-	EvictionTTL      time.Duration
-	MaxSize          int
-	EvictionStrategy EvictionStrategy
+	DbPath                 string
+	EvictionTTL            time.Duration
+	MaxSize                int
+	MaxSharedInteractions  int
+	EvictionStrategy       EvictionStrategy
 }
 
 func (options *Options) UseDisk() bool {
 	return options.DbPath != ""
 }
 
+const defaultMaxSharedInteractions = 10000
+
 var DefaultOptions = Options{
-	MaxSize:          2500000,
-	EvictionStrategy: EvictionStrategySliding,
+	MaxSize:               2500000,
+	MaxSharedInteractions: defaultMaxSharedInteractions,
+	EvictionStrategy:      EvictionStrategySliding,
 }

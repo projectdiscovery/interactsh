@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/goburrow/cache"
 	"github.com/pkg/errors"
@@ -32,6 +33,9 @@ type StorageDB struct {
 
 // New creates a new storage instance for interactsh data.
 func New(options *Options) (*StorageDB, error) {
+	if options.MaxSharedInteractions <= 0 {
+		options.MaxSharedInteractions = defaultMaxSharedInteractions
+	}
 	storageDB := &StorageDB{Options: options}
 	cacheOptions := []cache.Option{
 		cache.WithMaximumSize(options.MaxSize),
@@ -74,8 +78,8 @@ func New(options *Options) (*StorageDB, error) {
 }
 
 func (s *StorageDB) OnCacheRemovalCallback(key cache.Key, value cache.Value) {
-	if key, ok := value.([]byte); ok {
-		_ = s.db.Delete(key, &opt.WriteOptions{})
+	if k, ok := key.(string); ok {
+		_ = s.db.Delete([]byte(k), &opt.WriteOptions{})
 	}
 }
 
@@ -120,6 +124,12 @@ func (s *StorageDB) SetIDPublicKey(correlationID, secretKey, publicKey string) e
 		SecretKey:       secretKey,
 		AESKey:          aesKey,
 		AESKeyEncrypted: base64.StdEncoding.EncodeToString(ciphertext),
+	}
+	// Clear any stale data from a previous registration (e.g. after cache eviction
+	// and session restore). Old data would be encrypted with a different AES key
+	// and cause decryption failures on the client.
+	if s.Options.UseDisk() {
+		_ = s.db.Delete([]byte(correlationID), nil)
 	}
 	s.cache.Put(correlationID, data)
 	return nil
@@ -238,6 +248,184 @@ func (s *StorageDB) GetInteractionsWithId(id string) ([]string, error) {
 		return nil, errors.New("invalid id cache value found")
 	}
 	return s.getInteractions(value, id)
+}
+
+// GetInteractionsWithIdForConsumer returns unseen interactions for a consumer
+// using per-consumer read offsets.
+func (s *StorageDB) GetInteractionsWithIdForConsumer(id, consumerID string) ([]string, error) {
+	item, ok := s.cache.GetIfPresent(id)
+	if !ok {
+		return nil, errors.New("could not get id from cache")
+	}
+	value, ok := item.(*CorrelationData)
+	if !ok {
+		return nil, errors.New("invalid id cache value found")
+	}
+
+	value.Lock()
+	defer value.Unlock()
+
+	if value.ReadOffsets == nil {
+		value.ReadOffsets = make(map[string]int)
+	}
+	if value.LastSeen == nil {
+		value.LastSeen = make(map[string]time.Time)
+	}
+
+	var allData []string
+	switch {
+	case s.Options.UseDisk():
+		raw, err := s.db.Get([]byte(id), nil)
+		if err != nil {
+			if errors.Is(err, leveldb.ErrNotFound) {
+				return nil, nil
+			}
+			return nil, err
+		}
+		for _, d := range bytes.Split(raw, []byte("\n")) {
+			if len(d) > 0 {
+				allData = append(allData, string(d))
+			}
+		}
+	default:
+		allData = value.Data
+	}
+
+	offset := min(value.ReadOffsets[consumerID], len(allData))
+
+	var unseen []string
+	if offset < len(allData) {
+		unseen = make([]string, len(allData)-offset)
+		copy(unseen, allData[offset:])
+	}
+
+	value.ReadOffsets[consumerID] = len(allData)
+	value.LastSeen[consumerID] = time.Now()
+
+	s.evictAndEnforceBuffer(value, id)
+
+	return unseen, nil
+}
+
+// RemoveConsumer removes a consumer's read offset and compacts consumed data.
+func (s *StorageDB) RemoveConsumer(id, consumerID string) error {
+	item, ok := s.cache.GetIfPresent(id)
+	if !ok {
+		return nil
+	}
+	value, ok := item.(*CorrelationData)
+	if !ok {
+		return nil
+	}
+
+	value.Lock()
+	defer value.Unlock()
+
+	delete(value.ReadOffsets, consumerID)
+	delete(value.LastSeen, consumerID)
+
+	s.compactConsumedData(value, id)
+	return nil
+}
+
+func (s *StorageDB) evictAndEnforceBuffer(value *CorrelationData, id string) {
+	s.evictStaleConsumers(value, id)
+	s.enforceMaxBuffer(value, id)
+}
+
+func (s *StorageDB) compactConsumedData(value *CorrelationData, id string) {
+	s.evictStaleConsumers(value, id)
+	if len(value.ReadOffsets) == 0 {
+		return
+	}
+
+	minOffset := -1
+	for _, off := range value.ReadOffsets {
+		if minOffset < 0 || off < minOffset {
+			minOffset = off
+		}
+	}
+	if minOffset > 0 {
+		s.applyTrim(value, id, minOffset)
+	}
+	s.enforceMaxBuffer(value, id)
+}
+
+func (s *StorageDB) evictStaleConsumers(value *CorrelationData, id string) {
+	if s.Options.EvictionTTL > 0 {
+		now := time.Now()
+		for cid, lastSeen := range value.LastSeen {
+			if now.Sub(lastSeen) > s.Options.EvictionTTL {
+				delete(value.ReadOffsets, cid)
+				delete(value.LastSeen, cid)
+			}
+		}
+	}
+
+	if len(value.ReadOffsets) == 0 {
+		value.Data = nil
+		if s.Options.UseDisk() {
+			_ = s.db.Delete([]byte(id), nil)
+		}
+	}
+}
+
+func (s *StorageDB) enforceMaxBuffer(value *CorrelationData, id string) {
+	dataLen := s.dataLen(value, id)
+	if dataLen <= s.Options.MaxSharedInteractions {
+		return
+	}
+	excess := dataLen - s.Options.MaxSharedInteractions
+	s.applyTrim(value, id, excess)
+}
+
+func (s *StorageDB) applyTrim(value *CorrelationData, id string, trimCount int) {
+	switch {
+	case s.Options.UseDisk():
+		raw, err := s.db.Get([]byte(id), nil)
+		if err != nil {
+			return
+		}
+		var allData []string
+		for _, d := range bytes.Split(raw, []byte("\n")) {
+			if len(d) > 0 {
+				allData = append(allData, string(d))
+			}
+		}
+		if trimCount >= len(allData) {
+			_ = s.db.Delete([]byte(id), nil)
+		} else {
+			remaining := allData[trimCount:]
+			_ = s.db.Put([]byte(id), []byte(strings.Join(remaining, "\n")), nil)
+		}
+	default:
+		if trimCount >= len(value.Data) {
+			value.Data = nil
+		} else {
+			value.Data = value.Data[trimCount:]
+		}
+	}
+
+	for cid, off := range value.ReadOffsets {
+		value.ReadOffsets[cid] = max(off-trimCount, 0)
+	}
+}
+
+func (s *StorageDB) dataLen(value *CorrelationData, id string) int {
+	if s.Options.UseDisk() {
+		raw, err := s.db.Get([]byte(id), nil)
+		if err != nil {
+			return 0
+		}
+		count := 0
+		for _, d := range bytes.Split(raw, []byte("\n")) {
+			if len(d) > 0 {
+				count++
+			}
+		}
+		return count
+	}
+	return len(value.Data)
 }
 
 // RemoveID removes data for a correlation ID and data related to it.

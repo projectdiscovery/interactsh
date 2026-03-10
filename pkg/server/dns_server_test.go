@@ -35,9 +35,10 @@ func TestDNSServerIPv6OnlyResponses(t *testing.T) {
 func TestDNSServerCustomIPv6Record(t *testing.T) {
 	opts := newTestOptions([]string{"192.0.2.1", "2001:db8::1"}, "127.0.0.1")
 	dnsServer := NewDNSServer("udp", opts)
-	dnsServer.customRecords.records["ipv6"] = "2001:db8::dead"
+	dnsServer.customRecords.records["ipv6"] = []CustomRecordConfig{{Type: "AAAA", Value: "2001:db8::dead"}}
 
 	msg := new(dns.Msg)
+	msg.Question = []dns.Question{{Name: dns.Fqdn("ipv6.example.com"), Qtype: dns.TypeAAAA}}
 	dnsServer.handleACNAMEANY(dns.Fqdn("ipv6.example.com"), msg)
 
 	require.True(t, hasRecord(msg.Answer, dns.TypeAAAA, "2001:db8::dead"), "expected custom AAAA record")
@@ -79,9 +80,10 @@ func TestDNSServerDefaultIPv4Answer(t *testing.T) {
 func TestDNSServerCustomIPv4Record(t *testing.T) {
 	opts := newTestOptions([]string{"192.0.2.50"}, "127.0.0.1")
 	dnsServer := NewDNSServer("udp", opts)
-	dnsServer.customRecords.records["app"] = "198.51.100.5"
+	dnsServer.customRecords.records["app"] = []CustomRecordConfig{{Type: "A", Value: "198.51.100.5"}}
 
 	msg := new(dns.Msg)
+	msg.Question = []dns.Question{{Name: dns.Fqdn("app.example.com"), Qtype: dns.TypeA}}
 	dnsServer.handleACNAMEANY(dns.Fqdn("app.example.com"), msg)
 
 	require.True(t, hasRecord(msg.Answer, dns.TypeA, "198.51.100.5"), "expected custom IPv4 answer")

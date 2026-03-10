@@ -1,7 +1,6 @@
 package server
 
 import (
-	"bytes"
 	"crypto/tls"
 	"encoding/base64"
 	"fmt"
@@ -150,7 +149,7 @@ func (h *HTTPServer) logger(handler http.Handler) http.HandlerFunc {
 					ID := domain
 					host, _, _ := net.SplitHostPort(r.RemoteAddr)
 					interaction := &Interaction{
-						Protocol:      "http",
+						Protocol:      httpProtocol(r),
 						UniqueID:      r.Host,
 						FullId:        r.Host,
 						RawRequest:    reqString,
@@ -158,12 +157,12 @@ func (h *HTTPServer) logger(handler http.Handler) http.HandlerFunc {
 						RemoteAddress: host,
 						Timestamp:     time.Now(),
 					}
-					buffer := &bytes.Buffer{}
-					if err := jsoniter.NewEncoder(buffer).Encode(interaction); err != nil {
+					data, err := jsoniter.Marshal(interaction)
+					if err != nil {
 						gologger.Warning().Msgf("Could not encode root tld http interaction: %s\n", err)
 					} else {
-						gologger.Debug().Msgf("Root TLD HTTP Interaction: \n%s\n", buffer.String())
-						if err := h.options.Storage.AddInteractionWithId(ID, buffer.Bytes()); err != nil {
+						gologger.Debug().Msgf("Root TLD HTTP Interaction: \n%s\n", string(data))
+						if err := h.options.Storage.AddInteractionWithId(ID, data); err != nil {
 							gologger.Warning().Msgf("Could not store root tld http interaction: %s\n", err)
 						}
 					}
@@ -177,7 +176,7 @@ func (h *HTTPServer) logger(handler http.Handler) http.HandlerFunc {
 				for part := range stringsutil.SlideWithLength(chunk, h.options.GetIdLength()) {
 					normalizedPart := strings.ToLower(part)
 					if h.options.isCorrelationID(normalizedPart) {
-						h.handleInteraction(normalizedPart, part, reqString, respString, host)
+						h.handleInteraction(r, normalizedPart, part, reqString, respString, host)
 					}
 				}
 			}
@@ -191,7 +190,7 @@ func (h *HTTPServer) logger(handler http.Handler) http.HandlerFunc {
 						if i+1 <= len(parts) {
 							fullID = strings.Join(parts[:i+1], ".")
 						}
-						h.handleInteraction(normalizedPartChunk, fullID, reqString, respString, host)
+						h.handleInteraction(r, normalizedPartChunk, fullID, reqString, respString, host)
 					}
 				}
 			}
@@ -199,11 +198,18 @@ func (h *HTTPServer) logger(handler http.Handler) http.HandlerFunc {
 	}
 }
 
-func (h *HTTPServer) handleInteraction(uniqueID, fullID, reqString, respString, hostPort string) {
+func httpProtocol(r *http.Request) string {
+	if r.TLS != nil {
+		return "https"
+	}
+	return "http"
+}
+
+func (h *HTTPServer) handleInteraction(r *http.Request, uniqueID, fullID, reqString, respString, hostPort string) {
 	correlationID := uniqueID[:h.options.CorrelationIdLength]
 
 	interaction := &Interaction{
-		Protocol:      "http",
+		Protocol:      httpProtocol(r),
 		UniqueID:      uniqueID,
 		FullId:        fullID,
 		RawRequest:    reqString,
@@ -211,13 +217,13 @@ func (h *HTTPServer) handleInteraction(uniqueID, fullID, reqString, respString, 
 		RemoteAddress: hostPort,
 		Timestamp:     time.Now(),
 	}
-	buffer := &bytes.Buffer{}
-	if err := jsoniter.NewEncoder(buffer).Encode(interaction); err != nil {
+	data, err := jsoniter.Marshal(interaction)
+	if err != nil {
 		gologger.Warning().Msgf("Could not encode http interaction: %s\n", err)
 	} else {
-		gologger.Debug().Msgf("HTTP Interaction: \n%s\n", buffer.String())
+		gologger.Debug().Msgf("HTTP Interaction: \n%s\n", string(data))
 
-		if err := h.options.Storage.AddInteraction(correlationID, buffer.Bytes()); err != nil {
+		if err := h.options.Storage.AddInteraction(correlationID, data); err != nil {
 			gologger.Warning().Msgf("Could not store http interaction: %s\n", err)
 		}
 	}
@@ -417,6 +423,14 @@ func (h *HTTPServer) deregisterHandler(w http.ResponseWriter, req *http.Request)
 		jsonError(w, fmt.Sprintf("could not remove id: %s", err), http.StatusBadRequest)
 		return
 	}
+	if h.options.RootTLD {
+		for _, domain := range h.options.Domains {
+			_ = h.options.Storage.RemoveConsumer(domain, r.CorrelationID)
+		}
+	}
+	if h.options.Token != "" {
+		_ = h.options.Storage.RemoveConsumer(h.options.Token, r.CorrelationID)
+	}
 	jsonMsg(w, "deregistration successful", http.StatusOK)
 	gologger.Debug().Msgf("Deregistered correlationID %s for key\n", r.CorrelationID)
 }
@@ -453,14 +467,14 @@ func (h *HTTPServer) pollHandler(w http.ResponseWriter, req *http.Request) {
 	var tlddata, extradata []string
 	if h.options.RootTLD {
 		for _, domain := range h.options.Domains {
-			interactions, _ := h.options.Storage.GetInteractionsWithId(domain)
+			interactions, _ := h.options.Storage.GetInteractionsWithIdForConsumer(domain, ID)
 			// root domains interaction are not encrypted
 			tlddata = append(tlddata, interactions...)
 		}
 	}
 	if h.options.Token != "" {
 		// auth token interactions are not encrypted
-		extradata, _ = h.options.Storage.GetInteractionsWithId(h.options.Token)
+		extradata, _ = h.options.Storage.GetInteractionsWithIdForConsumer(h.options.Token, ID)
 	}
 	response := &PollResponse{Data: data, AESKey: aesKey, TLDData: tlddata, Extra: extradata}
 
