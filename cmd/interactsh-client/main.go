@@ -86,6 +86,19 @@ func main() {
 		flagSet.BoolVarP(&healthcheck, "hc", "health-check", false, "run diagnostic check up"),
 	)
 
+	// If a custom config path is provided via -config, tell goflags before
+	// Parse() so it doesn't try to create/read the default config location.
+	for i := 1; i < len(os.Args); i++ {
+		if (os.Args[i] == "-config" || os.Args[i] == "--config") && i+1 < len(os.Args) {
+			flagSet.SetConfigFilePath(os.Args[i+1])
+			break
+		}
+		if strings.HasPrefix(os.Args[i], "-config=") || strings.HasPrefix(os.Args[i], "--config=") {
+			flagSet.SetConfigFilePath(strings.SplitN(os.Args[i], "=", 2)[1])
+			break
+		}
+	}
+
 	if err := flagSet.Parse(); err != nil {
 		gologger.Fatal().Msgf("Could not parse options: %s\n", err)
 	}
@@ -130,12 +143,6 @@ func main() {
 			}
 		} else {
 			gologger.Info().Msgf("Current interactsh version %v %v", options.Version, updateutils.GetVersionDescription(options.Version, latestVersion))
-		}
-	}
-
-	if fileutil.FileExists(cliOptions.Config) {
-		if err := flagSet.MergeConfigFile(cliOptions.Config); err != nil {
-			gologger.Fatal().Msgf("Could not read config: %s\n", err)
 		}
 	}
 
