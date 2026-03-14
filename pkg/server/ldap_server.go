@@ -125,10 +125,7 @@ func (ldapServer *LDAPServer) handleSearch(w ldap.ResponseWriter, m *ldap.Messag
 				normalizedChunk := strings.ToLower(scanChunk)
 				if ldapServer.options.isCorrelationID(normalizedChunk) {
 					matchedChunk = normalizedChunk
-					fullID = partChunk
-					if i+1 <= len(partChunks) {
-						fullID = strings.Join(partChunks[:i+1], ".")
-					}
+					fullID = strings.Join(partChunks[:i+1], ".")
 					ldapServer.handleInteraction(matchedChunk, fullID, message.String(), host)
 					matched = true
 				}
@@ -152,7 +149,7 @@ func (ldapServer *LDAPServer) handleSearch(w ldap.ResponseWriter, m *ldap.Messag
 }
 
 func (ldapServer *LDAPServer) handleInteraction(matchedChunk, fullID, reqString, host string) {
-	if matchedChunk != "" {
+	if len(matchedChunk) >= ldapServer.options.CorrelationIdLength {
 		correlationID := matchedChunk[:ldapServer.options.CorrelationIdLength]
 		interaction := &Interaction{
 			Protocol:      "ldap",

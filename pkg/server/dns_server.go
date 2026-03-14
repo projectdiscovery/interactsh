@@ -13,9 +13,10 @@ import (
 	"github.com/miekg/dns"
 	"github.com/pkg/errors"
 	"github.com/projectdiscovery/gologger"
-	"github.com/projectdiscovery/interactsh/pkg/server/acme"
 	stringsutil "github.com/projectdiscovery/utils/strings"
 	"gopkg.in/yaml.v3"
+
+	"github.com/projectdiscovery/interactsh/pkg/server/acme"
 )
 
 // DNSServer is a DNS server instance that listens on port 53.
@@ -300,6 +301,9 @@ func toQType(ttype uint16) (rtype string) {
 }
 
 func (h *DNSServer) storeInteraction(matchedChunk, fullID, qtype, requestMsg, responseMsg, remoteAddr string) {
+	if len(matchedChunk) < h.options.CorrelationIdLength {
+		return
+	}
 	correlationID := matchedChunk[:h.options.CorrelationIdLength]
 	interaction := &Interaction{
 		Protocol:      "dns",
@@ -390,10 +394,7 @@ func (h *DNSServer) handleInteraction(domain string, w dns.ResponseWriter, r *dn
 				for partChunk := range stringsutil.SlideWithLength(part, h.options.getMinIdLength()) {
 					normalizedPartChunk := strings.ToLower(partChunk)
 					if h.options.isCorrelationID(normalizedPartChunk) {
-						fullID := part
-						if i+1 <= len(parts) {
-							fullID = strings.Join(parts[:i+1], ".")
-						}
+						fullID := strings.Join(parts[:i+1], ".")
 						h.storeInteraction(normalizedPartChunk, fullID, qtype, requestMsg, responseMsg, host)
 						matched = true
 					}

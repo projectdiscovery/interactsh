@@ -189,10 +189,7 @@ func (h *HTTPServer) logger(handler http.Handler) http.HandlerFunc {
 				for partChunk := range stringsutil.SlideWithLength(part, h.options.getMinIdLength()) {
 					normalizedPartChunk := strings.ToLower(partChunk)
 					if h.options.isCorrelationID(normalizedPartChunk) {
-						fullID := part
-						if i+1 <= len(parts) {
-							fullID = strings.Join(parts[:i+1], ".")
-						}
+						fullID := strings.Join(parts[:i+1], ".")
 						h.handleInteraction(r, normalizedPartChunk, fullID, reqString, respString, host)
 						matched = true
 					}
@@ -220,6 +217,9 @@ func httpProtocol(r *http.Request) string {
 }
 
 func (h *HTTPServer) handleInteraction(r *http.Request, matchedChunk, fullID, reqString, respString, hostPort string) {
+	if len(matchedChunk) < h.options.CorrelationIdLength {
+		return
+	}
 	correlationID := matchedChunk[:h.options.CorrelationIdLength]
 
 	interaction := &Interaction{

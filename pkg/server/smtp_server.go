@@ -81,6 +81,9 @@ func (h *SMTPServer) ListenAndServe(tlsConfig *tls.Config, smtpAlive, smtpsAlive
 }
 
 func (h *SMTPServer) storeInteraction(matchedChunk, fullID, dataString, from, remoteAddr string) {
+	if len(matchedChunk) < h.options.CorrelationIdLength {
+		return
+	}
 	correlationID := matchedChunk[:h.options.CorrelationIdLength]
 	interaction := &Interaction{
 		Protocol:      "smtp",
@@ -150,10 +153,7 @@ func (h *SMTPServer) defaultHandler(remoteAddr net.Addr, from string, to []strin
 				for partChunk := range stringsutil.SlideWithLength(part, h.options.getMinIdLength()) {
 					normalizedPartChunk := strings.ToLower(partChunk)
 					if h.options.isCorrelationID(normalizedPartChunk) {
-						fullID := part
-						if i+1 <= len(parts) {
-							fullID = strings.Join(parts[:i+1], ".")
-						}
+						fullID := strings.Join(parts[:i+1], ".")
 						h.storeInteraction(normalizedPartChunk, fullID, dataString, from, host)
 						matched = true
 					}
