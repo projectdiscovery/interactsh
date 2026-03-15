@@ -766,7 +766,7 @@ $ interactsh-server -d hackwithautomation.com -cidl 4 -cidn 6
 [DNS] Listening on TCP 157.230.223.165:53
 ```
 
-**Note:** It is important and required to use same length on both side (**client** and **server**), otherwise co-relation will not work.
+**Note:** The `cidl` (correlation ID length) **must** match on both client and server. The `cidn` (nonce length) is flexible — the server accepts any nonce length ≥ 3, so the client can use a different nonce length than the server's default.
 
 ```console
 $ interactsh-client -s hackwithautomation.com -cidl 4 -cidn 6
