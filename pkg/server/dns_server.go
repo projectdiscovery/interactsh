@@ -13,9 +13,10 @@ import (
 	"github.com/miekg/dns"
 	"github.com/pkg/errors"
 	"github.com/projectdiscovery/gologger"
-	"github.com/projectdiscovery/interactsh/pkg/server/acme"
 	stringsutil "github.com/projectdiscovery/utils/strings"
 	"gopkg.in/yaml.v3"
+
+	"github.com/projectdiscovery/interactsh/pkg/server/acme"
 )
 
 // DNSServer is a DNS server instance that listens on port 53.
@@ -299,10 +300,34 @@ func toQType(ttype uint16) (rtype string) {
 	return
 }
 
+func (h *DNSServer) storeInteraction(matchedChunk, fullID, qtype, requestMsg, responseMsg, remoteAddr string) {
+	if len(matchedChunk) < h.options.CorrelationIdLength {
+		return
+	}
+	correlationID := matchedChunk[:h.options.CorrelationIdLength]
+	interaction := &Interaction{
+		Protocol:      "dns",
+		UniqueID:      correlationID,
+		FullId:        fullID,
+		QType:         qtype,
+		RawRequest:    requestMsg,
+		RawResponse:   responseMsg,
+		RemoteAddress: remoteAddr,
+		Timestamp:     time.Now(),
+	}
+	data, err := jsoniter.Marshal(interaction)
+	if err != nil {
+		gologger.Warning().Msgf("Could not encode dns interaction: %s\n", err)
+	} else {
+		gologger.Debug().Msgf("DNS Interaction: \n%s\n", string(data))
+		if err := h.options.Storage.AddInteraction(correlationID, data); err != nil {
+			gologger.Warning().Msgf("Could not store dns interaction: %s\n", err)
+		}
+	}
+}
+
 // handleInteraction handles an interaction for the DNS server
 func (h *DNSServer) handleInteraction(domain string, w dns.ResponseWriter, r *dns.Msg, m *dns.Msg) {
-	var uniqueID, fullID string
-
 	requestMsg := r.String()
 	responseMsg := m.String()
 
@@ -348,54 +373,41 @@ func (h *DNSServer) handleInteraction(domain string, w dns.ResponseWriter, r *dn
 	}
 
 	if foundDomain != "" {
+		host, _, _ := net.SplitHostPort(w.RemoteAddr().String())
+		qtype := toQType(r.Question[0].Qtype)
 		if h.options.ScanEverywhere {
+			// slide through request text (single pass, no tiering)
 			chunks := stringsutil.SplitAny(requestMsg, ".\n\t\"'")
 			for _, chunk := range chunks {
-				for part := range stringsutil.SlideWithLength(chunk, h.options.GetIdLength()) {
+				for part := range stringsutil.SlideWithLength(chunk, h.options.getMinIdLength()) {
 					normalizedPart := strings.ToLower(part)
 					if h.options.isCorrelationID(normalizedPart) {
-						uniqueID = normalizedPart
-						fullID = part
+						h.storeInteraction(normalizedPart, part, qtype, requestMsg, responseMsg, host)
 					}
 				}
 			}
 		} else {
+			// match corrID+nonce in same label (higher confidence)
+			var matched bool
 			parts := strings.Split(domain, ".")
-			for i, part := range parts {
-				for partChunk := range stringsutil.SlideWithLength(part, h.options.GetIdLength()) {
+			fullID := h.options.subdomainOf(domain, true)
+			for _, part := range parts {
+				for partChunk := range stringsutil.SlideWithLength(part, h.options.getMinIdLength()) {
 					normalizedPartChunk := strings.ToLower(partChunk)
 					if h.options.isCorrelationID(normalizedPartChunk) {
-						fullID = part
-						if i+1 <= len(parts) {
-							fullID = strings.Join(parts[:i+1], ".")
-						}
-						uniqueID = normalizedPartChunk
+						h.storeInteraction(normalizedPartChunk, fullID, qtype, requestMsg, responseMsg, host)
+						matched = true
 					}
 				}
 			}
-		}
-	}
-
-	if uniqueID != "" {
-		correlationID := uniqueID[:h.options.CorrelationIdLength]
-		host, _, _ := net.SplitHostPort(w.RemoteAddr().String())
-		interaction := &Interaction{
-			Protocol:      "dns",
-			UniqueID:      uniqueID,
-			FullId:        fullID,
-			QType:         toQType(r.Question[0].Qtype),
-			RawRequest:    requestMsg,
-			RawResponse:   responseMsg,
-			RemoteAddress: host,
-			Timestamp:     time.Now(),
-		}
-		data, err := jsoniter.Marshal(interaction)
-		if err != nil {
-			gologger.Warning().Msgf("Could not encode dns interaction: %s\n", err)
-		} else {
-			gologger.Debug().Msgf("DNS Interaction: \n%s\n", string(data))
-			if err := h.options.Storage.AddInteraction(correlationID, data); err != nil {
-				gologger.Warning().Msgf("Could not store dns interaction: %s\n", err)
+			// match bare corrID (no nonce, possibly split corrID and nonce in different subdomain parts)
+			if !matched {
+				for _, part := range parts {
+					normalizedPart := strings.ToLower(part)
+					if len(normalizedPart) == h.options.CorrelationIdLength && h.options.isCorrelationID(normalizedPart) {
+						h.storeInteraction(normalizedPart, fullID, qtype, requestMsg, responseMsg, host)
+					}
+				}
 			}
 		}
 	}
