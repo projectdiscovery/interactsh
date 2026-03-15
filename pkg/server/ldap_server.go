@@ -119,13 +119,13 @@ func (ldapServer *LDAPServer) handleSearch(w ldap.ResponseWriter, m *ldap.Messag
 	var matched bool
 	for _, part := range stringsutil.SplitAny(string(baseObject), "=,") {
 		partChunks := strings.Split(part, ".")
+		fullID = ldapServer.options.subdomainOf(part, false)
 		// match corrID+nonce in same label (higher confidence)
-		for i, partChunk := range partChunks {
+		for _, partChunk := range partChunks {
 			for scanChunk := range stringsutil.SlideWithLength(partChunk, ldapServer.options.getMinIdLength()) {
 				normalizedChunk := strings.ToLower(scanChunk)
 				if ldapServer.options.isCorrelationID(normalizedChunk) {
 					matchedChunk = normalizedChunk
-					fullID = strings.Join(partChunks[:i+1], ".")
 					ldapServer.handleInteraction(matchedChunk, fullID, message.String(), host)
 					matched = true
 				}
@@ -135,12 +135,11 @@ func (ldapServer *LDAPServer) handleSearch(w ldap.ResponseWriter, m *ldap.Messag
 	// match bare corrID (no nonce, possibly split corrID and nonce in different subdomain parts)
 	if !matched {
 		for _, part := range stringsutil.SplitAny(string(baseObject), "=,") {
-			partChunks := strings.Split(part, ".")
-			for i, partChunk := range partChunks {
+			fullID = ldapServer.options.subdomainOf(part, false)
+			for _, partChunk := range strings.Split(part, ".") {
 				normalizedChunk := strings.ToLower(partChunk)
 				if len(normalizedChunk) == ldapServer.options.CorrelationIdLength && ldapServer.options.isCorrelationID(normalizedChunk) {
 					matchedChunk = normalizedChunk
-					fullID = strings.Join(partChunks[:i+1], ".")
 					ldapServer.handleInteraction(matchedChunk, fullID, message.String(), host)
 				}
 			}

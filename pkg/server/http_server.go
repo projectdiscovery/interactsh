@@ -185,11 +185,11 @@ func (h *HTTPServer) logger(handler http.Handler) http.HandlerFunc {
 			// match corrID+nonce in same label (higher confidence)
 			var matched bool
 			parts := strings.Split(r.Host, ".")
-			for i, part := range parts {
+			fullID := h.options.subdomainOf(r.Host, false)
+			for _, part := range parts {
 				for partChunk := range stringsutil.SlideWithLength(part, h.options.getMinIdLength()) {
 					normalizedPartChunk := strings.ToLower(partChunk)
 					if h.options.isCorrelationID(normalizedPartChunk) {
-						fullID := strings.Join(parts[:i+1], ".")
 						h.handleInteraction(r, normalizedPartChunk, fullID, reqString, respString, host)
 						matched = true
 					}
@@ -197,10 +197,9 @@ func (h *HTTPServer) logger(handler http.Handler) http.HandlerFunc {
 			}
 			// match bare corrID (no nonce, possibly split corrID and nonce in different subdomain parts)
 			if !matched {
-				for i, part := range parts {
+				for _, part := range parts {
 					normalizedPart := strings.ToLower(part)
 					if len(normalizedPart) == h.options.CorrelationIdLength && h.options.isCorrelationID(normalizedPart) {
-						fullID := strings.Join(parts[:i+1], ".")
 						h.handleInteraction(r, normalizedPart, fullID, reqString, respString, host)
 					}
 				}

@@ -174,6 +174,54 @@ func TestTwoTierMatching(t *testing.T) {
 	})
 }
 
+func TestSubdomainOf(t *testing.T) {
+	options := Options{
+		CorrelationIdLength:      settings.CorrelationIdLengthDefault,
+		CorrelationIdNonceLength: settings.CorrelationIdNonceLengthDefault,
+		Domains:                  []string{"interactsh.com"},
+	}
+
+	t.Run("corrID+nonce same label (FQDN)", func(t *testing.T) {
+		result := options.subdomainOf("corrIDnonce.interactsh.com.", true)
+		require.Equal(t, "corrIDnonce", result)
+	})
+
+	t.Run("corrID and nonce dot-separated (FQDN)", func(t *testing.T) {
+		result := options.subdomainOf("corrID.nonce.interactsh.com.", true)
+		require.Equal(t, "corrID.nonce", result)
+	})
+
+	t.Run("nonce before corrID (FQDN)", func(t *testing.T) {
+		result := options.subdomainOf("nonce.corrID.interactsh.com.", true)
+		require.Equal(t, "nonce.corrID", result)
+	})
+
+	t.Run("corrID+nonce same label (HTTP)", func(t *testing.T) {
+		result := options.subdomainOf("corrIDnonce.interactsh.com", false)
+		require.Equal(t, "corrIDnonce", result)
+	})
+
+	t.Run("corrID and nonce dot-separated (HTTP)", func(t *testing.T) {
+		result := options.subdomainOf("corrID.nonce.interactsh.com", false)
+		require.Equal(t, "corrID.nonce", result)
+	})
+
+	t.Run("subdomain server domain", func(t *testing.T) {
+		opts := Options{
+			CorrelationIdLength:      settings.CorrelationIdLengthDefault,
+			CorrelationIdNonceLength: settings.CorrelationIdNonceLengthDefault,
+			Domains:                  []string{"s.interactsh.com"},
+		}
+		result := opts.subdomainOf("corrID.nonce.s.interactsh.com.", true)
+		require.Equal(t, "corrID.nonce", result)
+	})
+
+	t.Run("no matching domain returns hostname", func(t *testing.T) {
+		result := options.subdomainOf("corrID.nonce.unknown.com", false)
+		require.Equal(t, "corrID.nonce.unknown.com", result)
+	})
+}
+
 func TestURLReflection(t *testing.T) {
 	options := Options{CorrelationIdLength: settings.CorrelationIdLengthDefault, CorrelationIdNonceLength: settings.CorrelationIdNonceLengthDefault}
 	reflection := options.URLReflection("c6rj61aciaeutn2ae680cg5ugboyyyyyn.interactsh.com")

@@ -7,6 +7,7 @@ import (
 
 	"github.com/asaskevich/govalidator"
 	"github.com/projectdiscovery/interactsh/pkg/settings"
+	stringsutil "github.com/projectdiscovery/utils/strings"
 	"github.com/rs/xid"
 )
 
@@ -28,6 +29,20 @@ func (options *Options) isCorrelationID(s string) bool {
 		return err == nil
 	}
 	return true
+}
+
+// subdomainOf returns the subdomain portion of hostname with the server's
+// configured domain stripped. isFQDN should be true for DNS names (trailing dot).
+func (options *Options) subdomainOf(hostname string, isFQDN bool) string {
+	if isFQDN {
+		hostname = strings.TrimSuffix(hostname, ".")
+	}
+	for _, domain := range options.Domains {
+		if stringsutil.HasSuffixI(hostname, "."+domain) {
+			return hostname[:len(hostname)-len(domain)-1]
+		}
+	}
+	return hostname
 }
 
 func formatAddress(host string, port int) string {

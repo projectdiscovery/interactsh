@@ -146,14 +146,15 @@ func (h *SMTPServer) defaultHandler(remoteAddr net.Addr, from string, to []strin
 	for _, addr := range to {
 		if len(addr) > h.options.getMinIdLength() && strings.Contains(addr, "@") {
 			host, _, _ := net.SplitHostPort(remoteAddr.String())
-			parts := strings.Split(addr[strings.LastIndex(addr, "@")+1:], ".")
+			domainPart := addr[strings.LastIndex(addr, "@")+1:]
+			parts := strings.Split(domainPart, ".")
+			fullID := h.options.subdomainOf(domainPart, false)
 			var matched bool
 			// match corrID+nonce in same label (higher confidence)
-			for i, part := range parts {
+			for _, part := range parts {
 				for partChunk := range stringsutil.SlideWithLength(part, h.options.getMinIdLength()) {
 					normalizedPartChunk := strings.ToLower(partChunk)
 					if h.options.isCorrelationID(normalizedPartChunk) {
-						fullID := strings.Join(parts[:i+1], ".")
 						h.storeInteraction(normalizedPartChunk, fullID, dataString, from, host)
 						matched = true
 					}
@@ -161,10 +162,9 @@ func (h *SMTPServer) defaultHandler(remoteAddr net.Addr, from string, to []strin
 			}
 			// match bare corrID (no nonce, possibly split corrID and nonce in different subdomain parts)
 			if !matched {
-				for i, part := range parts {
+				for _, part := range parts {
 					normalizedPart := strings.ToLower(part)
 					if len(normalizedPart) == h.options.CorrelationIdLength && h.options.isCorrelationID(normalizedPart) {
-						fullID := strings.Join(parts[:i+1], ".")
 						h.storeInteraction(normalizedPart, fullID, dataString, from, host)
 					}
 				}

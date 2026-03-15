@@ -390,11 +390,11 @@ func (h *DNSServer) handleInteraction(domain string, w dns.ResponseWriter, r *dn
 			// match corrID+nonce in same label (higher confidence)
 			var matched bool
 			parts := strings.Split(domain, ".")
-			for i, part := range parts {
+			fullID := h.options.subdomainOf(domain, true)
+			for _, part := range parts {
 				for partChunk := range stringsutil.SlideWithLength(part, h.options.getMinIdLength()) {
 					normalizedPartChunk := strings.ToLower(partChunk)
 					if h.options.isCorrelationID(normalizedPartChunk) {
-						fullID := strings.Join(parts[:i+1], ".")
 						h.storeInteraction(normalizedPartChunk, fullID, qtype, requestMsg, responseMsg, host)
 						matched = true
 					}
@@ -402,10 +402,9 @@ func (h *DNSServer) handleInteraction(domain string, w dns.ResponseWriter, r *dn
 			}
 			// match bare corrID (no nonce, possibly split corrID and nonce in different subdomain parts)
 			if !matched {
-				for i, part := range parts {
+				for _, part := range parts {
 					normalizedPart := strings.ToLower(part)
 					if len(normalizedPart) == h.options.CorrelationIdLength && h.options.isCorrelationID(normalizedPart) {
-						fullID := strings.Join(parts[:i+1], ".")
 						h.storeInteraction(normalizedPart, fullID, qtype, requestMsg, responseMsg, host)
 					}
 				}
