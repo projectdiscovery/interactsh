@@ -391,7 +391,7 @@ func TestStaleDataCleanupOnReRegistration(t *testing.T) {
 	_ = priv1
 }
 
-// TestCacheEvictionCleansLevelDB verifies the OnCacheRemovalCallback properly
+// TestCacheEvictionCleansLevelDB verifies the onCacheRemoval callback properly
 // deletes LevelDB entries when cache entries are evicted.
 func TestCacheEvictionCleansLevelDB(t *testing.T) {
 	tmpDir, err := os.MkdirTemp("", "interactsh-eviction-*")
@@ -435,7 +435,74 @@ func TestCacheEvictionCleansLevelDB(t *testing.T) {
 	// Small delay for async eviction callback
 	time.Sleep(50 * time.Millisecond)
 
-	// LevelDB entry should be cleaned up by OnCacheRemovalCallback
+	// LevelDB entry should be cleaned up by onCacheRemoval
 	_, err = db.db.Get([]byte(correlationID), nil)
 	require.Error(t, err, "LevelDB entry should be deleted after cache eviction")
+}
+
+// TestOnRemovalSessionTracking verifies that the OnRemoval callback fires
+// exactly once per client session on deregister and TTL eviction, and does
+// not fire for non-session entries created via SetID.
+func TestOnRemovalSessionTracking(t *testing.T) {
+	removed := make(chan struct{}, 10)
+	onRemoval := func() { removed <- struct{}{} }
+
+	db, err := New(&Options{
+		EvictionTTL:      50 * time.Millisecond,
+		EvictionStrategy: EvictionStrategyFixed,
+		OnRemoval:        onRemoval,
+	})
+	require.NoError(t, err)
+	defer db.Close()
+
+	waitRemoval := func(msg string) {
+		t.Helper()
+		select {
+		case <-removed:
+		case <-time.After(2 * time.Second):
+			t.Fatalf("timed out waiting for OnRemoval: %s", msg)
+		}
+	}
+
+	// --- Non-session entries (SetID) must not trigger OnRemoval ---
+	// Invalidate a SetID entry, then register+deregister a real session as a
+	// FIFO barrier: the cache event channel is ordered, so receiving the
+	// session's callback proves the SetID invalidation was already processed.
+	_ = db.SetID("token-entry")
+	db.cache.Invalidate("token-entry")
+
+	secret := uuid.New().String()
+	cid := xid.New().String()
+	_, pubKey := generateRSAKeyPair(t)
+	require.NoError(t, db.SetIDPublicKey(cid, secret, pubKey))
+	require.NoError(t, db.RemoveID(cid, secret))
+	waitRemoval("deregister barrier")
+	select {
+	case <-removed:
+		t.Fatal("SetID entry should not trigger OnRemoval")
+	default:
+	}
+
+	// --- TTL eviction must trigger OnRemoval ---
+	secret2 := uuid.New().String()
+	cid2 := xid.New().String()
+	_, pubKey2 := generateRSAKeyPair(t)
+	require.NoError(t, db.SetIDPublicKey(cid2, secret2, pubKey2))
+
+	// Periodically access the cache to trigger lazy eviction.
+	stop := make(chan struct{})
+	go func() {
+		ticker := time.NewTicker(10 * time.Millisecond)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-stop:
+				return
+			case <-ticker.C:
+				db.cache.GetIfPresent(cid2)
+			}
+		}
+	}()
+	waitRemoval("TTL eviction")
+	close(stop)
 }
