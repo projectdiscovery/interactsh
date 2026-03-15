@@ -388,13 +388,12 @@ func (h *HTTPServer) registerHandler(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	atomic.AddInt64(&h.options.Stats.Sessions, 1)
-
 	if err := h.options.Storage.SetIDPublicKey(r.CorrelationID, r.SecretKey, r.PublicKey); err != nil {
 		gologger.Warning().Msgf("Could not set id and public key for %s: %s\n", r.CorrelationID, err)
 		jsonError(w, fmt.Sprintf("could not set id and public key: %s", err), http.StatusBadRequest)
 		return
 	}
+	atomic.AddInt64(&h.options.Stats.Sessions, 1)
 	jsonMsg(w, "registration successful", http.StatusOK)
 	gologger.Debug().Msgf("Registered correlationID %s for key\n", r.CorrelationID)
 }
@@ -409,8 +408,6 @@ type DeregisterRequest struct {
 
 // deregisterHandler is a handler for client deregister requests
 func (h *HTTPServer) deregisterHandler(w http.ResponseWriter, req *http.Request) {
-	atomic.AddInt64(&h.options.Stats.Sessions, -1)
-
 	r := &DeregisterRequest{}
 	if err := jsoniter.NewDecoder(req.Body).Decode(r); err != nil {
 		gologger.Warning().Msgf("Could not decode json body: %s\n", err)
