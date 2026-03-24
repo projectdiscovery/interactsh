@@ -74,7 +74,7 @@ func main() {
 
 	flagSet.CreateGroup("output", "Output",
 		flagSet.StringVar(&cliOptions.Output, "o", "", "output file to write interaction data"),
-		flagSet.BoolVar(&cliOptions.JSON, "json", false, "write output in JSONL(ines) format"),
+		flagSet.BoolVar(&cliOptions.JSON, "json", false, "write output in JSON Lines format"),
 		flagSet.BoolVarP(&cliOptions.StorePayload, "payload-store", "ps", false, "write generated interactsh payload to file"),
 		flagSet.StringVarP(&cliOptions.StorePayloadFile, "payload-store-file", "psf", settings.StorePayloadFileDefault, "store generated interactsh payloads to given file"),
 
@@ -223,9 +223,9 @@ func main() {
 					}
 					writeOutput(outputFile, builder)
 				}
-			case "http":
+			case "http", "https":
 				if noFilter || cliOptions.HTTPOnly {
-					fmt.Fprintf(builder, "[%s] Received HTTP interaction from %s at %s", interaction.FullId, interaction.RemoteAddress, interaction.Timestamp.Format("2006-01-02 15:04:05"))
+					fmt.Fprintf(builder, "[%s] Received %s interaction from %s at %s", interaction.FullId, strings.ToUpper(interaction.Protocol), interaction.RemoteAddress, interaction.Timestamp.Format("2006-01-02 15:04:05"))
 					if cliOptions.Verbose {
 						fmt.Fprintf(builder, "\n------------\nHTTP Request\n------------\n\n%s\n\n-------------\nHTTP Response\n-------------\n\n%s\n\n", interaction.RawRequest, interaction.RawResponse)
 					}
