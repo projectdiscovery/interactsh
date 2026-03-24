@@ -74,7 +74,7 @@ FILTER:
    -m, -match string[]   match interaction based on the specified pattern
    -f, -filter string[]  filter interaction based on the specified pattern
    -dns-only             display only dns interaction in CLI output
-   -http-only            display only http interaction in CLI output
+   -http-only            display only http/https interactions in CLI output
    -smtp-only            display only smtp interactions in CLI output
 
 UPDATE:
@@ -83,7 +83,7 @@ UPDATE:
    
 OUTPUT:
    -o string                         output file to write interaction data
-   -json                             write output in JSONL(ines) format
+   -json                             write output in JSON Lines format
    -ps, -payload-store               enable storing generated interactsh payload to file
    -psf, -payload-store-file string  store generated interactsh payloads to given file (default "interactsh_payload.txt")
    -v                                display verbose interaction
@@ -135,6 +135,7 @@ $ interactsh-client
 [c23b2la0kl1krjcrdj10cndmnioyyyyyn] Received DNS interaction (A) from 172.253.226.100 at 2021-26-26 12:26
 [c23b2la0kl1krjcrdj10cndmnioyyyyyn] Received DNS interaction (AAAA) from 32.3.34.129 at 2021-26-26 12:26
 [c23b2la0kl1krjcrdj10cndmnioyyyyyn] Received HTTP interaction from 43.22.22.50 at 2021-26-26 12:26
+[c23b2la0kl1krjcrdj10cndmnioyyyyyn] Received HTTPS interaction from 43.22.22.50 at 2021-26-26 12:26
 [c23b2la0kl1krjcrdj10cndmnioyyyyyn] Received DNS interaction (MX) from 43.3.192.3 at 2021-26-26 12:26
 [c23b2la0kl1krjcrdj10cndmnioyyyyyn] Received DNS interaction (TXT) from 74.32.183.135 at 2021-26-26 12:26
 [c23b2la0kl1krjcrdj10cndmnioyyyyyn] Received SMTP interaction from 32.85.166.50 at 2021-26-26 12:26
@@ -161,6 +162,7 @@ $ interactsh-client -sf interact.session
 [c23b2la0kl1krjcrdj10cndmnioyyyyyn] Received DNS interaction (A) from 172.253.226.100 at 2021-26-26 12:26
 [c23b2la0kl1krjcrdj10cndmnioyyyyyn] Received DNS interaction (AAAA) from 32.3.34.129 at 2021-26-26 12:26
 [c23b2la0kl1krjcrdj10cndmnioyyyyyn] Received HTTP interaction from 43.22.22.50 at 2021-26-26 12:26
+[c23b2la0kl1krjcrdj10cndmnioyyyyyn] Received HTTPS interaction from 43.22.22.50 at 2021-26-26 12:26
 [c23b2la0kl1krjcrdj10cndmnioyyyyyn] Received DNS interaction (MX) from 43.3.192.3 at 2021-26-26 12:26
 [c23b2la0kl1krjcrdj10cndmnioyyyyyn] Received DNS interaction (TXT) from 74.32.183.135 at 2021-26-26 12:26
 [c23b2la0kl1krjcrdj10cndmnioyyyyyn] Received SMTP interaction from 32.85.166.50 at 2021-26-26 12:26
@@ -185,7 +187,7 @@ $ interactsh-client -v -o interactsh-logs.txt
 [INF] Listing 1 payload for OOB Testing
 [INF] c58bduhe008dovpvhvugcfemp9yyyyyyn.oast.pro
 
-[c58bduhe008dovpvhvugcfemp9yyyyyyn] Received HTTP interaction from 103.22.142.211 at 2021-09-26 18:08:07
+[c58bduhe008dovpvhvugcfemp9yyyyyyn] Received HTTPS interaction from 103.22.142.211 at 2021-09-26 18:08:07
 ------------
 HTTP Request
 ------------
