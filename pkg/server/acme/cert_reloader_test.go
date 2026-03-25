@@ -186,11 +186,17 @@ func TestGetCertificateIsConcurrentSafe(t *testing.T) {
 		t.Fatalf("NewCertReloader: %v", err)
 	}
 
-	// Concurrently read and reload
 	done := make(chan struct{})
 	go func() {
 		defer close(done)
 		for i := 0; i < 100; i++ {
+			// Swap files with advancing timestamps to exercise the atomic modTime path
+			newCert, newKey := generateSelfSignedCert(t, "concurrent.example.com")
+			_ = os.WriteFile(certPath, newCert, 0600)
+			_ = os.WriteFile(keyPath, newKey, 0600)
+			future := time.Now().Add(time.Duration(i+1) * time.Hour)
+			_ = os.Chtimes(certPath, future, future)
+			_ = os.Chtimes(keyPath, future, future)
 			reloader.tryReload()
 		}
 	}()

@@ -24,10 +24,10 @@ func certCheckInterval() time.Duration {
 
 // CertReloader watches a certificate/key file pair and reloads when files change on disk.
 type CertReloader struct {
-	certPath string
-	keyPath  string
-	cert     atomic.Pointer[tls.Certificate]
-	modTime time.Time
+	certPath   string
+	keyPath    string
+	cert       atomic.Pointer[tls.Certificate]
+	modTimeNs  atomic.Int64
 }
 
 // NewCertReloader loads the initial certificate and returns a reloader.
@@ -42,9 +42,9 @@ func NewCertReloader(certPath, keyPath string) (*CertReloader, error) {
 	r := &CertReloader{
 		certPath: certPath,
 		keyPath:  keyPath,
-		modTime:  modTime,
 	}
 	r.cert.Store(&cert)
+	r.modTimeNs.Store(modTime.UnixNano())
 	return r, nil
 }
 
@@ -78,7 +78,7 @@ func (r *CertReloader) tryReload() {
 		gologger.Warning().Msgf("Could not stat certificate files: %s", err)
 		return
 	}
-	if !mt.After(r.modTime) {
+	if mt.UnixNano() <= r.modTimeNs.Load() {
 		return
 	}
 
@@ -89,7 +89,7 @@ func (r *CertReloader) tryReload() {
 	}
 
 	r.cert.Store(&cert)
-	r.modTime = mt
+	r.modTimeNs.Store(mt.UnixNano())
 	gologger.Info().Msgf("Reloaded TLS certificate from %s", r.certPath)
 }
 

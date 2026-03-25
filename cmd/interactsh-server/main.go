@@ -304,7 +304,7 @@ func main() {
 				NextProtos:     []string{"h2", "http/1.1"},
 			}
 		}
-	case !cliOptions.SkipAcme && len(cliOptions.Domains) > 0:
+	case !cliOptions.SkipAcme && len(cliOptions.Domains) > 0 && len(serverOptions.Hostmasters) > 0:
 		cfg, cfgErr := acme.NewCertmagicConfig(serverOptions.Hostmasters[0], acmeStore, cliOptions.Debug, cliOptions.Resolvers)
 		if cfgErr != nil {
 			gologger.Error().Msgf("Could not configure ACME: %s", cfgErr)
@@ -320,9 +320,11 @@ func main() {
 					certFiles = append(certFiles, files...)
 				}
 			}
-			tlsConfig = &tls.Config{
-				GetCertificate: cfg.GetCertificate,
-				NextProtos:     []string{"h2", "http/1.1"},
+			if len(domainCerts) > 0 {
+				tlsConfig = &tls.Config{
+					GetCertificate: cfg.GetCertificate,
+					NextProtos:     []string{"h2", "http/1.1"},
+				}
 			}
 		}
 	}
