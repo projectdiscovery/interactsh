@@ -72,8 +72,8 @@ func (ldapServer *LDAPServer) handleBind(w ldap.ResponseWriter, m *ldap.Message)
 	res := ldap.NewBindResponse(ldap.LDAPResultSuccess)
 	var message strings.Builder
 	message.WriteString("Type=Bind\n")
-	message.WriteString(fmt.Sprintf("AuthenticationChoice=%s\n", r.AuthenticationChoice()))
-	message.WriteString(fmt.Sprintf("User=%s\n", r.Name()))
+	_, _ = fmt.Fprintf(&message, "AuthenticationChoice=%s\n", r.AuthenticationChoice())
+	_, _ = fmt.Fprintf(&message, "User=%s\n", r.Name())
 	message.WriteString(fmt.Sprintf("Pass=%s\n", r.Authentication()))
 	w.Write(res)
 

@@ -230,12 +230,16 @@ func TestCertReloaderTLSHandshake(t *testing.T) {
 	if err != nil {
 		t.Fatalf("net.Listen: %v", err)
 	}
-	defer ln.Close()
+	defer func() {
+		_ = ln.Close()
+	}()
 
 	tlsLn := tls.NewListener(ln, &tls.Config{
 		GetCertificate: reloader.GetCertificate,
 	})
-	defer tlsLn.Close()
+	defer func() {
+		_ = tlsLn.Close()
+	}()
 
 	go func() {
 		for {
@@ -247,7 +251,7 @@ func TestCertReloaderTLSHandshake(t *testing.T) {
 			go func(c net.Conn) {
 				buf := make([]byte, 1)
 				_, _ = c.Read(buf)
-				c.Close()
+				_ = c.Close()
 			}(conn)
 		}
 	}()
@@ -288,7 +292,9 @@ func tlsHandshakeCN(t *testing.T, addr string) string {
 	if err != nil {
 		t.Fatalf("tls.Dial: %v", err)
 	}
-	defer conn.Close()
+	defer func() {
+		_ = conn.Close()
+	}()
 
 	certs := conn.ConnectionState().PeerCertificates
 	if len(certs) == 0 {
