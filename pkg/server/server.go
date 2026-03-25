@@ -15,7 +15,7 @@ import (
 type Interaction struct {
 	// Protocol for interaction, can contains HTTP/DNS/SMTP,etc.
 	Protocol string `json:"protocol"`
-	// UniqueID is the uniqueID for the subdomain receiving the interaction.
+	// UniqueID is the correlation ID for the interaction.
 	UniqueID string `json:"unique-id"`
 	// FullId is the full path for the subdomain receiving the interaction.
 	FullId string `json:"full-id"`
@@ -142,7 +142,7 @@ func (options *Options) getURLIDComponent(URL string) string {
 
 	var randomID string
 	for _, part := range parts {
-		for scanChunk := range stringsutil.SlideWithLength(part, options.GetIdLength()) {
+		for scanChunk := range stringsutil.SlideWithLength(part, options.getMinIdLength()) {
 			if options.isCorrelationID(scanChunk) {
 				randomID = part
 			}

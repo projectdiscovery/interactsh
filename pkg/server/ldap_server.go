@@ -89,7 +89,7 @@ func (ldapServer *LDAPServer) handleBind(w ldap.ResponseWriter, m *ldap.Message)
 func (ldapServer *LDAPServer) handleSearch(w ldap.ResponseWriter, m *ldap.Message) {
 	atomic.AddUint64(&ldapServer.options.Stats.Ldap, 1)
 
-	var uniqueID, fullID string
+	var matchedChunk, fullID string
 
 	host := m.Client.Addr().String()
 
@@ -116,29 +116,43 @@ func (ldapServer *LDAPServer) handleSearch(w ldap.ResponseWriter, m *ldap.Messag
 	res := ldap.NewSearchResultDoneResponse(ldap.LDAPResultSuccess)
 	w.Write(res)
 
+	var matched bool
 	for _, part := range stringsutil.SplitAny(string(baseObject), "=,") {
 		partChunks := strings.Split(part, ".")
-		for i, partChunk := range partChunks {
-			for scanChunk := range stringsutil.SlideWithLength(partChunk, ldapServer.options.GetIdLength()) {
-				if ldapServer.options.isCorrelationID(scanChunk) {
-					uniqueID = scanChunk
-					fullID = partChunk
-					if i+1 <= len(partChunks) {
-						fullID = strings.Join(partChunks[:i+1], ".")
-					}
-					ldapServer.handleInteraction(uniqueID, fullID, message.String(), host)
+		fullID = ldapServer.options.subdomainOf(part, false)
+		// match corrID+nonce in same label (higher confidence)
+		for _, partChunk := range partChunks {
+			for scanChunk := range stringsutil.SlideWithLength(partChunk, ldapServer.options.getMinIdLength()) {
+				normalizedChunk := strings.ToLower(scanChunk)
+				if ldapServer.options.isCorrelationID(normalizedChunk) {
+					matchedChunk = normalizedChunk
+					ldapServer.handleInteraction(matchedChunk, fullID, message.String(), host)
+					matched = true
+				}
+			}
+		}
+	}
+	// match bare corrID (no nonce, possibly split corrID and nonce in different subdomain parts)
+	if !matched {
+		for _, part := range stringsutil.SplitAny(string(baseObject), "=,") {
+			fullID = ldapServer.options.subdomainOf(part, false)
+			for _, partChunk := range strings.Split(part, ".") {
+				normalizedChunk := strings.ToLower(partChunk)
+				if len(normalizedChunk) == ldapServer.options.CorrelationIdLength && ldapServer.options.isCorrelationID(normalizedChunk) {
+					matchedChunk = normalizedChunk
+					ldapServer.handleInteraction(matchedChunk, fullID, message.String(), host)
 				}
 			}
 		}
 	}
 }
 
-func (ldapServer *LDAPServer) handleInteraction(uniqueID, fullID, reqString, host string) {
-	if uniqueID != "" {
-		correlationID := uniqueID[:ldapServer.options.CorrelationIdLength]
+func (ldapServer *LDAPServer) handleInteraction(matchedChunk, fullID, reqString, host string) {
+	if len(matchedChunk) >= ldapServer.options.CorrelationIdLength {
+		correlationID := matchedChunk[:ldapServer.options.CorrelationIdLength]
 		interaction := &Interaction{
 			Protocol:      "ldap",
-			UniqueID:      uniqueID,
+			UniqueID:      correlationID,
 			FullId:        fullID,
 			RawRequest:    reqString,
 			RemoteAddress: host,

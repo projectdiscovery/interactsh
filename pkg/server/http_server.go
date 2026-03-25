@@ -171,9 +171,10 @@ func (h *HTTPServer) logger(handler http.Handler) http.HandlerFunc {
 		}
 
 		if h.options.ScanEverywhere {
+			// slide through request text (single pass, no tiering)
 			chunks := stringsutil.SplitAny(reqString, ".\n\t\"'")
 			for _, chunk := range chunks {
-				for part := range stringsutil.SlideWithLength(chunk, h.options.GetIdLength()) {
+				for part := range stringsutil.SlideWithLength(chunk, h.options.getMinIdLength()) {
 					normalizedPart := strings.ToLower(part)
 					if h.options.isCorrelationID(normalizedPart) {
 						h.handleInteraction(r, normalizedPart, part, reqString, respString, host)
@@ -181,16 +182,25 @@ func (h *HTTPServer) logger(handler http.Handler) http.HandlerFunc {
 				}
 			}
 		} else {
+			// match corrID+nonce in same label (higher confidence)
+			var matched bool
 			parts := strings.Split(r.Host, ".")
-			for i, part := range parts {
-				for partChunk := range stringsutil.SlideWithLength(part, h.options.GetIdLength()) {
+			fullID := h.options.subdomainOf(r.Host, false)
+			for _, part := range parts {
+				for partChunk := range stringsutil.SlideWithLength(part, h.options.getMinIdLength()) {
 					normalizedPartChunk := strings.ToLower(partChunk)
 					if h.options.isCorrelationID(normalizedPartChunk) {
-						fullID := part
-						if i+1 <= len(parts) {
-							fullID = strings.Join(parts[:i+1], ".")
-						}
 						h.handleInteraction(r, normalizedPartChunk, fullID, reqString, respString, host)
+						matched = true
+					}
+				}
+			}
+			// match bare corrID (no nonce, possibly split corrID and nonce in different subdomain parts)
+			if !matched {
+				for _, part := range parts {
+					normalizedPart := strings.ToLower(part)
+					if len(normalizedPart) == h.options.CorrelationIdLength && h.options.isCorrelationID(normalizedPart) {
+						h.handleInteraction(r, normalizedPart, fullID, reqString, respString, host)
 					}
 				}
 			}
@@ -205,12 +215,15 @@ func httpProtocol(r *http.Request) string {
 	return "http"
 }
 
-func (h *HTTPServer) handleInteraction(r *http.Request, uniqueID, fullID, reqString, respString, hostPort string) {
-	correlationID := uniqueID[:h.options.CorrelationIdLength]
+func (h *HTTPServer) handleInteraction(r *http.Request, matchedChunk, fullID, reqString, respString, hostPort string) {
+	if len(matchedChunk) < h.options.CorrelationIdLength {
+		return
+	}
+	correlationID := matchedChunk[:h.options.CorrelationIdLength]
 
 	interaction := &Interaction{
 		Protocol:      httpProtocol(r),
-		UniqueID:      uniqueID,
+		UniqueID:      correlationID,
 		FullId:        fullID,
 		RawRequest:    reqString,
 		RawResponse:   respString,
@@ -390,6 +403,9 @@ func (h *HTTPServer) registerHandler(w http.ResponseWriter, req *http.Request) {
 
 	atomic.AddInt64(&h.options.Stats.Sessions, 1)
 
+	if len(r.CorrelationID) > h.options.CorrelationIdLength {
+		r.CorrelationID = r.CorrelationID[:h.options.CorrelationIdLength]
+	}
 	if err := h.options.Storage.SetIDPublicKey(r.CorrelationID, r.SecretKey, r.PublicKey); err != nil {
 		gologger.Warning().Msgf("Could not set id and public key for %s: %s\n", r.CorrelationID, err)
 		jsonError(w, fmt.Sprintf("could not set id and public key: %s", err), http.StatusBadRequest)
@@ -418,6 +434,9 @@ func (h *HTTPServer) deregisterHandler(w http.ResponseWriter, req *http.Request)
 		return
 	}
 
+	if len(r.CorrelationID) > h.options.CorrelationIdLength {
+		r.CorrelationID = r.CorrelationID[:h.options.CorrelationIdLength]
+	}
 	if err := h.options.Storage.RemoveID(r.CorrelationID, r.SecretKey); err != nil {
 		gologger.Warning().Msgf("Could not remove id for %s: %s\n", r.CorrelationID, err)
 		jsonError(w, fmt.Sprintf("could not remove id: %s", err), http.StatusBadRequest)
@@ -456,6 +475,9 @@ func (h *HTTPServer) pollHandler(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
+	if len(ID) > h.options.CorrelationIdLength {
+		ID = ID[:h.options.CorrelationIdLength]
+	}
 	data, aesKey, err := h.options.Storage.GetInteractions(ID, secret)
 	if err != nil {
 		gologger.Warning().Msgf("Could not get interactions for %s: %s\n", ID, err)
