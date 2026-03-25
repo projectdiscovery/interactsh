@@ -95,7 +95,9 @@ func clientDecrypt(t *testing.T, priv *rsa.PrivateKey, aesKeyEncrypted string, c
 func TestFullRoundTripInMemory(t *testing.T) {
 	mem, err := New(&Options{EvictionTTL: 1 * time.Hour})
 	require.NoError(t, err)
-	defer mem.Close()
+	defer func() {
+		_ = mem.Close()
+	}()
 
 	priv, pubKeyB64 := generateRSAKeyPair(t)
 	secret := uuid.New().String()
@@ -144,11 +146,15 @@ func TestFullRoundTripInMemory(t *testing.T) {
 func TestFullRoundTripDisk(t *testing.T) {
 	tmpDir, err := os.MkdirTemp("", "interactsh-test-*")
 	require.NoError(t, err)
-	defer os.RemoveAll(tmpDir)
+	defer func() {
+		_ = os.RemoveAll(tmpDir)
+	}()
 
 	db, err := New(&Options{EvictionTTL: 1 * time.Hour, DbPath: tmpDir})
 	require.NoError(t, err)
-	defer db.Close()
+	defer func() {
+		_ = db.Close()
+	}()
 
 	priv, pubKeyB64 := generateRSAKeyPair(t)
 	secret := uuid.New().String()
@@ -205,7 +211,9 @@ func TestPollResponseRoundTrip(t *testing.T) {
 
 	mem, err := New(&Options{EvictionTTL: 1 * time.Hour})
 	require.NoError(t, err)
-	defer mem.Close()
+	defer func() {
+		_ = mem.Close()
+	}()
 
 	priv, pubKeyB64 := generateRSAKeyPair(t)
 	secret := uuid.New().String()
@@ -319,12 +327,16 @@ func TestJsoniterControlCharacterEscaping(t *testing.T) {
 func TestStaleDataCleanupOnReRegistration(t *testing.T) {
 	tmpDir, err := os.MkdirTemp("", "interactsh-stale-*")
 	require.NoError(t, err)
-	defer os.RemoveAll(tmpDir)
+	defer func() {
+		_ = os.RemoveAll(tmpDir)
+	}()
 
 	// Use a very short eviction TTL so the cache entry gets evicted quickly
 	db, err := New(&Options{EvictionTTL: 100 * time.Millisecond, DbPath: tmpDir})
 	require.NoError(t, err)
-	defer db.Close()
+	defer func() {
+		_ = db.Close()
+	}()
 
 	secret := uuid.New().String()
 	correlationID := xid.New().String()
@@ -396,11 +408,15 @@ func TestStaleDataCleanupOnReRegistration(t *testing.T) {
 func TestCacheEvictionCleansLevelDB(t *testing.T) {
 	tmpDir, err := os.MkdirTemp("", "interactsh-eviction-*")
 	require.NoError(t, err)
-	defer os.RemoveAll(tmpDir)
+	defer func() {
+		_ = os.RemoveAll(tmpDir)
+	}()
 
 	db, err := New(&Options{EvictionTTL: 100 * time.Millisecond, DbPath: tmpDir})
 	require.NoError(t, err)
-	defer db.Close()
+	defer func() {
+		_ = db.Close()
+	}()
 
 	secret := uuid.New().String()
 	correlationID := xid.New().String()

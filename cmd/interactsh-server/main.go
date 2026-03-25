@@ -177,7 +177,7 @@ func main() {
 					addressesStr = append(addressesStr, address.String())
 				}
 				if len(addressesStr) > 0 {
-					addressesBuilder.WriteString(fmt.Sprintf("%s: %s\n", networkInterface.Name, strings.Join(addressesStr, ",")))
+					_, _ = fmt.Fprintf(&addressesBuilder, "%s: %s\n", networkInterface.Name, strings.Join(addressesStr, ","))
 				}
 			}
 			gologger.Fatal().Msgf("%s\nNo bindable address could be found for port %d\nPlease ensure to have proper privileges and/or choose the correct ip:\n%s\n", err, cliOptions.DnsPort, addressesBuilder.String())
