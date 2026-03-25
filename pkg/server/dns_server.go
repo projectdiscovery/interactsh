@@ -299,10 +299,31 @@ func toQType(ttype uint16) (rtype string) {
 	return
 }
 
+func (h *DNSServer) storeInteraction(uniqueID, fullID, qtype, requestMsg, responseMsg, remoteAddr string) {
+	correlationID := uniqueID[:h.options.CorrelationIdLength]
+	interaction := &Interaction{
+		Protocol:      "dns",
+		UniqueID:      uniqueID,
+		FullId:        fullID,
+		QType:         qtype,
+		RawRequest:    requestMsg,
+		RawResponse:   responseMsg,
+		RemoteAddress: remoteAddr,
+		Timestamp:     time.Now(),
+	}
+	data, err := jsoniter.Marshal(interaction)
+	if err != nil {
+		gologger.Warning().Msgf("Could not encode dns interaction: %s\n", err)
+	} else {
+		gologger.Debug().Msgf("DNS Interaction: \n%s\n", string(data))
+		if err := h.options.Storage.AddInteraction(correlationID, data); err != nil {
+			gologger.Warning().Msgf("Could not store dns interaction: %s\n", err)
+		}
+	}
+}
+
 // handleInteraction handles an interaction for the DNS server
 func (h *DNSServer) handleInteraction(domain string, w dns.ResponseWriter, r *dns.Msg, m *dns.Msg) {
-	var uniqueID, fullID string
-
 	requestMsg := r.String()
 	responseMsg := m.String()
 
@@ -348,14 +369,15 @@ func (h *DNSServer) handleInteraction(domain string, w dns.ResponseWriter, r *dn
 	}
 
 	if foundDomain != "" {
+		host, _, _ := net.SplitHostPort(w.RemoteAddr().String())
+		qtype := toQType(r.Question[0].Qtype)
 		if h.options.ScanEverywhere {
 			chunks := stringsutil.SplitAny(requestMsg, ".\n\t\"'")
 			for _, chunk := range chunks {
 				for part := range stringsutil.SlideWithLength(chunk, h.options.GetIdLength()) {
 					normalizedPart := strings.ToLower(part)
 					if h.options.isCorrelationID(normalizedPart) {
-						uniqueID = normalizedPart
-						fullID = part
+						h.storeInteraction(normalizedPart, part, qtype, requestMsg, responseMsg, host)
 					}
 				}
 			}
@@ -365,37 +387,13 @@ func (h *DNSServer) handleInteraction(domain string, w dns.ResponseWriter, r *dn
 				for partChunk := range stringsutil.SlideWithLength(part, h.options.GetIdLength()) {
 					normalizedPartChunk := strings.ToLower(partChunk)
 					if h.options.isCorrelationID(normalizedPartChunk) {
-						fullID = part
+						fullID := part
 						if i+1 <= len(parts) {
 							fullID = strings.Join(parts[:i+1], ".")
 						}
-						uniqueID = normalizedPartChunk
+						h.storeInteraction(normalizedPartChunk, fullID, qtype, requestMsg, responseMsg, host)
 					}
 				}
-			}
-		}
-	}
-
-	if uniqueID != "" {
-		correlationID := uniqueID[:h.options.CorrelationIdLength]
-		host, _, _ := net.SplitHostPort(w.RemoteAddr().String())
-		interaction := &Interaction{
-			Protocol:      "dns",
-			UniqueID:      uniqueID,
-			FullId:        fullID,
-			QType:         toQType(r.Question[0].Qtype),
-			RawRequest:    requestMsg,
-			RawResponse:   responseMsg,
-			RemoteAddress: host,
-			Timestamp:     time.Now(),
-		}
-		data, err := jsoniter.Marshal(interaction)
-		if err != nil {
-			gologger.Warning().Msgf("Could not encode dns interaction: %s\n", err)
-		} else {
-			gologger.Debug().Msgf("DNS Interaction: \n%s\n", string(data))
-			if err := h.options.Storage.AddInteraction(correlationID, data); err != nil {
-				gologger.Warning().Msgf("Could not store dns interaction: %s\n", err)
 			}
 		}
 	}

@@ -80,11 +80,31 @@ func (h *SMTPServer) ListenAndServe(tlsConfig *tls.Config, smtpAlive, smtpsAlive
 	}
 }
 
+func (h *SMTPServer) storeInteraction(uniqueID, fullID, dataString, from, remoteAddr string) {
+	correlationID := uniqueID[:h.options.CorrelationIdLength]
+	interaction := &Interaction{
+		Protocol:      "smtp",
+		UniqueID:      uniqueID,
+		FullId:        fullID,
+		RawRequest:    dataString,
+		SMTPFrom:      from,
+		RemoteAddress: remoteAddr,
+		Timestamp:     time.Now(),
+	}
+	data, err := jsoniter.Marshal(interaction)
+	if err != nil {
+		gologger.Warning().Msgf("Could not encode smtp interaction: %s\n", err)
+	} else {
+		gologger.Debug().Msgf("%s\n", string(data))
+		if err := h.options.Storage.AddInteraction(correlationID, data); err != nil {
+			gologger.Warning().Msgf("Could not store smtp interaction: %s\n", err)
+		}
+	}
+}
+
 // defaultHandler is a handler for default collaborator requests
 func (h *SMTPServer) defaultHandler(remoteAddr net.Addr, from string, to []string, data []byte) error {
 	atomic.AddUint64(&h.options.Stats.Smtp, 1)
-
-	var uniqueID, fullID string
 
 	dataString := string(data)
 	gologger.Debug().Msgf("New SMTP request: %s %s %s %s\n", remoteAddr, from, to, dataString)
@@ -122,38 +142,19 @@ func (h *SMTPServer) defaultHandler(remoteAddr net.Addr, from string, to []strin
 
 	for _, addr := range to {
 		if len(addr) > h.options.GetIdLength() && strings.Contains(addr, "@") {
+			host, _, _ := net.SplitHostPort(remoteAddr.String())
 			parts := strings.Split(addr[strings.LastIndex(addr, "@")+1:], ".")
 			for i, part := range parts {
-				if h.options.isCorrelationID(part) {
-					uniqueID = part
-					fullID = part
-					if i+1 <= len(parts) {
-						fullID = strings.Join(parts[:i+1], ".")
+				for partChunk := range stringsutil.SlideWithLength(part, h.options.GetIdLength()) {
+					normalizedPartChunk := strings.ToLower(partChunk)
+					if h.options.isCorrelationID(normalizedPartChunk) {
+						fullID := part
+						if i+1 <= len(parts) {
+							fullID = strings.Join(parts[:i+1], ".")
+						}
+						h.storeInteraction(normalizedPartChunk, fullID, dataString, from, host)
 					}
 				}
-			}
-		}
-	}
-	if uniqueID != "" {
-		host, _, _ := net.SplitHostPort(remoteAddr.String())
-
-		correlationID := uniqueID[:h.options.CorrelationIdLength]
-		interaction := &Interaction{
-			Protocol:      "smtp",
-			UniqueID:      uniqueID,
-			FullId:        fullID,
-			RawRequest:    dataString,
-			SMTPFrom:      from,
-			RemoteAddress: host,
-			Timestamp:     time.Now(),
-		}
-		data, err := jsoniter.Marshal(interaction)
-		if err != nil {
-			gologger.Warning().Msgf("Could not encode smtp interaction: %s\n", err)
-		} else {
-			gologger.Debug().Msgf("%s\n", string(data))
-			if err := h.options.Storage.AddInteraction(correlationID, data); err != nil {
-				gologger.Warning().Msgf("Could not store smtp interaction: %s\n", err)
 			}
 		}
 	}
