@@ -398,7 +398,7 @@ func (ldapServer *LDAPServer) handleLog(host string, f string, v ...interface{})
 		data.WriteString(fmt.Sprintf(f, v...))
 	} else {
 		for _, vv := range v {
-			data.WriteString(fmt.Sprint(vv))
+			fmt.Fprint(&data, vv)
 		}
 	}
 
