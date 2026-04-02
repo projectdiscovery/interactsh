@@ -223,7 +223,7 @@ func main() {
 					}
 					writeOutput(outputFile, builder)
 				}
-			case "http":
+			case "http", "https":
 				if noFilter || cliOptions.HTTPOnly {
 					fmt.Fprintf(builder, "[%s] Received HTTP interaction from %s at %s", interaction.FullId, interaction.RemoteAddress, interaction.Timestamp.Format("2006-01-02 15:04:05"))
 					if cliOptions.Verbose {
