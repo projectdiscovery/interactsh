@@ -4,7 +4,7 @@ go 1.24.13
 
 require (
 	git.mills.io/prologic/smtpd v0.0.0-20210710122116-a525b76c287a
-	github.com/Mzack9999/goimpacket v0.0.0-00010101000000-000000000000
+	github.com/Mzack9999/goimpacket v0.0.0-20260420131935-a9fe473cda7d
 	github.com/asaskevich/govalidator v0.0.0-20230301143203-a9d515a09cc2
 	github.com/caddyserver/certmagic v0.25.0
 	github.com/docker/go-units v0.5.0
