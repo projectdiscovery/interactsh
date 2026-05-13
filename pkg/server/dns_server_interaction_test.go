@@ -49,8 +49,8 @@ func TestDNSInteractionStored_ShortCorrelationIDs(t *testing.T) {
 
 func TestDNSInteractionStored_DefaultCorrelationIDs(t *testing.T) {
 	const cidl, cidn = 20, 13
-	const correlationID = "abcdefghijklmnopqrst"
-	const nonce = "uvwxyz0123456"
+	const correlationID = "c6rj61aciaeutn2ae680"
+	const nonce = "cg5ugboyyyyyn"
 	const parentDomain = "example.com"
 
 	store := newTestStorage(t)
