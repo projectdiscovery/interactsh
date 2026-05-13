@@ -3,6 +3,10 @@ package server
 import (
 	"net"
 	"strconv"
+	"strings"
+
+	jsoniter "github.com/json-iterator/go"
+	"github.com/projectdiscovery/gologger"
 )
 
 // Correlation ids are produced from xid (cidl prefix) and zbase32 (cidn suffix),
@@ -51,4 +55,33 @@ func (options *Options) isCorrelationID(s string) bool {
 
 func formatAddress(host string, port int) string {
 	return net.JoinHostPort(host, strconv.Itoa(port))
+}
+
+// storeInteraction marshals interaction and persists it under correlationID via Storage.AddInteraction.
+// Each protocol handler builds its own protocol-specific Interaction and delegates the marshal/log/store
+// step here so every match is stored independently (see issue #1362).
+func (options *Options) storeInteraction(interaction *Interaction, correlationID string) {
+	data, err := jsoniter.Marshal(interaction)
+	if err != nil {
+		gologger.Warning().Msgf("Could not encode %s interaction: %s\n", interaction.Protocol, err)
+		return
+	}
+	gologger.Debug().Msgf("%s Interaction: \n%s\n", strings.ToUpper(interaction.Protocol), string(data))
+	if err := options.Storage.AddInteraction(correlationID, data); err != nil {
+		gologger.Warning().Msgf("Could not store %s interaction: %s\n", interaction.Protocol, err)
+	}
+}
+
+// storeRootTLDInteraction marshals interaction and persists it under id via Storage.AddInteractionWithId.
+// Used when RootTLD is enabled and the request targets a configured parent domain directly.
+func (options *Options) storeRootTLDInteraction(interaction *Interaction, id string) {
+	data, err := jsoniter.Marshal(interaction)
+	if err != nil {
+		gologger.Warning().Msgf("Could not encode root tld %s interaction: %s\n", interaction.Protocol, err)
+		return
+	}
+	gologger.Debug().Msgf("Root TLD %s Interaction: \n%s\n", strings.ToUpper(interaction.Protocol), string(data))
+	if err := options.Storage.AddInteractionWithId(id, data); err != nil {
+		gologger.Warning().Msgf("Could not store root tld %s interaction: %s\n", interaction.Protocol, err)
+	}
 }
