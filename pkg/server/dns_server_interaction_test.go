@@ -8,6 +8,7 @@ import (
 	"encoding/pem"
 	"fmt"
 	"net"
+	"strings"
 	"testing"
 	"time"
 
@@ -16,94 +17,128 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// Regression for https://github.com/projectdiscovery/interactsh/issues/1362:
-// short --cidl / --cidn must still record DNS callbacks. A parent label
-// longer than cidl+cidn (e.g. "example") historically caused the legitimate
-// correlation id to be overwritten by a false-positive slide window.
-func TestDNSInteractionStored_ShortCorrelationIDs(t *testing.T) {
-	const cidl, cidn = 3, 3
-	const correlationID, nonce = "d82", "yyy"
-	const parentDomain = "example.com"
+// Regression suite for https://github.com/projectdiscovery/interactsh/issues/1362.
+// Each row exercises a different shape of correlation id and parent domain to
+// guard against false-positive matches in ordinary domain labels overwriting
+// legitimate ones, and against alphabet mismatches.
+func TestDNSInteractionStored(t *testing.T) {
+	cases := []struct {
+		name          string
+		cidl, cidn    int
+		correlationID string
+		nonce         string
+		parentDomain  string
+		queryName     func(preamble, parent string) string
+		expectStored  int
+	}{
+		{
+			name: "short ids with parent label rejected by alphabet (example.com)",
+			cidl: 3, cidn: 3,
+			correlationID: "d82", nonce: "yyy",
+			parentDomain: "example.com",
+			expectStored: 1,
+		},
+		{
+			name: "short ids with alphabet-compatible parent label (oast.online)",
+			cidl: 3, cidn: 3,
+			correlationID: "d82", nonce: "yyy",
+			parentDomain: "oast.online",
+			expectStored: 1,
+		},
+		{
+			name: "readme example cidl=4 cidn=6",
+			cidl: 4, cidn: 6,
+			correlationID: "abcd", nonce: "ybndrf",
+			parentDomain: "hackwithautomation.com",
+			expectStored: 1,
+		},
+		{
+			name: "default lengths",
+			cidl: 20, cidn: 13,
+			correlationID: "c6rj61aciaeutn2ae680", nonce: "cg5ugboyyyyyn",
+			parentDomain: "example.com",
+			expectStored: 1,
+		},
+		{
+			name: "uppercase query is normalized",
+			cidl: 3, cidn: 3,
+			correlationID: "d82", nonce: "yyy",
+			parentDomain: "example.com",
+			queryName: func(preamble, parent string) string {
+				return strings.ToUpper(preamble) + "." + parent + "."
+			},
+			expectStored: 1,
+		},
+		{
+			name: "multi-level subdomain prefix",
+			cidl: 3, cidn: 3,
+			correlationID: "d82", nonce: "yyy",
+			parentDomain: "example.com",
+			queryName: func(preamble, parent string) string {
+				return "extra." + preamble + "." + parent + "."
+			},
+			expectStored: 1,
+		},
+	}
 
-	store := newTestStorage(t)
-	registerTestKey(t, store, correlationID)
+	for _, tc := range cases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			store := newTestStorage(t)
+			registerTestKey(t, store, tc.correlationID)
 
-	port := freeUDPPort(t)
-	startTestDNSServer(t, &Options{
-		Domains:                  []string{parentDomain},
-		IPAddresses:              []net.IP{net.ParseIP("127.0.0.1")},
-		ListenIP:                 "127.0.0.1",
-		DnsPort:                  port,
-		Storage:                  store,
-		CorrelationIdLength:      cidl,
-		CorrelationIdNonceLength: cidn,
-		Stats:                    &Metrics{},
-	})
+			port := freeUDPPort(t)
+			startTestDNSServer(t, &Options{
+				Domains:                  []string{tc.parentDomain},
+				IPAddresses:              []net.IP{net.ParseIP("127.0.0.1")},
+				ListenIP:                 "127.0.0.1",
+				DnsPort:                  port,
+				Storage:                  store,
+				CorrelationIdLength:      tc.cidl,
+				CorrelationIdNonceLength: tc.cidn,
+				Stats:                    &Metrics{},
+			})
 
-	sendDNSQuery(t, port, fmt.Sprintf("%s%s.%s.", correlationID, nonce, parentDomain))
+			query := defaultQueryName(tc.correlationID+tc.nonce, tc.parentDomain)
+			if tc.queryName != nil {
+				query = tc.queryName(tc.correlationID+tc.nonce, tc.parentDomain)
+			}
+			sendDNSQuery(t, port, query)
 
-	interactions, _, err := store.GetInteractions(correlationID, "secret")
-	require.NoError(t, err)
-	require.Len(t, interactions, 1, "DNS interaction should be recorded when cidl+cidn is shorter than the parent label")
+			interactions, _, err := store.GetInteractions(tc.correlationID, "secret")
+			require.NoError(t, err)
+			require.Len(t, interactions, tc.expectStored)
+		})
+	}
 }
 
-// Even with strict alphabet validation, common parent labels like "online"
-// satisfy the xid+zbase32 alphabets. The DNS handler must therefore store
-// each match independently instead of relying on a single trailing write
-// that the parent label can overwrite.
-func TestDNSInteractionStored_ShortCorrelationIDsWithAlphabetCompatibleParentLabel(t *testing.T) {
-	const cidl, cidn = 3, 3
-	const correlationID, nonce = "d82", "yyy"
-	const parentDomain = "oast.online"
-
+// Unregistered preambles must not produce stored interactions, even though
+// they pass the alphabet check.
+func TestDNSInteractionNotStored_UnregisteredPreamble(t *testing.T) {
 	store := newTestStorage(t)
-	registerTestKey(t, store, correlationID)
+	registerTestKey(t, store, "d82")
 
 	port := freeUDPPort(t)
 	startTestDNSServer(t, &Options{
-		Domains:                  []string{parentDomain},
+		Domains:                  []string{"example.com"},
 		IPAddresses:              []net.IP{net.ParseIP("127.0.0.1")},
 		ListenIP:                 "127.0.0.1",
 		DnsPort:                  port,
 		Storage:                  store,
-		CorrelationIdLength:      cidl,
-		CorrelationIdNonceLength: cidn,
+		CorrelationIdLength:      3,
+		CorrelationIdNonceLength: 3,
 		Stats:                    &Metrics{},
 	})
 
-	sendDNSQuery(t, port, fmt.Sprintf("%s%s.%s.", correlationID, nonce, parentDomain))
+	sendDNSQuery(t, port, "abcybn.example.com.")
 
-	interactions, _, err := store.GetInteractions(correlationID, "secret")
+	interactions, _, err := store.GetInteractions("d82", "secret")
 	require.NoError(t, err)
-	require.Len(t, interactions, 1, "DNS interaction must be recorded even when a parent label passes the alphabet check")
+	require.Empty(t, interactions, "queries that do not target a registered preamble must not be stored under another id")
 }
 
-func TestDNSInteractionStored_DefaultCorrelationIDs(t *testing.T) {
-	const cidl, cidn = 20, 13
-	const correlationID = "c6rj61aciaeutn2ae680"
-	const nonce = "cg5ugboyyyyyn"
-	const parentDomain = "example.com"
-
-	store := newTestStorage(t)
-	registerTestKey(t, store, correlationID)
-
-	port := freeUDPPort(t)
-	startTestDNSServer(t, &Options{
-		Domains:                  []string{parentDomain},
-		IPAddresses:              []net.IP{net.ParseIP("127.0.0.1")},
-		ListenIP:                 "127.0.0.1",
-		DnsPort:                  port,
-		Storage:                  store,
-		CorrelationIdLength:      cidl,
-		CorrelationIdNonceLength: cidn,
-		Stats:                    &Metrics{},
-	})
-
-	sendDNSQuery(t, port, fmt.Sprintf("%s%s.%s.", correlationID, nonce, parentDomain))
-
-	interactions, _, err := store.GetInteractions(correlationID, "secret")
-	require.NoError(t, err)
-	require.Len(t, interactions, 1)
+func defaultQueryName(preamble, parent string) string {
+	return preamble + "." + parent + "."
 }
 
 func freeUDPPort(t *testing.T) int {
