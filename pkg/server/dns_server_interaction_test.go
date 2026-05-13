@@ -47,6 +47,37 @@ func TestDNSInteractionStored_ShortCorrelationIDs(t *testing.T) {
 	require.Len(t, interactions, 1, "DNS interaction should be recorded when cidl+cidn is shorter than the parent label")
 }
 
+// Even with strict alphabet validation, common parent labels like "online"
+// satisfy the xid+zbase32 alphabets. The DNS handler must therefore store
+// each match independently instead of relying on a single trailing write
+// that the parent label can overwrite.
+func TestDNSInteractionStored_ShortCorrelationIDsWithAlphabetCompatibleParentLabel(t *testing.T) {
+	const cidl, cidn = 3, 3
+	const correlationID, nonce = "d82", "yyy"
+	const parentDomain = "oast.online"
+
+	store := newTestStorage(t)
+	registerTestKey(t, store, correlationID)
+
+	port := freeUDPPort(t)
+	startTestDNSServer(t, &Options{
+		Domains:                  []string{parentDomain},
+		IPAddresses:              []net.IP{net.ParseIP("127.0.0.1")},
+		ListenIP:                 "127.0.0.1",
+		DnsPort:                  port,
+		Storage:                  store,
+		CorrelationIdLength:      cidl,
+		CorrelationIdNonceLength: cidn,
+		Stats:                    &Metrics{},
+	})
+
+	sendDNSQuery(t, port, fmt.Sprintf("%s%s.%s.", correlationID, nonce, parentDomain))
+
+	interactions, _, err := store.GetInteractions(correlationID, "secret")
+	require.NoError(t, err)
+	require.Len(t, interactions, 1, "DNS interaction must be recorded even when a parent label passes the alphabet check")
+}
+
 func TestDNSInteractionStored_DefaultCorrelationIDs(t *testing.T) {
 	const cidl, cidn = 20, 13
 	const correlationID = "c6rj61aciaeutn2ae680"
