@@ -4,10 +4,9 @@ import (
 	"crypto/tls"
 	"net"
 	"strings"
-	"sync/atomic"
 	"time"
 
-	"git.mills.io/prologic/smtpd"
+	"github.com/emersion/go-smtp"
 	"github.com/projectdiscovery/gologger"
 	stringsutil "github.com/projectdiscovery/utils/strings"
 )
@@ -15,56 +14,45 @@ import (
 // SMTPServer is a smtp server instance that listens both
 // TLS and Non-TLS based servers.
 type SMTPServer struct {
-	options     *Options
-	smtpServer  smtpd.Server
-	smtpsServer smtpd.Server
+	options           *Options
+	backend           *interactshBackend
+	smtpServer        *smtp.Server
+	smtpsServer       *smtp.Server
+	smtpAutoTLSServer *smtp.Server
 }
 
 // NewSMTPServer returns a new TLS & Non-TLS SMTP server.
 func NewSMTPServer(options *Options) (*SMTPServer, error) {
 	server := &SMTPServer{options: options}
+	server.backend = &interactshBackend{srv: server}
 
-	authHandler := func(remoteAddr net.Addr, mechanism string, username []byte, password []byte, shared []byte) (bool, error) {
-		return true, nil
+	newEmersionServer := func(addr string, tlsConfig *tls.Config) *smtp.Server {
+		s := smtp.NewServer(server.backend)
+		s.Addr = addr
+		s.Domain = options.Domains[0]
+		s.AllowInsecureAuth = true
+		s.TLSConfig = tlsConfig
+		return s
 	}
-	rcptHandler := func(remoteAddr net.Addr, from string, to string) bool {
-		return true
-	}
-	server.smtpServer = smtpd.Server{
-		Addr:        formatAddress(options.ListenIP, options.SmtpPort),
-		AuthHandler: authHandler,
-		HandlerRcpt: rcptHandler,
-		Hostname:    options.Domains[0],
-		Appname:     "interactsh",
-		Handler:     smtpd.Handler(server.defaultHandler),
-	}
-	server.smtpsServer = smtpd.Server{
-		Addr:        formatAddress(options.ListenIP, options.SmtpsPort),
-		AuthHandler: authHandler,
-		HandlerRcpt: rcptHandler,
-		Hostname:    options.Domains[0],
-		Appname:     "interactsh",
-		Handler:     smtpd.Handler(server.defaultHandler),
-	}
+
+	server.smtpServer = newEmersionServer(formatAddress(options.ListenIP, options.SmtpPort), nil)
+	server.smtpsServer = newEmersionServer(formatAddress(options.ListenIP, options.SmtpsPort), nil)
+	server.smtpAutoTLSServer = newEmersionServer(formatAddress(options.ListenIP, options.SmtpAutoTLSPort), nil)
 	return server, nil
 }
 
 // ListenAndServe listens on smtp and/or smtps ports for the server.
 func (h *SMTPServer) ListenAndServe(tlsConfig *tls.Config, smtpAlive, smtpsAlive chan bool) {
-	go func() {
-		if tlsConfig == nil {
-			return
-		}
-		srv := &smtpd.Server{Addr: formatAddress(h.options.ListenIP, h.options.SmtpAutoTLSPort), Handler: h.defaultHandler, Appname: "interactsh", Hostname: h.options.Domains[0]}
-		srv.TLSConfig = tlsConfig
-
-		smtpsAlive <- true
-		err := srv.ListenAndServe()
-		if err != nil {
-			gologger.Error().Msgf("Could not serve smtp with tls on port %d: %s\n", h.options.SmtpAutoTLSPort, err)
-			smtpsAlive <- false
-		}
-	}()
+	if tlsConfig != nil {
+		h.smtpAutoTLSServer.TLSConfig = tlsConfig
+		go func() {
+			smtpsAlive <- true
+			if err := h.smtpAutoTLSServer.ListenAndServeTLS(); err != nil {
+				gologger.Error().Msgf("Could not serve smtp with tls on port %d: %s\n", h.options.SmtpAutoTLSPort, err)
+				smtpsAlive <- false
+			}
+		}()
+	}
 
 	smtpAlive <- true
 	go func() {
@@ -75,21 +63,23 @@ func (h *SMTPServer) ListenAndServe(tlsConfig *tls.Config, smtpAlive, smtpsAlive
 	}()
 	if err := h.smtpsServer.ListenAndServe(); err != nil {
 		gologger.Error().Msgf("Could not serve smtp on port %d: %s\n", h.options.SmtpsPort, err)
-		smtpAlive <- false
+		smtpsAlive <- false
 	}
 }
 
-// defaultHandler is a handler for default collaborator requests
+// defaultHandler is kept for unit tests that exercise storage without
+// standing up a TCP listener.
 func (h *SMTPServer) defaultHandler(remoteAddr net.Addr, from string, to []string, data []byte) error {
-	atomic.AddUint64(&h.options.Stats.Smtp, 1)
+	return h.deliverSMTP(remoteAddr, from, to, data)
+}
 
-	dataString := string(data)
-	gologger.Debug().Msgf("New SMTP request: %s %s %s %s\n", remoteAddr, from, to, dataString)
-
+// storeSMTPRecipients persists SMTP interactions for correlation ids found
+// in the recipient addresses.
+func (h *SMTPServer) storeSMTPRecipients(remoteAddr net.Addr, from, rawRequest string, recipients []string) {
 	host, _, _ := net.SplitHostPort(remoteAddr.String())
 
 	if h.options.RootTLD {
-		for _, addr := range to {
+		for _, addr := range recipients {
 			for _, domain := range h.options.Domains {
 				if !stringsutil.HasSuffixI(addr, domain) {
 					continue
@@ -99,7 +89,7 @@ func (h *SMTPServer) defaultHandler(remoteAddr net.Addr, from string, to []strin
 					Protocol:      "smtp",
 					UniqueID:      address,
 					FullId:        address,
-					RawRequest:    dataString,
+					RawRequest:    rawRequest,
 					SMTPFrom:      from,
 					RemoteAddress: host,
 					Timestamp:     time.Now(),
@@ -112,7 +102,7 @@ func (h *SMTPServer) defaultHandler(remoteAddr net.Addr, from string, to []strin
 	// captured a single uniqueID/fullID and stored it once after the loop, so
 	// later false-positive labels could overwrite the legitimate match and
 	// the interaction would be persisted under an unregistered id (issue #1362).
-	for _, addr := range to {
+	for _, addr := range recipients {
 		if len(addr) <= h.options.GetIdLength() || !strings.Contains(addr, "@") {
 			continue
 		}
@@ -130,12 +120,11 @@ func (h *SMTPServer) defaultHandler(remoteAddr net.Addr, from string, to []strin
 				Protocol:      "smtp",
 				UniqueID:      normalizedPart,
 				FullId:        fullID,
-				RawRequest:    dataString,
+				RawRequest:    rawRequest,
 				SMTPFrom:      from,
 				RemoteAddress: host,
 				Timestamp:     time.Now(),
 			}, normalizedPart[:h.options.CorrelationIdLength])
 		}
 	}
-	return nil
 }
