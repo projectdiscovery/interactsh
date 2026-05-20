@@ -114,15 +114,14 @@ func makeSMTPHeaders(remoteAddr net.Addr, hostname string, to []string) []byte {
 	if len(to) == 0 {
 		return nil
 	}
-	host, port, _ := net.SplitHostPort(remoteAddr.String())
+	host, _, _ := net.SplitHostPort(remoteAddr.String())
 	if host == "" {
 		host = remoteAddr.String()
 	}
 	now := time.Now().Format("Mon, _2 Jan 2006 15:04:05 -0700 (MST)")
 	var buffer bytes.Buffer
-	buffer.WriteString(fmt.Sprintf("Received: from %s ([%s])\r\n", host, host))
-	buffer.WriteString(fmt.Sprintf("        by %s (interactsh) with SMTP\r\n", hostname))
-	buffer.WriteString(fmt.Sprintf("        for <%s>; %s\r\n", to[0], now))
-	_ = port
+	fmt.Fprintf(&buffer, "Received: from %s ([%s])\r\n", host, host)
+	fmt.Fprintf(&buffer, "        by %s (interactsh) with SMTP\r\n", hostname)
+	fmt.Fprintf(&buffer, "        for <%s>; %s\r\n", to[0], now)
 	return buffer.Bytes()
 }
