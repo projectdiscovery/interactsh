@@ -52,11 +52,6 @@ type CLIServerOptions struct {
 	OriginIPHeader           string
 	DiskStorage              bool
 	DiskStoragePath          string
-	// RedisURL, when set, switches the server to a Redis-backed storage
-	// backend so multiple instances can share state behind a load balancer.
-	// Disk storage flags are ignored when RedisURL is set.
-	RedisURL       string
-	RedisKeyPrefix string
 	EnablePprof              bool
 	EnableMetrics            bool
 	Verbose                  bool
