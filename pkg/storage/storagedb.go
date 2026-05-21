@@ -50,9 +50,7 @@ func New(options *Options) (*StorageDB, error) {
 			cacheOptions = append(cacheOptions, cache.WithExpireAfterAccess(options.EvictionTTL))
 		}
 	}
-	if options.UseDisk() {
-		cacheOptions = append(cacheOptions, cache.WithRemovalListener(storageDB.OnCacheRemovalCallback))
-	}
+	cacheOptions = append(cacheOptions, cache.WithRemovalListener(storageDB.onCacheRemoval))
 	cacheDb := cache.New(cacheOptions...)
 	storageDB.cache = cacheDb
 
@@ -77,9 +75,20 @@ func New(options *Options) (*StorageDB, error) {
 	return storageDB, nil
 }
 
-func (s *StorageDB) OnCacheRemovalCallback(key cache.Key, value cache.Value) {
-	if k, ok := key.(string); ok {
+func (s *StorageDB) onCacheRemoval(key cache.Key, value cache.Value) {
+	k, ok := key.(string)
+	if !ok {
+		return
+	}
+	if s.Options.UseDisk() && s.db != nil {
 		_ = s.db.Delete([]byte(k), &opt.WriteOptions{})
+	}
+	// Only fire for client sessions (entries with a SecretKey),
+	// not for token/domain entries created via SetID.
+	if s.Options.OnRemoval != nil {
+		if cd, ok := value.(*CorrelationData); ok && cd.SecretKey != "" {
+			s.Options.OnRemoval()
+		}
 	}
 }
 
