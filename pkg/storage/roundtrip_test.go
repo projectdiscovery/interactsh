@@ -469,7 +469,7 @@ func TestOnRemovalSessionTracking(t *testing.T) {
 		OnRemoval:        onRemoval,
 	})
 	require.NoError(t, err)
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	waitRemoval := func(msg string) {
 		t.Helper()
@@ -507,6 +507,7 @@ func TestOnRemovalSessionTracking(t *testing.T) {
 
 	// Periodically access the cache to trigger lazy eviction.
 	stop := make(chan struct{})
+	defer close(stop)
 	go func() {
 		ticker := time.NewTicker(10 * time.Millisecond)
 		defer ticker.Stop()
@@ -520,5 +521,4 @@ func TestOnRemovalSessionTracking(t *testing.T) {
 		}
 	}()
 	waitRemoval("TTL eviction")
-	close(stop)
 }

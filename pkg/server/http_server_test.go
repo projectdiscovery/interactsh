@@ -96,7 +96,7 @@ func TestSessionTotalMetric(t *testing.T) {
 		},
 	})
 	require.NoError(t, err)
-	defer store.Close()
+	defer func() { _ = store.Close() }()
 
 	h := &HTTPServer{
 		options: &Options{
@@ -110,7 +110,7 @@ func TestSessionTotalMetric(t *testing.T) {
 	require.NoError(t, err)
 	pubBytes, err := x509.MarshalPKIXPublicKey(&priv.PublicKey)
 	require.NoError(t, err)
-	pubPem := pem.EncodeToMemory(&pem.Block{Type: "RSA PUBLIC KEY", Bytes: pubBytes})
+	pubPem := pem.EncodeToMemory(&pem.Block{Type: "PUBLIC KEY", Bytes: pubBytes})
 	pubB64 := base64.StdEncoding.EncodeToString(pubPem)
 
 	correlationID := xid.New().String()
