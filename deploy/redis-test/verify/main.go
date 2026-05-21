@@ -42,7 +42,7 @@ func run() error {
 	if err != nil {
 		return fmt.Errorf("client.New: %w", err)
 	}
-	defer c.Close()
+	defer func() { _ = c.Close() }()
 
 	callbackURL := c.URL()
 	if callbackURL == "" {
