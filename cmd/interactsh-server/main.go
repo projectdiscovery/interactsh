@@ -73,6 +73,8 @@ func main() {
 		flagSet.StringVarP(&cliOptions.DefaultHTTPResponseFile, "default-http-response", "dhr", "", "file to serve for all http requests (takes priority over other options)"),
 		flagSet.BoolVarP(&cliOptions.DiskStorage, "disk", "ds", false, "disk based storage"),
 		flagSet.StringVarP(&cliOptions.DiskStoragePath, "disk-path", "dsp", "", "disk storage path"),
+		flagSet.StringVarP(&cliOptions.RedisURL, "redis-url", "ru", "", "redis connection URL (enables shared state for multi-instance deployments)"),
+		flagSet.StringVarP(&cliOptions.RedisKeyPrefix, "redis-prefix", "rp", "", "redis key prefix (default \"interactsh:\")"),
 		flagSet.StringVarP(&cliOptions.HeaderServer, "server-header", "csh", "", "custom value of Server header in response"),
 		flagSet.BoolVarP(&cliOptions.NoVersionHeader, "disable-version", "dv", false, "disable publishing interactsh version in response header"),
 	)
@@ -262,7 +264,24 @@ func main() {
 	}
 
 	var err error
-	store, err = storage.New(&storeOptions)
+	switch {
+	case cliOptions.RedisURL != "":
+		// Redis-backed storage shares state across multiple interactsh-server
+		// instances behind a load balancer. Disk/in-memory flags are ignored
+		// in this mode by design.
+		if cliOptions.DiskStorage {
+			gologger.Warning().Msgf("--redis-url is set; disk-storage flags will be ignored\n")
+		}
+		store, err = storage.NewRedis(&storage.RedisOptions{
+			URL:                   cliOptions.RedisURL,
+			KeyPrefix:             cliOptions.RedisKeyPrefix,
+			EvictionTTL:           evictionTTL,
+			EvictionStrategy:      evictionStrategy,
+			MaxSharedInteractions: storeOptions.MaxSharedInteractions,
+		})
+	default:
+		store, err = storage.New(&storeOptions)
+	}
 	if err != nil {
 		gologger.Fatal().Msgf("couldn't create storage: %s\n", err)
 	}
