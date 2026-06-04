@@ -488,15 +488,22 @@ func (h *HTTPServer) pollHandler(w http.ResponseWriter, req *http.Request) {
 
 func (h *HTTPServer) corsMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		var acao_url string
+		if h.options.OriginURL == "*" {
+			acao_url = req.Header.Get("Origin")
+		} else {
+			acao_url = h.options.OriginURL
+		}
+
 		// Set CORS headers for the preflight request
 		if req.Method == http.MethodOptions {
-			w.Header().Set("Access-Control-Allow-Origin", h.options.OriginURL)
+			w.Header().Set("Access-Control-Allow-Origin", acao_url)
 			w.Header().Set("Access-Control-Allow-Credentials", "true")
 			w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
 			w.WriteHeader(http.StatusNoContent)
 			return
 		}
-		w.Header().Set("Access-Control-Allow-Origin", h.options.OriginURL)
+		w.Header().Set("Access-Control-Allow-Origin", acao_url)
 		w.Header().Set("Access-Control-Allow-Credentials", "true")
 		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
 		next.ServeHTTP(w, req)
