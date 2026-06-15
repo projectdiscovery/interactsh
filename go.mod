@@ -149,3 +149,5 @@ require (
 	golang.org/x/text v0.32.0 // indirect
 	golang.org/x/tools v0.39.0 // indirect
 )
+
+replace git.mills.io/prologic/smtpd => github.com/XananasX7/smtpd v0.0.0-20210710122116-vrfy-fix
