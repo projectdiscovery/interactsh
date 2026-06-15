@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"git.mills.io/prologic/smtpd"
-	jsoniter "github.com/json-iterator/go"
+	"encoding/json"
 	"github.com/projectdiscovery/gologger"
 	stringsutil "github.com/projectdiscovery/utils/strings"
 )
@@ -106,7 +106,7 @@ func (h *SMTPServer) defaultHandler(remoteAddr net.Addr, from string, to []strin
 						RemoteAddress: host,
 						Timestamp:     time.Now(),
 					}
-					data, err := jsoniter.Marshal(interaction)
+					data, err := json.Marshal(interaction)
 					if err != nil {
 						gologger.Warning().Msgf("Could not encode root tld SMTP interaction: %s\n", err)
 					} else {
@@ -147,7 +147,7 @@ func (h *SMTPServer) defaultHandler(remoteAddr net.Addr, from string, to []strin
 			RemoteAddress: host,
 			Timestamp:     time.Now(),
 		}
-		data, err := jsoniter.Marshal(interaction)
+		data, err := json.Marshal(interaction)
 		if err != nil {
 			gologger.Warning().Msgf("Could not encode smtp interaction: %s\n", err)
 		} else {

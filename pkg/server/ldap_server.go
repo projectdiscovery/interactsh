@@ -7,7 +7,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	jsoniter "github.com/json-iterator/go"
+	"encoding/json"
 	"github.com/projectdiscovery/gologger"
 	ldap "github.com/projectdiscovery/ldapserver"
 	stringsutil "github.com/projectdiscovery/utils/strings"
@@ -144,7 +144,7 @@ func (ldapServer *LDAPServer) handleInteraction(uniqueID, fullID, reqString, hos
 			RemoteAddress: host,
 			Timestamp:     time.Now(),
 		}
-		data, err := jsoniter.Marshal(interaction)
+		data, err := json.Marshal(interaction)
 		if err != nil {
 			gologger.Warning().Msgf("Could not encode ldap interaction: %s\n", err)
 		} else {
@@ -410,7 +410,7 @@ func (ldapServer *LDAPServer) logInteraction(interaction Interaction) {
 	// Correlation id doesn't apply here, we skip encryption
 	interaction.Protocol = "ldap"
 	interaction.Timestamp = time.Now()
-	data, err := jsoniter.Marshal(interaction)
+	data, err := json.Marshal(interaction)
 	if err != nil {
 		gologger.Warning().Msgf("Could not encode ldap interaction: %s\n", err)
 	} else {

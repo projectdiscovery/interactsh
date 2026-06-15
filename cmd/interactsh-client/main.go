@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	jsoniter "github.com/json-iterator/go"
+	"encoding/json"
 	asnmap "github.com/projectdiscovery/asnmap/libs"
 	"github.com/projectdiscovery/goflags"
 	"github.com/projectdiscovery/gologger"
@@ -265,7 +265,7 @@ func main() {
 				}
 			}
 		} else {
-			b, err := jsoniter.Marshal(interaction)
+			b, err := json.Marshal(interaction)
 			if err != nil {
 				gologger.Error().Msgf("Could not marshal json output: %s\n", err)
 			} else {

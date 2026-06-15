@@ -11,7 +11,6 @@ require (
 	github.com/docker/go-units v0.5.0
 	github.com/goburrow/cache v0.1.4
 	github.com/google/uuid v1.6.0
-	github.com/json-iterator/go v1.1.12
 	github.com/libdns/libdns v1.1.1
 	github.com/mackerelio/go-osstat v0.2.6
 	github.com/miekg/dns v1.1.68
@@ -75,6 +74,7 @@ require (
 	github.com/google/shlex v0.0.0-20191202100458-e7afc7fbc510 // indirect
 	github.com/gorilla/css v1.0.1 // indirect
 	github.com/hashicorp/golang-lru/v2 v2.0.7 // indirect
+	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/klauspost/compress v1.18.2 // indirect
 	github.com/klauspost/cpuid/v2 v2.3.0 // indirect
 	github.com/klauspost/pgzip v1.2.6 // indirect

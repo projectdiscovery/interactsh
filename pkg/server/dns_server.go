@@ -9,7 +9,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	jsoniter "github.com/json-iterator/go"
+	"encoding/json"
 	"github.com/miekg/dns"
 	"github.com/pkg/errors"
 	"github.com/projectdiscovery/gologger"
@@ -336,7 +336,7 @@ func (h *DNSServer) handleInteraction(domain string, w dns.ResponseWriter, r *dn
 			h.options.OnResult(interaction)
 		}
 
-		data, err := jsoniter.Marshal(interaction)
+		data, err := json.Marshal(interaction)
 		if err != nil {
 			gologger.Warning().Msgf("Could not encode root tld dns interaction: %s\n", err)
 		} else {
@@ -389,7 +389,7 @@ func (h *DNSServer) handleInteraction(domain string, w dns.ResponseWriter, r *dn
 			RemoteAddress: host,
 			Timestamp:     time.Now(),
 		}
-		data, err := jsoniter.Marshal(interaction)
+		data, err := json.Marshal(interaction)
 		if err != nil {
 			gologger.Warning().Msgf("Could not encode dns interaction: %s\n", err)
 		} else {

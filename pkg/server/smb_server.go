@@ -8,7 +8,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	jsoniter "github.com/json-iterator/go"
+	"encoding/json"
 	"github.com/projectdiscovery/gologger"
 	"github.com/projectdiscovery/interactsh/pkg/filewatcher"
 	fileutil "github.com/projectdiscovery/utils/file"
@@ -100,7 +100,7 @@ func (h *SMBServer) ListenAndServe(smbAlive chan bool) error {
 						RawRequest: smbData,
 						Timestamp:  time.Now(),
 					}
-					data, err := jsoniter.Marshal(interaction)
+					data, err := json.Marshal(interaction)
 					if err != nil {
 						gologger.Warning().Msgf("Could not encode smb interaction: %s\n", err)
 					} else {
