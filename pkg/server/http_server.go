@@ -144,8 +144,12 @@ func (h *HTTPServer) logger(handler http.Handler) http.HandlerFunc {
 
 		// if root-tld is enabled stores any interaction towards the main domain
 		if h.options.RootTLD {
+			requestHost := r.Host
+			if host, _, err := net.SplitHostPort(r.Host); err == nil {
+				requestHost = host
+			}
 			for _, domain := range h.options.Domains {
-				if h.options.RootTLD && stringsutil.HasSuffixI(r.Host, domain) {
+				if h.options.RootTLD && stringsutil.HasSuffixI(requestHost, domain) {
 					ID := domain
 					host, _, _ := net.SplitHostPort(r.RemoteAddr)
 					interaction := &Interaction{
