@@ -39,11 +39,19 @@ func ParseB64RSAPublicKeyFromPEM(pubPEM string) (*rsa.PublicKey, error) {
 	return nil, errors.New("key type is not RSA")
 }
 
+// maxEncryptMessageSize bounds the plaintext accepted by AESEncrypt. It guards
+// the size computations below against integer overflow; interaction payloads are
+// orders of magnitude smaller than this in practice.
+const maxEncryptMessageSize = 256 << 20 // 256 MiB
+
 // AESEncrypt encrypts a message using AES and puts IV at the beginning of ciphertext.
 func AESEncrypt(key []byte, message []byte) (string, error) {
 	block, err := aes.NewCipher(key)
 	if err != nil {
 		return "", err
+	}
+	if len(message) > maxEncryptMessageSize {
+		return "", errors.New("message too large to encrypt")
 	}
 	// It's common to put IV at the beginning of the ciphertext.
 	cipherText := make([]byte, aes.BlockSize+len(message))

@@ -10,7 +10,9 @@ import (
 	"crypto/sha256"
 	"crypto/x509"
 	"encoding/base64"
+	"encoding/json"
 	"encoding/pem"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -22,10 +24,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"errors"
-
 	"github.com/google/uuid"
-	jsoniter "github.com/json-iterator/go"
 	asnmap "github.com/projectdiscovery/asnmap/libs"
 	"github.com/projectdiscovery/gologger"
 	"github.com/projectdiscovery/interactsh/pkg/options"
@@ -270,7 +269,7 @@ func encodeRegistrationRequest(publicKey, secretkey, correlationID string) ([]by
 		CorrelationID: correlationID,
 	}
 
-	data, err := jsoniter.Marshal(register)
+	data, err := json.Marshal(register)
 	if err != nil {
 		return nil, errkit.Wrap(err, "could not marshal register request")
 	}
@@ -457,7 +456,7 @@ func (c *Client) getInteractions(callback InteractionCallback) error {
 		return fmt.Errorf("could not poll interactions: %s", string(data))
 	}
 	response := &server.PollResponse{}
-	if err := jsoniter.NewDecoder(resp.Body).Decode(response); err != nil {
+	if err := json.NewDecoder(resp.Body).Decode(response); err != nil {
 		gologger.Error().Msgf("Could not decode interactions: %v\n", err)
 		return err
 	}
@@ -470,7 +469,7 @@ func (c *Client) getInteractions(callback InteractionCallback) error {
 		}
 		plaintext = bytes.TrimRight(plaintext, " \t\r\n")
 		interaction := &server.Interaction{}
-		if err := jsoniter.Unmarshal(plaintext, interaction); err != nil {
+		if err := json.Unmarshal(plaintext, interaction); err != nil {
 			gologger.Error().Msgf("Could not unmarshal interaction data interaction: %v\n", err)
 			continue
 		}
@@ -479,7 +478,7 @@ func (c *Client) getInteractions(callback InteractionCallback) error {
 
 	for _, plaintext := range response.Extra {
 		interaction := &server.Interaction{}
-		if err := jsoniter.UnmarshalFromString(plaintext, interaction); err != nil {
+		if err := json.Unmarshal([]byte(plaintext), interaction); err != nil {
 			gologger.Error().Msgf("Could not unmarshal interaction data interaction: %v\n", err)
 			continue
 		}
@@ -492,7 +491,7 @@ func (c *Client) getInteractions(callback InteractionCallback) error {
 			continue
 		}
 		interaction := &server.Interaction{}
-		if err := jsoniter.UnmarshalFromString(data, interaction); err != nil {
+		if err := json.Unmarshal([]byte(data), interaction); err != nil {
 			gologger.Error().Msgf("Could not unmarshal interaction data interaction: %v\n", err)
 			continue
 		}
@@ -564,7 +563,7 @@ func (c *Client) Close() error {
 		CorrelationID: c.correlationID,
 		SecretKey:     c.secretKey,
 	}
-	data, err := jsoniter.Marshal(register)
+	data, err := json.Marshal(register)
 	if err != nil {
 		return errkit.Wrap(err, "could not marshal deregister request")
 	}
@@ -634,7 +633,7 @@ func (c *Client) performRegistration(serverURL string, payload []byte) error {
 		return fmt.Errorf("could not register to server: %s", string(data))
 	}
 	response := make(map[string]interface{})
-	if err := jsoniter.NewDecoder(resp.Body).Decode(&response); err != nil {
+	if err := json.NewDecoder(resp.Body).Decode(&response); err != nil {
 		return errkit.Wrap(err, "could not register to server")
 	}
 	message, ok := response["message"]

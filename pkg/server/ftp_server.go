@@ -9,7 +9,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	jsoniter "github.com/json-iterator/go"
+	"encoding/json"
 	"github.com/projectdiscovery/gologger"
 	ftpserver "goftp.io/server/v2"
 	"goftp.io/server/v2/driver/file"
@@ -130,7 +130,7 @@ func (h *FTPServer) recordInteraction(remoteAddress, data string) {
 		RawRequest:    data,
 		Timestamp:     time.Now(),
 	}
-	dataBytes, err := jsoniter.Marshal(interaction)
+	dataBytes, err := json.Marshal(interaction)
 	if err != nil {
 		gologger.Warning().Msgf("Could not encode ftp interaction: %s\n", err)
 	} else {
