@@ -10,17 +10,12 @@ on:
 jobs:
   lint:
     name: Lint Test
+    if: ${{ !endsWith(github.actor, '[bot]') }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v6
       - name: Set up Go
-        uses: actions/setup-go@v4
-        with:
-          go-version: 1.21.x
+        uses: projectdiscovery/actions/setup/go@v1
       - name: Run golangci-lint
-        uses: golangci/golangci-lint-action@v3.7.0
-        with:
-          version: latest
-          args: --timeout 5m
-          working-directory: .
+        uses: projectdiscovery/actions/golangci-lint/v2@v1

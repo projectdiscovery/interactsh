@@ -1,113 +1,106 @@
 package server
 
 import (
-	"os"
-	"os/exec"
-	"path/filepath"
-	"strings"
-	"time"
+	"context"
+	"sync"
 
-	"encoding/json"
+	"github.com/Mzack9999/goimpacket/pkg/relay"
 	"github.com/projectdiscovery/gologger"
-	"github.com/projectdiscovery/interactsh/pkg/filewatcher"
-	fileutil "github.com/projectdiscovery/utils/file"
-	stringsutil "github.com/projectdiscovery/utils/strings"
+	"go.uber.org/multierr"
 )
 
-var responderMonitorList map[string]string = map[string]string{
-	// search term : extract after
-	"NTLMv2-SSP Hash": "NTLMv2-SSP Hash     : ",
-}
+// responderListenPorts is the set of TCP ports the Responder-equivalent
+// in-process capture binds to. Port 445 covers direct SMB and 139 covers
+// NetBIOS-over-TCP. The legacy Python Responder additionally listened on
+// LLMNR/NBT-NS/MDNS broadcast ports to poison name resolution, but those
+// poisoners are intentionally not part of goimpacket and have therefore
+// been dropped: in interactsh's typical OOB-callback deployment the victim
+// is reaching the server directly via DNS, so name poisoning would not
+// trigger anyway.
+var responderListenPorts = []int{445, 139}
 
-// ResponderServer is a Responder wrapper server instance
+// ResponderServer is a Responder-equivalent NTLMv2 hash capture wrapper
+// backed by goimpacket. It replaces the previous dockerized Responder
+// process, and now binds multiple SMB-compatible ports to maximise the
+// chance of catching coerced authentications.
 type ResponderServer struct {
-	options   *Options
-	LogFile   string
-	cmd       *exec.Cmd
-	tmpFolder string
+	options *Options
+	cancel  context.CancelFunc
 }
 
-// NewResponderServer returns a new SMB server.
+// NewResponderServer returns a new Responder-equivalent server.
 func NewResponderServer(options *Options) (*ResponderServer, error) {
 	return &ResponderServer{options: options}, nil
 }
 
-// ListenAndServe listens on various responder ports
+// ListenAndServe spins up an SMB capture listener on each of
+// responderListenPorts. The provided channel is signalled true once at
+// least one listener is ready and false on shutdown.
 func (h *ResponderServer) ListenAndServe(responderAlive chan bool) error {
-	responderAlive <- true
-	defer func() {
-		responderAlive <- false
-	}()
-	tmpFolder, err := os.MkdirTemp("", "")
-	if err != nil {
-		return err
-	}
-	h.tmpFolder = tmpFolder
-	// execute dockerized responder
-	cmdLine := "docker run -p 137:137/udp -p  138:138/udp -p 389:389 -p 1433:1433 -p 1434:1434/udp -p 135:135 -p 139:139 -p 445:445 -p 21:21 -p 3141:3141 -p 110:110 -p 3128:3128 -p 5355:5355/udp -v " + h.tmpFolder + ":/opt/Responder/logs --rm interactsh:latest"
-	args := strings.Fields(cmdLine)
-	h.cmd = exec.Command(args[0], args[1:]...)
-	err = h.cmd.Start()
-	if err != nil {
-		return err
-	}
+	ctx, cancel := context.WithCancel(context.Background())
+	h.cancel = cancel
 
-	// watch output file
-	outputFile := filepath.Join(h.tmpFolder, "Responder-Session.log")
-	// wait until the file is created
-	for !fileutil.FileExists(outputFile) {
-		time.Sleep(1 * time.Second)
-	}
-	fw, err := filewatcher.New(filewatcher.Options{
-		Interval: time.Duration(5 * time.Second),
-		File:     outputFile,
-	})
-	if err != nil {
-		return err
-	}
+	// Always include the configured SMB port so users can override 445 the
+	// same way they always could.
+	ports := uniqueInts(append([]int{h.options.SmbPort}, responderListenPorts...))
 
-	ch, err := fw.Watch()
-	if err != nil {
-		return err
-	}
+	var (
+		wg          sync.WaitGroup
+		errs        []error
+		errsMu      sync.Mutex
+		signaledUp  bool
+		signaledMu  sync.Mutex
+	)
 
-	// This fetches the content at each change.
-	go func() {
-		for data := range ch {
-			for searchTerm, extractAfter := range responderMonitorList {
-				if strings.Contains(data, searchTerm) {
-					responderData, err := stringsutil.After(data, extractAfter)
-					if err != nil {
-						gologger.Warning().Msgf("Could not get responder interaction: %s\n", err)
-						continue
-					}
-
-					// Correlation id doesn't apply here, we skip encryption
-					interaction := &Interaction{
-						Protocol:   "responder",
-						RawRequest: responderData,
-						Timestamp:  time.Now(),
-					}
-					data, err := json.Marshal(interaction)
-					if err != nil {
-						gologger.Warning().Msgf("Could not encode responder interaction: %s\n", err)
-					} else {
-						gologger.Debug().Msgf("Responder Interaction: \n%s\n", string(data))
-						if err := h.options.Storage.AddInteractionWithId(h.options.Token, data); err != nil {
-							gologger.Warning().Msgf("Could not store dns interaction: %s\n", err)
-						}
-					}
-				}
-			}
+	signalUp := func() {
+		signaledMu.Lock()
+		defer signaledMu.Unlock()
+		if !signaledUp {
+			signaledUp = true
+			responderAlive <- true
 		}
-	}()
+	}
 
-	return h.cmd.Wait()
+	for _, port := range ports {
+		port := port
+		listenAddr := formatAddress(h.options.ListenIP, port)
+		srv := relay.NewSMBRelayServer(listenAddr)
+		gologger.Info().Msgf("Starting Responder SMB capture on %s\n", listenAddr)
+		signalUp()
+
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			if err := runNTLMCapture(ctx, srv, "responder", h.options, &h.options.Stats.Smb); err != nil {
+				gologger.Warning().Msgf("Responder capture on %s exited: %s\n", listenAddr, err)
+				errsMu.Lock()
+				errs = append(errs, err)
+				errsMu.Unlock()
+			}
+		}()
+	}
+
+	wg.Wait()
+	responderAlive <- false
+	return multierr.Combine(errs...)
 }
 
+// Close stops every Responder capture listener.
 func (h *ResponderServer) Close() {
-	_ = h.cmd.Process.Kill()
-	if fileutil.FolderExists(h.tmpFolder) {
-		_ = os.RemoveAll(h.tmpFolder)
+	if h.cancel != nil {
+		h.cancel()
 	}
+}
+
+func uniqueInts(in []int) []int {
+	seen := make(map[int]bool, len(in))
+	out := make([]int, 0, len(in))
+	for _, v := range in {
+		if v <= 0 || seen[v] {
+			continue
+		}
+		seen[v] = true
+		out = append(out, v)
+	}
+	return out
 }

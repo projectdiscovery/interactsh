@@ -1,31 +1,17 @@
 package server
 
 import (
-	"fmt"
-	"os"
-	"os/exec"
-	"strings"
-	"sync/atomic"
-	"time"
+	"context"
 
-	"encoding/json"
+	"github.com/Mzack9999/goimpacket/pkg/relay"
 	"github.com/projectdiscovery/gologger"
-	"github.com/projectdiscovery/interactsh/pkg/filewatcher"
-	fileutil "github.com/projectdiscovery/utils/file"
-	stringsutil "github.com/projectdiscovery/utils/strings"
 )
 
-var smbMonitorList map[string]string = map[string]string{
-	// search term : extract after
-	"INFO: ": "INFO: ",
-}
-
-// SMBServer is a smb wrapper server instance
+// SMBServer is an in-process SMB2 NTLM hash capture server backed by
+// goimpacket. It replaces the previous Python/impacket smbserver wrapper.
 type SMBServer struct {
-	options   *Options
-	LogFile   string
-	cmd       *exec.Cmd
-	tmpFile   string
+	options *Options
+	cancel  context.CancelFunc
 }
 
 // NewSMBServer returns a new SMB server.
@@ -33,117 +19,27 @@ func NewSMBServer(options *Options) (*SMBServer, error) {
 	return &SMBServer{options: options}, nil
 }
 
-// ListenAndServe listens on smb port
+// ListenAndServe listens on the configured SMB port and forwards captured
+// NetNTLMv2 hashes into the interactsh storage.
 func (h *SMBServer) ListenAndServe(smbAlive chan bool) error {
 	smbAlive <- true
 	defer func() {
 		smbAlive <- false
 	}()
 
-	var err error
-	h.tmpFile, err = fileutil.GetTempFileName()
-	if err != nil {
-		return err
-	}
+	ctx, cancel := context.WithCancel(context.Background())
+	h.cancel = cancel
 
-	pyFileName, err := fileutil.GetTempFileName()
-	if err != nil {
-		return err
-	}
-	pyFileName += ".py"
+	listenAddr := formatAddress(h.options.ListenIP, h.options.SmbPort)
+	srv := relay.NewSMBRelayServer(listenAddr)
 
-	if err := os.WriteFile(pyFileName, []byte(pySmbServer), os.ModePerm); err != nil {
-		return err
-	}
-
-	smbPort := fmt.Sprint(h.options.SmbPort)
-	h.cmd = exec.Command("python3", pyFileName, h.tmpFile, smbPort)
-	err = h.cmd.Start()
-	if err != nil {
-		return err
-	}
-
-	// watch output file
-	outputFile := h.tmpFile
-	// wait until the file is created
-	for !fileutil.FileExists(outputFile) {
-		time.Sleep(1 * time.Second)
-	}
-	fw, err := filewatcher.New(filewatcher.Options{
-		Interval: time.Duration(5 * time.Second),
-		File:     outputFile,
-	})
-	if err != nil {
-		return err
-	}
-
-	ch, err := fw.Watch()
-	if err != nil {
-		return err
-	}
-
-	// This fetches the content at each change.
-	go func() {
-		for data := range ch {
-			atomic.AddUint64(&h.options.Stats.Smb, 1)
-			for searchTerm, extractAfter := range smbMonitorList {
-				if strings.Contains(data, searchTerm) {
-					smbData, err := stringsutil.After(data, extractAfter)
-					if err != nil {
-						gologger.Warning().Msgf("Could not get smb interaction: %s\n", err)
-						continue
-					}
-
-					// Correlation id doesn't apply here, we skip encryption
-					interaction := &Interaction{
-						Protocol:   "smb",
-						RawRequest: smbData,
-						Timestamp:  time.Now(),
-					}
-					data, err := json.Marshal(interaction)
-					if err != nil {
-						gologger.Warning().Msgf("Could not encode smb interaction: %s\n", err)
-					} else {
-						gologger.Debug().Msgf("SMB Interaction: \n%s\n", string(data))
-						if err := h.options.Storage.AddInteractionWithId(h.options.Token, data); err != nil {
-							gologger.Warning().Msgf("Could not store dns interaction: %s\n", err)
-						}
-					}
-				}
-			}
-		}
-	}()
-
-	return h.cmd.Wait()
+	gologger.Info().Msgf("Starting SMB capture server on %s\n", listenAddr)
+	return runNTLMCapture(ctx, srv, "smb", h.options, &h.options.Stats.Smb)
 }
 
+// Close stops the SMB capture server.
 func (h *SMBServer) Close() {
-	_ = h.cmd.Process.Kill()
-	if fileutil.FileExists(h.tmpFile) {
-		_ = os.RemoveAll(h.tmpFile)
+	if h.cancel != nil {
+		h.cancel()
 	}
 }
-
-var pySmbServer = `
-import sys
-from impacket import smbserver
-
-def configure_shares(server):
-    shares = ["IPC$", "ADMIN$", "C$", "PRINT$", "FAX$", "NETLOGON", "SYSVOL"]
-    for share in shares:
-        server.removeShare(share)
-
-log_filename = "log.txt"
-if len(sys.argv) >= 2:
-    log_filename = sys.argv[1]
-port = 445
-if len(sys.argv) >= 3:
-    port = int(sys.argv[2])
-
-server = smbserver.SimpleSMBServer(listenAddress="0.0.0.0", listenPort=port)
-server.setSMB2Support(True)
-configure_shares(server)
-server.setSMBChallenge('')
-server.setLogFile(log_filename)
-server.start()
-`

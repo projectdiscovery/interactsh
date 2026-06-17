@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"git.mills.io/prologic/smtpd"
-	"encoding/json"
 	"github.com/projectdiscovery/gologger"
 	stringsutil "github.com/projectdiscovery/utils/strings"
 )
@@ -84,77 +83,58 @@ func (h *SMTPServer) ListenAndServe(tlsConfig *tls.Config, smtpAlive, smtpsAlive
 func (h *SMTPServer) defaultHandler(remoteAddr net.Addr, from string, to []string, data []byte) error {
 	atomic.AddUint64(&h.options.Stats.Smtp, 1)
 
-	var uniqueID, fullID string
-
 	dataString := string(data)
 	gologger.Debug().Msgf("New SMTP request: %s %s %s %s\n", remoteAddr, from, to, dataString)
 
-	// if root-tld is enabled stores any interaction towards the main domain
-	for _, addr := range to {
-		if h.options.RootTLD {
+	host, _, _ := net.SplitHostPort(remoteAddr.String())
+
+	if h.options.RootTLD {
+		for _, addr := range to {
 			for _, domain := range h.options.Domains {
-				if stringsutil.HasSuffixI(addr, domain) {
-					ID := domain
-					host, _, _ := net.SplitHostPort(remoteAddr.String())
-					address := addr[strings.LastIndex(addr, "@"):]
-					interaction := &Interaction{
-						Protocol:      "smtp",
-						UniqueID:      address,
-						FullId:        address,
-						RawRequest:    dataString,
-						SMTPFrom:      from,
-						RemoteAddress: host,
-						Timestamp:     time.Now(),
-					}
-					data, err := json.Marshal(interaction)
-					if err != nil {
-						gologger.Warning().Msgf("Could not encode root tld SMTP interaction: %s\n", err)
-					} else {
-						gologger.Debug().Msgf("Root TLD SMTP Interaction: \n%s\n", string(data))
-						if err := h.options.Storage.AddInteractionWithId(ID, data); err != nil {
-							gologger.Warning().Msgf("Could not store root tld smtp interaction: %s\n", err)
-						}
-					}
+				if !stringsutil.HasSuffixI(addr, domain) {
+					continue
 				}
+				address := addr[strings.LastIndex(addr, "@"):]
+				h.options.storeRootTLDInteraction(&Interaction{
+					Protocol:      "smtp",
+					UniqueID:      address,
+					FullId:        address,
+					RawRequest:    dataString,
+					SMTPFrom:      from,
+					RemoteAddress: host,
+					Timestamp:     time.Now(),
+				}, domain)
 			}
 		}
 	}
 
+	// Each matched correlation id is stored independently; previously the loop
+	// captured a single uniqueID/fullID and stored it once after the loop, so
+	// later false-positive labels could overwrite the legitimate match and
+	// the interaction would be persisted under an unregistered id (issue #1362).
 	for _, addr := range to {
-		if len(addr) > h.options.GetIdLength() && strings.Contains(addr, "@") {
-			parts := strings.Split(addr[strings.LastIndex(addr, "@")+1:], ".")
-			for i, part := range parts {
-				if h.options.isCorrelationID(part) {
-					uniqueID = part
-					fullID = part
-					if i+1 <= len(parts) {
-						fullID = strings.Join(parts[:i+1], ".")
-					}
-				}
-			}
+		if len(addr) <= h.options.GetIdLength() || !strings.Contains(addr, "@") {
+			continue
 		}
-	}
-	if uniqueID != "" {
-		host, _, _ := net.SplitHostPort(remoteAddr.String())
-
-		correlationID := uniqueID[:h.options.CorrelationIdLength]
-		interaction := &Interaction{
-			Protocol:      "smtp",
-			UniqueID:      uniqueID,
-			FullId:        fullID,
-			RawRequest:    dataString,
-			SMTPFrom:      from,
-			RemoteAddress: host,
-			Timestamp:     time.Now(),
-		}
-		data, err := json.Marshal(interaction)
-		if err != nil {
-			gologger.Warning().Msgf("Could not encode smtp interaction: %s\n", err)
-		} else {
-			gologger.Debug().Msgf("%s\n", string(data))
-			if err := h.options.Storage.AddInteraction(correlationID, data); err != nil {
-				gologger.Warning().Msgf("Could not store smtp interaction: %s\n", err)
+		parts := strings.Split(addr[strings.LastIndex(addr, "@")+1:], ".")
+		for i, part := range parts {
+			normalizedPart := strings.ToLower(part)
+			if !h.options.isCorrelationID(normalizedPart) {
+				continue
 			}
+			fullID := part
+			if i+1 <= len(parts) {
+				fullID = strings.Join(parts[:i+1], ".")
+			}
+			h.options.storeInteraction(&Interaction{
+				Protocol:      "smtp",
+				UniqueID:      normalizedPart,
+				FullId:        fullID,
+				RawRequest:    dataString,
+				SMTPFrom:      from,
+				RemoteAddress: host,
+				Timestamp:     time.Now(),
+			}, normalizedPart[:h.options.CorrelationIdLength])
 		}
 	}
 	return nil

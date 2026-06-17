@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"crypto/rand"
 	"crypto/tls"
 	"encoding/hex"
@@ -13,6 +14,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	_ "net/http/pprof"
@@ -91,8 +93,8 @@ func main() {
 		flagSet.IntVar(&cliOptions.LdapPort, "ldap-port", 389, "port to use for ldap service"),
 		flagSet.BoolVar(&cliOptions.LdapWithFullLogger, "ldap", false, "enable ldap server with full logging (authenticated)"),
 		flagSet.BoolVarP(&cliOptions.RootTLD, "wildcard", "wc", false, "enable wildcard interaction for interactsh domain (authenticated)"),
-		flagSet.BoolVar(&cliOptions.Smb, "smb", false, "start smb agent - impacket and python 3 must be installed (authenticated)"),
-		flagSet.BoolVar(&cliOptions.Responder, "responder", false, "start responder agent - docker must be installed (authenticated)"),
+		flagSet.BoolVar(&cliOptions.Smb, "smb", false, "start in-process smb agent for NetNTLMv2 hash capture (authenticated)"),
+		flagSet.BoolVar(&cliOptions.Responder, "responder", false, "start in-process responder agent (multi-port SMB NetNTLMv2 hash capture, authenticated)"),
 		flagSet.BoolVar(&cliOptions.Ftp, "ftp", false, "start ftp agent (authenticated)"),
 		flagSet.IntVar(&cliOptions.SmbPort, "smb-port", 445, "port to use for smb service"),
 		flagSet.IntVar(&cliOptions.FtpPort, "ftp-port", 21, "port to use for ftp service"),
@@ -176,7 +178,7 @@ func main() {
 					addressesStr = append(addressesStr, address.String())
 				}
 				if len(addressesStr) > 0 {
-					addressesBuilder.WriteString(fmt.Sprintf("%s: %s\n", networkInterface.Name, strings.Join(addressesStr, ",")))
+					_, _ = fmt.Fprintf(&addressesBuilder, "%s: %s\n", networkInterface.Name, strings.Join(addressesStr, ","))
 				}
 			}
 			gologger.Fatal().Msgf("%s\nNo bindable address could be found for port %d\nPlease ensure to have proper privileges and/or choose the correct ip:\n%s\n", err, cliOptions.DnsPort, addressesBuilder.String())
@@ -260,6 +262,11 @@ func main() {
 		}
 	}
 
+	serverOptions.Stats = &server.Metrics{}
+	storeOptions.OnRemoval = func() {
+		atomic.AddInt64(&serverOptions.Stats.Sessions, -1)
+	}
+
 	var err error
 	store, err = storage.New(&storeOptions)
 	if err != nil {
@@ -271,8 +278,6 @@ func main() {
 	if serverOptions.Auth {
 		_ = serverOptions.Storage.SetID(serverOptions.Token)
 	}
-
-	serverOptions.Stats = &server.Metrics{}
 
 	// If root-tld is enabled create a singleton unencrypted record in the store
 	if serverOptions.RootTLD {
@@ -298,34 +303,38 @@ func main() {
 	)
 	switch {
 	case cliOptions.CertificatePath != "" && cliOptions.PrivateKeyPath != "":
-		var domain string
-		if len(cliOptions.Domains) > 0 {
-			domain = cliOptions.Domains[0]
-		}
-		acmeManagerTLS, acmeErr := acme.BuildTlsConfigWithCertAndKeyPaths(cliOptions.CertificatePath, cliOptions.PrivateKeyPath, domain)
-		if acmeErr != nil {
-			gologger.Error().Msgf("https will be disabled: %s", acmeErr)
+		reloader, reloaderErr := acme.NewCertReloader(cliOptions.CertificatePath, cliOptions.PrivateKeyPath)
+		if reloaderErr != nil {
+			gologger.Error().Msgf("https will be disabled: %s", reloaderErr)
 		} else {
-			tlsConfig = acmeManagerTLS
-		}
-	case !cliOptions.SkipAcme && len(cliOptions.Domains) > 0:
-		var certs []tls.Certificate
-		for idx, domain := range cliOptions.Domains {
-			trimmedDomain := strings.TrimSuffix(domain, ".")
-			hostmaster := serverOptions.Hostmasters[idx]
-			var acmeErr error
-			domainCerts, certFiles, acmeErr = acme.HandleWildcardCertificates(fmt.Sprintf("*.%s", trimmedDomain), hostmaster, acmeStore, cliOptions.Debug, cliOptions.Resolvers)
-			if acmeErr != nil {
-				gologger.Error().Msgf("An error occurred while applying for a certificate, error: %v", acmeErr)
-				gologger.Error().Msgf("Could not generate certs for auto TLS, https will be disabled")
-			} else {
-				certs = append(certs, domainCerts...)
+			go reloader.Start(context.Background())
+			tlsConfig = &tls.Config{
+				GetCertificate: reloader.GetCertificate,
+				NextProtos:     []string{"h2", "http/1.1"},
 			}
 		}
-		var tlsErr error
-		tlsConfig, tlsErr = acme.BuildTlsConfigWithCerts("", certs...)
-		if tlsErr != nil {
-			gologger.Error().Msgf("An error occurred while preparing tls configuration, error: %v", tlsErr)
+	case !cliOptions.SkipAcme && len(cliOptions.Domains) > 0 && len(serverOptions.Hostmasters) > 0:
+		cfg, cfgErr := acme.NewCertmagicConfig(serverOptions.Hostmasters[0], acmeStore, cliOptions.Debug, cliOptions.Resolvers)
+		if cfgErr != nil {
+			gologger.Error().Msgf("Could not configure ACME: %s", cfgErr)
+		} else {
+			for _, domain := range cliOptions.Domains {
+				trimmedDomain := strings.TrimSuffix(domain, ".")
+				certs, files, acmeErr := acme.HandleWildcardCertificates(cfg, fmt.Sprintf("*.%s", trimmedDomain))
+				if acmeErr != nil {
+					gologger.Error().Msgf("An error occurred while applying for a certificate for %s: %v", domain, acmeErr)
+					gologger.Error().Msgf("Could not generate certs for auto TLS, https will be disabled")
+				} else {
+					domainCerts = append(domainCerts, certs...)
+					certFiles = append(certFiles, files...)
+				}
+			}
+			if len(domainCerts) > 0 {
+				tlsConfig = &tls.Config{
+					GetCertificate: cfg.GetCertificate,
+					NextProtos:     []string{"h2", "http/1.1"},
+				}
+			}
 		}
 	}
 

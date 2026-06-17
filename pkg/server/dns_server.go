@@ -9,7 +9,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	"encoding/json"
 	"github.com/miekg/dns"
 	"github.com/pkg/errors"
 	"github.com/projectdiscovery/gologger"
@@ -301,8 +300,6 @@ func toQType(ttype uint16) (rtype string) {
 
 // handleInteraction handles an interaction for the DNS server
 func (h *DNSServer) handleInteraction(domain string, w dns.ResponseWriter, r *dns.Msg, m *dns.Msg) {
-	var uniqueID, fullID string
-
 	requestMsg := r.String()
 	responseMsg := m.String()
 
@@ -317,10 +314,9 @@ func (h *DNSServer) handleInteraction(domain string, w dns.ResponseWriter, r *dn
 		}
 	}
 
-	// if root-tld is enabled stores any interaction towards the main domain
+	host, _, _ := net.SplitHostPort(w.RemoteAddr().String())
+
 	if h.options.RootTLD && foundDomain != "" {
-		correlationID := foundDomain
-		host, _, _ := net.SplitHostPort(w.RemoteAddr().String())
 		interaction := &Interaction{
 			Protocol:      "dns",
 			UniqueID:      domain,
@@ -331,55 +327,18 @@ func (h *DNSServer) handleInteraction(domain string, w dns.ResponseWriter, r *dn
 			RemoteAddress: host,
 			Timestamp:     time.Now(),
 		}
-
-		if nil != h.options.OnResult {
+		if h.options.OnResult != nil {
 			h.options.OnResult(interaction)
 		}
-
-		data, err := json.Marshal(interaction)
-		if err != nil {
-			gologger.Warning().Msgf("Could not encode root tld dns interaction: %s\n", err)
-		} else {
-			gologger.Debug().Msgf("Root TLD DNS Interaction: \n%s\n", string(data))
-			if err := h.options.Storage.AddInteractionWithId(correlationID, data); err != nil {
-				gologger.Warning().Msgf("Could not store dns interaction: %s\n", err)
-			}
-		}
+		h.options.storeRootTLDInteraction(interaction, foundDomain)
 	}
 
-	if foundDomain != "" {
-		if h.options.ScanEverywhere {
-			chunks := stringsutil.SplitAny(requestMsg, ".\n\t\"'")
-			for _, chunk := range chunks {
-				for part := range stringsutil.SlideWithLength(chunk, h.options.GetIdLength()) {
-					normalizedPart := strings.ToLower(part)
-					if h.options.isCorrelationID(normalizedPart) {
-						uniqueID = normalizedPart
-						fullID = part
-					}
-				}
-			}
-		} else {
-			parts := strings.Split(domain, ".")
-			for i, part := range parts {
-				for partChunk := range stringsutil.SlideWithLength(part, h.options.GetIdLength()) {
-					normalizedPartChunk := strings.ToLower(partChunk)
-					if h.options.isCorrelationID(normalizedPartChunk) {
-						fullID = part
-						if i+1 <= len(parts) {
-							fullID = strings.Join(parts[:i+1], ".")
-						}
-						uniqueID = normalizedPartChunk
-					}
-				}
-			}
-		}
+	if foundDomain == "" {
+		return
 	}
 
-	if uniqueID != "" {
-		correlationID := uniqueID[:h.options.CorrelationIdLength]
-		host, _, _ := net.SplitHostPort(w.RemoteAddr().String())
-		interaction := &Interaction{
+	storeMatch := func(uniqueID, fullID string) {
+		h.options.storeInteraction(&Interaction{
 			Protocol:      "dns",
 			UniqueID:      uniqueID,
 			FullId:        fullID,
@@ -388,15 +347,34 @@ func (h *DNSServer) handleInteraction(domain string, w dns.ResponseWriter, r *dn
 			RawResponse:   responseMsg,
 			RemoteAddress: host,
 			Timestamp:     time.Now(),
-		}
-		data, err := json.Marshal(interaction)
-		if err != nil {
-			gologger.Warning().Msgf("Could not encode dns interaction: %s\n", err)
-		} else {
-			gologger.Debug().Msgf("DNS Interaction: \n%s\n", string(data))
-			if err := h.options.Storage.AddInteraction(correlationID, data); err != nil {
-				gologger.Warning().Msgf("Could not store dns interaction: %s\n", err)
+		}, uniqueID[:h.options.CorrelationIdLength])
+	}
+
+	if h.options.ScanEverywhere {
+		chunks := stringsutil.SplitAny(requestMsg, ".\n\t\"'")
+		for _, chunk := range chunks {
+			for part := range stringsutil.SlideWithLength(chunk, h.options.GetIdLength()) {
+				normalizedPart := strings.ToLower(part)
+				if h.options.isCorrelationID(normalizedPart) {
+					storeMatch(normalizedPart, part)
+				}
 			}
+		}
+		return
+	}
+
+	parts := strings.Split(domain, ".")
+	for i, part := range parts {
+		for partChunk := range stringsutil.SlideWithLength(part, h.options.GetIdLength()) {
+			normalizedPartChunk := strings.ToLower(partChunk)
+			if !h.options.isCorrelationID(normalizedPartChunk) {
+				continue
+			}
+			fullID := part
+			if i+1 <= len(parts) {
+				fullID = strings.Join(parts[:i+1], ".")
+			}
+			storeMatch(normalizedPartChunk, fullID)
 		}
 	}
 }

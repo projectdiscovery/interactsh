@@ -150,8 +150,17 @@ func New(options *Options) (*Client, error) {
 		secretKey = options.SessionInfo.SecretKey
 		token = options.SessionInfo.Token
 	} else {
-		// Generate a random ksuid which will be used as server secret.
-		correlationID = xid.New().String()
+		// Use a privacy-preserving xid: keep the 4-byte timestamp prefix so the id
+		// stays k-ordered and parseable, but randomize the trailing 8 bytes
+		// (machine + pid + counter). Plain xid.New() leaks a stable per-machine
+		// fingerprint (md5(hostname)[:3]) through every OAST callback, which is
+		// observable by the target service and by third-party telemetry that
+		// logs OAST traffic (see issue #1349).
+		anonID, err := newAnonymousCorrelationID()
+		if err != nil {
+			return nil, errkit.Wrap(err, "could not generate correlation id")
+		}
+		correlationID = anonID
 		if len(correlationID) > options.CorrelationIdLength {
 			correlationID = correlationID[:options.CorrelationIdLength]
 		}
@@ -720,4 +729,19 @@ func (c *Client) SaveSessionTo(filename string) error {
 		return err
 	}
 	return os.WriteFile(filename, data, os.ModePerm)
+}
+
+// newAnonymousCorrelationID returns an xid-formatted correlation id that
+// preserves the 4-byte timestamp prefix (for k-ordering and the server-side
+// xidAlphabet validator) and replaces the remaining 8 bytes (machine, pid,
+// counter) with crypto/rand. The result is still a valid xid string, still
+// 20 chars from the [0-9a-v] alphabet, and still parseable with xid.FromString.
+func newAnonymousCorrelationID() (string, error) {
+	id := xid.NewWithTime(time.Now())
+	// Overwrite machine (4..6), pid (7..8), counter (9..11) with random bytes.
+	// id is xid.ID ([12]byte) and id[4:] aliases the same backing array.
+	if _, err := rand.Read(id[4:]); err != nil {
+		return "", err
+	}
+	return id.String(), nil
 }
