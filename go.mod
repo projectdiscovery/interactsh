@@ -9,7 +9,6 @@ require (
 	github.com/docker/go-units v0.5.0
 	github.com/goburrow/cache v0.1.4
 	github.com/google/uuid v1.6.0
-	github.com/json-iterator/go v1.1.12
 	github.com/libdns/libdns v1.1.1
 	github.com/mackerelio/go-osstat v0.2.6
 	github.com/miekg/dns v1.1.68
@@ -87,6 +86,7 @@ require (
 	github.com/jcmturner/goidentity/v6 v6.0.1 // indirect
 	github.com/jcmturner/gokrb5/v8 v8.4.4 // indirect
 	github.com/jcmturner/rpc/v2 v2.0.3 // indirect
+	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/klauspost/compress v1.18.2 // indirect
 	github.com/klauspost/cpuid/v2 v2.3.0 // indirect
 	github.com/klauspost/pgzip v1.2.6 // indirect

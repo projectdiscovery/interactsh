@@ -7,6 +7,7 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/base64"
+	"encoding/json"
 	"encoding/pem"
 	"io"
 	"net/http"
@@ -17,7 +18,6 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	jsoniter "github.com/json-iterator/go"
 	"github.com/projectdiscovery/interactsh/pkg/storage"
 	"github.com/rs/xid"
 	"github.com/stretchr/testify/require"
@@ -117,7 +117,7 @@ func TestSessionTotalMetric(t *testing.T) {
 	secretKey := uuid.New().String()
 
 	// --- Register ---
-	regBody, err := jsoniter.Marshal(&RegisterRequest{
+	regBody, err := json.Marshal(&RegisterRequest{
 		PublicKey:     pubB64,
 		SecretKey:     secretKey,
 		CorrelationID: correlationID,
@@ -132,7 +132,7 @@ func TestSessionTotalMetric(t *testing.T) {
 	require.Equal(t, int64(1), atomic.LoadInt64(&stats.SessionsTotal), "sessions_total should be 1 after register")
 
 	// --- Deregister ---
-	deregBody, err := jsoniter.Marshal(&DeregisterRequest{
+	deregBody, err := json.Marshal(&DeregisterRequest{
 		SecretKey:     secretKey,
 		CorrelationID: correlationID,
 	})

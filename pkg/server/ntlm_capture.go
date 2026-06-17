@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/binary"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"sync/atomic"
@@ -12,7 +13,6 @@ import (
 	"github.com/Mzack9999/goimpacket/pkg/ntlm"
 	"github.com/Mzack9999/goimpacket/pkg/relay"
 	"github.com/Mzack9999/goimpacket/pkg/utf16le"
-	jsoniter "github.com/json-iterator/go"
 	"github.com/projectdiscovery/gologger"
 )
 
@@ -80,7 +80,7 @@ func runNTLMCapture(ctx context.Context, srv relay.ProtocolServer, protocolName 
 			RemoteAddress: auth.SourceAddr,
 			Timestamp:     time.Now(),
 		}
-		data, err := jsoniter.Marshal(interaction)
+		data, err := json.Marshal(interaction)
 		if err != nil {
 			gologger.Warning().Msgf("Could not encode %s interaction: %s\n", protocolName, err)
 		} else {

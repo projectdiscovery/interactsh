@@ -283,15 +283,15 @@ func TestTrailingNewlineHandling(t *testing.T) {
 	// Verify trailing newline is present
 	require.Equal(t, byte('\n'), encoded[len(encoded)-1], "Encode() should append trailing newline")
 
-	// Verify jsoniter.Unmarshal handles trailing newline
+	// Verify json.Unmarshal handles trailing newline
 	result := &interaction{}
 	err = json.Unmarshal(encoded, result)
 	require.NoError(t, err, "Unmarshal should handle trailing newline")
 	require.Equal(t, "dns", result.Protocol)
 }
 
-// TestJsoniterControlCharacterEscaping verifies jsoniter properly escapes control characters
-func TestJsoniterControlCharacterEscaping(t *testing.T) {
+// TestControlCharacterEscaping verifies json properly escapes control characters
+func TestControlCharacterEscaping(t *testing.T) {
 	// DNS message String() output contains tabs and newlines
 	inter := &interaction{
 		Protocol:      "dns",

@@ -10,7 +10,9 @@ import (
 	"crypto/sha256"
 	"crypto/x509"
 	"encoding/base64"
+	"encoding/json"
 	"encoding/pem"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -22,10 +24,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"errors"
-
 	"github.com/google/uuid"
-	"encoding/json"
 	asnmap "github.com/projectdiscovery/asnmap/libs"
 	"github.com/projectdiscovery/gologger"
 	"github.com/projectdiscovery/interactsh/pkg/options"

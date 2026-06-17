@@ -3,6 +3,7 @@ package server
 import (
 	"crypto/tls"
 	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"log"
 	"net"
@@ -16,7 +17,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	"encoding/json"
 	"github.com/projectdiscovery/gologger"
 	stringsutil "github.com/projectdiscovery/utils/strings"
 )
