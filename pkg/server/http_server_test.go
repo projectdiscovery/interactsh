@@ -35,6 +35,39 @@ func TestHttpProtocol(t *testing.T) {
 	})
 }
 
+func TestWildcardHTTPSRequestWithPortIsStoredAsRootTLDInteraction(t *testing.T) {
+	store := newTestStorage(t)
+	require.NoError(t, store.SetID("example.com"))
+
+	h, err := NewHTTPServer(&Options{
+		Domains:                  []string{"example.com"},
+		Storage:                  store,
+		RootTLD:                  true,
+		OriginURL:                "*",
+		CorrelationIdLength:      3,
+		CorrelationIdNonceLength: 3,
+		Stats:                    &Metrics{},
+	})
+	require.NoError(t, err)
+
+	req := httptest.NewRequest(http.MethodGet, "https://abc123.example.com:443/", nil)
+	req.Host = "abc123.example.com:443"
+	w := httptest.NewRecorder()
+
+	h.tlsserver.Handler.ServeHTTP(w, req)
+
+	require.Equal(t, http.StatusOK, w.Code)
+	interactions, err := store.GetInteractionsWithIdForConsumer("example.com", "consumer")
+	require.NoError(t, err)
+	require.Len(t, interactions, 1)
+
+	var interaction Interaction
+	require.NoError(t, jsoniter.UnmarshalFromString(interactions[0], &interaction))
+	require.Equal(t, "https", interaction.Protocol)
+	require.Equal(t, "abc123.example.com:443", interaction.UniqueID)
+	require.Equal(t, "abc123.example.com:443", interaction.FullId)
+}
+
 func TestWriteResponseFromDynamicRequest(t *testing.T) {
 	t.Run("status", func(t *testing.T) {
 		req := httptest.NewRequest("GET", "http://example.com/?status=404", nil)
