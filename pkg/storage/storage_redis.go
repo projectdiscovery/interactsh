@@ -16,6 +16,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"github.com/redis/go-redis/v9"
@@ -173,8 +174,8 @@ func (s *StorageRedis) refreshTTL(ctx context.Context, keys ...string) {
 
 func (s *StorageRedis) GetCacheMetrics() (*CacheMetrics, error) {
 	return &CacheMetrics{
-		HitCount:  s.hitCount,
-		MissCount: s.missCount,
+		HitCount:  atomic.LoadUint64(&s.hitCount),
+		MissCount: atomic.LoadUint64(&s.missCount),
 	}, nil
 }
 
@@ -259,10 +260,10 @@ func (s *StorageRedis) addInteraction(id string, data []byte) error {
 		return fmt.Errorf("redis exists check failed: %w", err)
 	}
 	if exists == 0 {
-		s.missCount++
+		atomic.AddUint64(&s.missCount, 1)
 		return ErrCorrelationIdNotFound
 	}
-	s.hitCount++
+	atomic.AddUint64(&s.hitCount, 1)
 
 	aesKey, err := s.client.HGet(ctx, s.metaKey(id), "aes_key").Bytes()
 	if err != nil && !errors.Is(err, redis.Nil) {
@@ -300,10 +301,10 @@ func (s *StorageRedis) GetInteractions(correlationID, secret string) ([]string, 
 		return nil, "", fmt.Errorf("redis HMGet failed: %w", err)
 	}
 	if res[0] == nil {
-		s.missCount++
+		atomic.AddUint64(&s.missCount, 1)
 		return nil, "", ErrCorrelationIdNotFound
 	}
-	s.hitCount++
+	atomic.AddUint64(&s.hitCount, 1)
 	storedSecret, _ := res[0].(string)
 	if !strings.EqualFold(storedSecret, secret) {
 		return nil, "", errors.New("invalid secret key passed for user")
@@ -322,10 +323,10 @@ func (s *StorageRedis) GetInteractions(correlationID, secret string) ([]string, 
 func (s *StorageRedis) GetInteractionsWithId(id string) ([]string, error) {
 	ctx := context.Background()
 	if exists, _ := s.client.Exists(ctx, s.metaKey(id)).Result(); exists == 0 {
-		s.missCount++
+		atomic.AddUint64(&s.missCount, 1)
 		return nil, errors.New("could not get id from cache")
 	}
-	s.hitCount++
+	atomic.AddUint64(&s.hitCount, 1)
 	data, err := s.consumeAll(ctx, id)
 	if err != nil {
 		return nil, err
@@ -358,10 +359,10 @@ func (s *StorageRedis) consumeAll(ctx context.Context, id string) ([]string, err
 func (s *StorageRedis) GetInteractionsWithIdForConsumer(id, consumerID string) ([]string, error) {
 	ctx := context.Background()
 	if exists, _ := s.client.Exists(ctx, s.metaKey(id)).Result(); exists == 0 {
-		s.missCount++
+		atomic.AddUint64(&s.missCount, 1)
 		return nil, errors.New("could not get id from cache")
 	}
-	s.hitCount++
+	atomic.AddUint64(&s.hitCount, 1)
 
 	now := time.Now().UnixNano()
 	evictionNanos := int64(0)
