@@ -62,7 +62,7 @@ func TestWildcardHTTPSRequestWithPortIsStoredAsRootTLDInteraction(t *testing.T) 
 	require.Len(t, interactions, 1)
 
 	var interaction Interaction
-	require.NoError(t, jsoniter.UnmarshalFromString(interactions[0], &interaction))
+	require.NoError(t, json.Unmarshal([]byte(interactions[0]), &interaction))
 	require.Equal(t, "https", interaction.Protocol)
 	require.Equal(t, "abc123.example.com:443", interaction.UniqueID)
 	require.Equal(t, "abc123.example.com:443", interaction.FullId)

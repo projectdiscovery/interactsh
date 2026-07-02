@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -177,6 +178,8 @@ func main() {
 		gologger.Info().Msgf("%s\n", interactshURL)
 	}
 
+	warnIfServerLacksIPv6(client)
+
 	if cliOptions.StorePayload && cliOptions.StorePayloadFile != "" {
 		if err := os.WriteFile(cliOptions.StorePayloadFile, []byte(strings.Join(interactshURLs, "\n")), 0644); err != nil {
 			gologger.Fatal().Msgf("Could not write to payload output file: %s\n", err)
@@ -295,6 +298,17 @@ func main() {
 			_ = client.Close()
 		}
 		os.Exit(1)
+	}
+}
+
+// warnIfServerLacksIPv6 alerts the user when the chosen server publishes no
+// AAAA records, since interactions reaching the target over IPv6 would
+// otherwise be dropped silently and read as "no interaction" (issue #1391).
+func warnIfServerLacksIPv6(c *client.Client) {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	if ok, err := c.ServerSupportsIPv6(ctx); err == nil && !ok {
+		gologger.Warning().Msgf("Server %s publishes no IPv6 (AAAA) records; interactions from IPv6-only sources will be missed\n", c.ServerURL())
 	}
 }
 
