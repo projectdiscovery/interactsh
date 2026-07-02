@@ -2,6 +2,8 @@ package main
 
 import (
 	"bytes"
+	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"os/signal"
@@ -10,7 +12,6 @@ import (
 	"strings"
 	"time"
 
-	jsoniter "github.com/json-iterator/go"
 	asnmap "github.com/projectdiscovery/asnmap/libs"
 	"github.com/projectdiscovery/goflags"
 	"github.com/projectdiscovery/gologger"
@@ -74,7 +75,7 @@ func main() {
 
 	flagSet.CreateGroup("output", "Output",
 		flagSet.StringVar(&cliOptions.Output, "o", "", "output file to write interaction data"),
-		flagSet.BoolVar(&cliOptions.JSON, "json", false, "write output in JSONL(ines) format"),
+		flagSet.BoolVar(&cliOptions.JSON, "json", false, "write output in JSON Lines format"),
 		flagSet.BoolVarP(&cliOptions.StorePayload, "payload-store", "ps", false, "write generated interactsh payload to file"),
 		flagSet.StringVarP(&cliOptions.StorePayloadFile, "payload-store-file", "psf", settings.StorePayloadFileDefault, "store generated interactsh payloads to given file"),
 
@@ -177,6 +178,8 @@ func main() {
 		gologger.Info().Msgf("%s\n", interactshURL)
 	}
 
+	warnIfServerLacksIPv6(client)
+
 	if cliOptions.StorePayload && cliOptions.StorePayloadFile != "" {
 		if err := os.WriteFile(cliOptions.StorePayloadFile, []byte(strings.Join(interactshURLs, "\n")), 0644); err != nil {
 			gologger.Fatal().Msgf("Could not write to payload output file: %s\n", err)
@@ -223,11 +226,12 @@ func main() {
 					}
 					writeOutput(outputFile, builder)
 				}
-			case "http":
+			case "http", "https":
 				if noFilter || cliOptions.HTTPOnly {
-					fmt.Fprintf(builder, "[%s] Received HTTP interaction from %s at %s", interaction.FullId, interaction.RemoteAddress, interaction.Timestamp.Format("2006-01-02 15:04:05"))
+					proto := strings.ToUpper(interaction.Protocol)
+					fmt.Fprintf(builder, "[%s] Received %s interaction from %s at %s", interaction.FullId, proto, interaction.RemoteAddress, interaction.Timestamp.Format("2006-01-02 15:04:05"))
 					if cliOptions.Verbose {
-						fmt.Fprintf(builder, "\n------------\nHTTP Request\n------------\n\n%s\n\n-------------\nHTTP Response\n-------------\n\n%s\n\n", interaction.RawRequest, interaction.RawResponse)
+						fmt.Fprintf(builder, "\n------------\n%s Request\n------------\n\n%s\n\n-------------\n%s Response\n-------------\n\n%s\n\n", proto, interaction.RawRequest, proto, interaction.RawResponse)
 					}
 					writeOutput(outputFile, builder)
 				}
@@ -265,7 +269,7 @@ func main() {
 				}
 			}
 		} else {
-			b, err := jsoniter.Marshal(interaction)
+			b, err := json.Marshal(interaction)
 			if err != nil {
 				gologger.Error().Msgf("Could not marshal json output: %s\n", err)
 			} else {
@@ -294,6 +298,17 @@ func main() {
 			_ = client.Close()
 		}
 		os.Exit(1)
+	}
+}
+
+// warnIfServerLacksIPv6 alerts the user when the chosen server publishes no
+// AAAA records, since interactions reaching the target over IPv6 would
+// otherwise be dropped silently and read as "no interaction" (issue #1391).
+func warnIfServerLacksIPv6(c *client.Client) {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	if ok, err := c.ServerSupportsIPv6(ctx); err == nil && !ok {
+		gologger.Warning().Msgf("Server %s publishes no IPv6 (AAAA) records; interactions from IPv6-only sources will be missed\n", c.ServerURL())
 	}
 }
 

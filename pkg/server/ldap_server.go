@@ -7,7 +7,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	jsoniter "github.com/json-iterator/go"
+	"encoding/json"
 	"github.com/projectdiscovery/gologger"
 	ldap "github.com/projectdiscovery/ldapserver"
 	stringsutil "github.com/projectdiscovery/utils/strings"
@@ -72,9 +72,9 @@ func (ldapServer *LDAPServer) handleBind(w ldap.ResponseWriter, m *ldap.Message)
 	res := ldap.NewBindResponse(ldap.LDAPResultSuccess)
 	var message strings.Builder
 	message.WriteString("Type=Bind\n")
-	message.WriteString(fmt.Sprintf("AuthenticationChoice=%s\n", r.AuthenticationChoice()))
-	message.WriteString(fmt.Sprintf("User=%s\n", r.Name()))
-	message.WriteString(fmt.Sprintf("Pass=%s\n", r.Authentication()))
+	_, _ = fmt.Fprintf(&message, "AuthenticationChoice=%s\n", r.AuthenticationChoice())
+	_, _ = fmt.Fprintf(&message, "User=%s\n", r.Name())
+	_, _ = fmt.Fprintf(&message, "Pass=%s\n", r.Authentication())
 	w.Write(res)
 
 	if ldapServer.WithLogger {
@@ -98,11 +98,11 @@ func (ldapServer *LDAPServer) handleSearch(w ldap.ResponseWriter, m *ldap.Messag
 	var message strings.Builder
 	message.WriteString("Type=Search\n")
 	baseObject := r.BaseObject()
-	message.WriteString(fmt.Sprintf("BaseDn=%s\n", baseObject))
-	message.WriteString(fmt.Sprintf("Filter=%s\n", r.Filter()))
-	message.WriteString(fmt.Sprintf("FilterString=%s\n", r.FilterString()))
-	message.WriteString(fmt.Sprintf("Attributes=%s\n", r.Attributes()))
-	message.WriteString(fmt.Sprintf("TimeLimit=%d\n", r.TimeLimit().Int()))
+	_, _ = fmt.Fprintf(&message, "BaseDn=%s\n", baseObject)
+	_, _ = fmt.Fprintf(&message, "Filter=%s\n", r.Filter())
+	_, _ = fmt.Fprintf(&message, "FilterString=%s\n", r.FilterString())
+	_, _ = fmt.Fprintf(&message, "Attributes=%s\n", r.Attributes())
+	_, _ = fmt.Fprintf(&message, "TimeLimit=%d\n", r.TimeLimit().Int())
 
 	e := ldap.NewSearchResultEntry("cn=interactsh, " + string(baseObject))
 	e.AddAttribute("mail", "interact@s.h", "interact@s.h")
@@ -144,7 +144,7 @@ func (ldapServer *LDAPServer) handleInteraction(uniqueID, fullID, reqString, hos
 			RemoteAddress: host,
 			Timestamp:     time.Now(),
 		}
-		data, err := jsoniter.Marshal(interaction)
+		data, err := json.Marshal(interaction)
 		if err != nil {
 			gologger.Warning().Msgf("Could not encode ldap interaction: %s\n", err)
 		} else {
@@ -190,7 +190,7 @@ func (ldapServer *LDAPServer) handleNotFound(w ldap.ResponseWriter, m *ldap.Mess
 	atomic.AddUint64(&ldapServer.options.Stats.Ldap, 1)
 
 	var message strings.Builder
-	message.WriteString(fmt.Sprintf("Type=%s\n", m.String()))
+	_, _ = fmt.Fprintf(&message, "Type=%s\n", m.String())
 
 	switch m.ProtocolOpType() {
 	case ldap.ApplicationBindRequest:
@@ -218,8 +218,8 @@ func (ldapServer *LDAPServer) handleCompare(w ldap.ResponseWriter, m *ldap.Messa
 	r := m.GetCompareRequest()
 	var message strings.Builder
 	message.WriteString("Type=Compare\n")
-	message.WriteString(fmt.Sprintf("Attribute name to compare=%s\n", r.Ava().AttributeDesc()))
-	message.WriteString(fmt.Sprintf("Attribute value expected=%s\n", r.Ava().AssertionValue()))
+	_, _ = fmt.Fprintf(&message, "Attribute name to compare=%s\n", r.Ava().AttributeDesc())
+	_, _ = fmt.Fprintf(&message, "Attribute value expected=%s\n", r.Ava().AssertionValue())
 
 	res := ldap.NewCompareResponse(ldap.LDAPResultCompareTrue)
 	w.Write(res)
@@ -239,10 +239,10 @@ func (ldapServer *LDAPServer) handleAdd(w ldap.ResponseWriter, m *ldap.Message) 
 	r := m.GetAddRequest()
 	var message strings.Builder
 	message.WriteString("Type=Add\n")
-	message.WriteString(fmt.Sprintf("Entity=%s\n", r.Entry()))
+	_, _ = fmt.Fprintf(&message, "Entity=%s\n", r.Entry())
 	for _, attribute := range r.Attributes() {
 		for _, attributeValue := range attribute.Vals() {
-			message.WriteString(fmt.Sprintf("Attribute Name=%s Attribute Value=%s\n", attribute.Type_(), attributeValue))
+			_, _ = fmt.Fprintf(&message, "Attribute Name=%s Attribute Value=%s\n", attribute.Type_(), attributeValue)
 		}
 	}
 
@@ -264,7 +264,7 @@ func (ldapServer *LDAPServer) handleDelete(w ldap.ResponseWriter, m *ldap.Messag
 	r := m.GetDeleteRequest()
 	var message strings.Builder
 	message.WriteString("Type=Delete\n")
-	message.WriteString(fmt.Sprintf("Entity=%s\n", r))
+	_, _ = fmt.Fprintf(&message, "Entity=%s\n", r)
 
 	res := ldap.NewDeleteResponse(ldap.LDAPResultSuccess)
 	w.Write(res)
@@ -284,7 +284,7 @@ func (ldapServer *LDAPServer) handleModify(w ldap.ResponseWriter, m *ldap.Messag
 	r := m.GetModifyRequest()
 	var message strings.Builder
 	message.WriteString("Type=Modify\n")
-	message.WriteString(fmt.Sprintf("Entity=%s\n", r.Object()))
+	_, _ = fmt.Fprintf(&message, "Entity=%s\n", r.Object())
 
 	for _, change := range r.Changes() {
 		modification := change.Modification()
@@ -302,7 +302,7 @@ func (ldapServer *LDAPServer) handleModify(w ldap.ResponseWriter, m *ldap.Messag
 		for _, attributeValue := range modification.Vals() {
 			vals = append(vals, fmt.Sprint(attributeValue))
 		}
-		message.WriteString(fmt.Sprintf("Operation=%s Attribute=%s Values=[%s]\n", operationString, modification.Type_(), strings.Join(vals, " - ")))
+		_, _ = fmt.Fprintf(&message, "Operation=%s Attribute=%s Values=[%s]\n", operationString, modification.Type_(), strings.Join(vals, " - "))
 	}
 
 	res := ldap.NewModifyResponse(ldap.LDAPResultSuccess)
@@ -330,7 +330,7 @@ func (ldapServer *LDAPServer) handleStartTLS(w ldap.ResponseWriter, m *ldap.Mess
 	w.Write(res)
 
 	if err := tlsConn.Handshake(); err != nil {
-		message.WriteString(fmt.Sprintf("Result=StartTLS Handshake error %s\n", err.Error()))
+		_, _ = fmt.Fprintf(&message, "Result=StartTLS Handshake error %s\n", err.Error())
 		res.SetDiagnosticMessage(fmt.Sprintf("StartTLS Handshake error : \"%s\"", err.Error()))
 		res.SetResultCode(ldap.LDAPResultOperationsError)
 		w.Write(res)
@@ -373,8 +373,8 @@ func (ldapServer *LDAPServer) handleExtended(w ldap.ResponseWriter, m *ldap.Mess
 
 	var message strings.Builder
 	message.WriteString("Type=Extended\n")
-	message.WriteString(fmt.Sprintf("Name=%s\n", r.RequestName()))
-	message.WriteString(fmt.Sprintf("Value=%s\n", r.RequestValue()))
+	_, _ = fmt.Fprintf(&message, "Name=%s\n", r.RequestName())
+	_, _ = fmt.Fprintf(&message, "Value=%s\n", r.RequestValue())
 
 	res := ldap.NewExtendedResponse(ldap.LDAPResultSuccess)
 	w.Write(res)
@@ -395,10 +395,10 @@ func (ldapServer *LDAPServer) handleLog(host string, f string, v ...interface{})
 
 	var data strings.Builder
 	if f != "" {
-		data.WriteString(fmt.Sprintf(f, v...))
+		_, _ = fmt.Fprintf(&data, f, v...)
 	} else {
 		for _, vv := range v {
-			data.WriteString(fmt.Sprint(vv))
+			fmt.Fprint(&data, vv)
 		}
 	}
 
@@ -410,7 +410,7 @@ func (ldapServer *LDAPServer) logInteraction(interaction Interaction) {
 	// Correlation id doesn't apply here, we skip encryption
 	interaction.Protocol = "ldap"
 	interaction.Timestamp = time.Now()
-	data, err := jsoniter.Marshal(interaction)
+	data, err := json.Marshal(interaction)
 	if err != nil {
 		gologger.Warning().Msgf("Could not encode ldap interaction: %s\n", err)
 	} else {

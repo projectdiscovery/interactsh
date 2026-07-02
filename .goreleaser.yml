@@ -1,38 +1,50 @@
+version: 2
+
 before:
   hooks:
     - go mod tidy
 
 builds:
-- main: cmd/interactsh-client/main.go
-  binary: interactsh-client
-  id: interactsh-client
+  - main: cmd/interactsh-client/main.go
+    binary: interactsh-client
+    id: interactsh-client
+    env:
+      - CGO_ENABLED=0
+    goos: [windows, linux, darwin]
+    goarch: [amd64, '386', arm, arm64]
+    ignore:
+      - goos: darwin
+        goarch: '386'
+      - goos: windows
+        goarch: arm
+      - goos: windows
+        goarch: arm64
 
-  env:
-  - CGO_ENABLED=0
-
-  goos: [windows,linux,darwin]
-  goarch: [amd64,386,arm,arm64]
-
-- main: cmd/interactsh-server/main.go
-  binary: interactsh-server
-  id: interactsh-server
-
-  env:
-  - CGO_ENABLED=0
-
-  goos: [windows,linux,darwin]
-  goarch: [amd64,386,arm,arm64]
+  - main: cmd/interactsh-server/main.go
+    binary: interactsh-server
+    id: interactsh-server
+    env:
+      - CGO_ENABLED=0
+    goos: [windows, linux, darwin]
+    goarch: [amd64, '386', arm, arm64]
+    ignore:
+      - goos: darwin
+        goarch: '386'
+      - goos: windows
+        goarch: arm
+      - goos: windows
+        goarch: arm64
 
 archives:
-- format: zip
-  id: client
-  builds: [interactsh-client]
-  name_template: '{{ .Binary }}_{{ .Version }}_{{ if eq .Os "darwin" }}macOS{{ else }}{{ .Os }}{{ end }}_{{ .Arch }}'
+  - formats: [zip]
+    id: client
+    ids: [interactsh-client]
+    name_template: '{{ .Binary }}_{{ .Version }}_{{ if eq .Os "darwin" }}macOS{{ else }}{{ .Os }}{{ end }}_{{ .Arch }}'
 
-- format: zip
-  id: server
-  builds: [interactsh-server]
-  name_template: '{{ .Binary }}_{{ .Version }}_{{ if eq .Os "darwin" }}macOS{{ else }}{{ .Os }}{{ end }}_{{ .Arch }}'
+  - formats: [zip]
+    id: server
+    ids: [interactsh-server]
+    name_template: '{{ .Binary }}_{{ .Version }}_{{ if eq .Os "darwin" }}macOS{{ else }}{{ .Os }}{{ end }}_{{ .Arch }}'
 
 checksum:
   algorithm: sha256

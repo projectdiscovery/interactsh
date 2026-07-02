@@ -14,7 +14,7 @@ import (
 	"testing"
 	"time"
 
-	jsoniter "github.com/json-iterator/go"
+	"encoding/json"
 	"github.com/google/uuid"
 	"github.com/rs/xid"
 	"github.com/stretchr/testify/require"
@@ -95,7 +95,9 @@ func clientDecrypt(t *testing.T, priv *rsa.PrivateKey, aesKeyEncrypted string, c
 func TestFullRoundTripInMemory(t *testing.T) {
 	mem, err := New(&Options{EvictionTTL: 1 * time.Hour})
 	require.NoError(t, err)
-	defer mem.Close()
+	defer func() {
+		_ = mem.Close()
+	}()
 
 	priv, pubKeyB64 := generateRSAKeyPair(t)
 	secret := uuid.New().String()
@@ -116,7 +118,7 @@ func TestFullRoundTripInMemory(t *testing.T) {
 			RemoteAddress: "10.0.0.1",
 			Timestamp:     time.Now(),
 		}
-		data, err := jsoniter.Marshal(inter)
+		data, err := json.Marshal(inter)
 		require.NoError(t, err, "encode interaction %d", i)
 
 		err = mem.AddInteraction(correlationID, data)
@@ -132,7 +134,7 @@ func TestFullRoundTripInMemory(t *testing.T) {
 	for i, d := range data {
 		plaintext := clientDecrypt(t, priv, aesKey, d)
 		result := &interaction{}
-		err = jsoniter.Unmarshal(plaintext, result)
+		err = json.Unmarshal(plaintext, result)
 		require.NoError(t, err, "unmarshal interaction %d: plaintext=%q", i, string(plaintext[:min(len(plaintext), 100)]))
 		require.Equal(t, "dns", result.Protocol)
 		require.Equal(t, "abc123def456ghi", result.UniqueID)
@@ -144,11 +146,15 @@ func TestFullRoundTripInMemory(t *testing.T) {
 func TestFullRoundTripDisk(t *testing.T) {
 	tmpDir, err := os.MkdirTemp("", "interactsh-test-*")
 	require.NoError(t, err)
-	defer os.RemoveAll(tmpDir)
+	defer func() {
+		_ = os.RemoveAll(tmpDir)
+	}()
 
 	db, err := New(&Options{EvictionTTL: 1 * time.Hour, DbPath: tmpDir})
 	require.NoError(t, err)
-	defer db.Close()
+	defer func() {
+		_ = db.Close()
+	}()
 
 	priv, pubKeyB64 := generateRSAKeyPair(t)
 	secret := uuid.New().String()
@@ -169,7 +175,7 @@ func TestFullRoundTripDisk(t *testing.T) {
 			RemoteAddress: "10.0.0.1",
 			Timestamp:     time.Now(),
 		}
-		data, err := jsoniter.Marshal(inter)
+		data, err := json.Marshal(inter)
 		require.NoError(t, err, "encode interaction %d", i)
 
 		err = db.AddInteraction(correlationID, data)
@@ -185,7 +191,7 @@ func TestFullRoundTripDisk(t *testing.T) {
 	for i, d := range data {
 		plaintext := clientDecrypt(t, priv, aesKey, d)
 		result := &interaction{}
-		err = jsoniter.Unmarshal(plaintext, result)
+		err = json.Unmarshal(plaintext, result)
 		require.NoError(t, err, "unmarshal interaction %d: plaintext=%q", i, string(plaintext[:min(len(plaintext), 100)]))
 		require.Equal(t, "dns", result.Protocol)
 		require.Equal(t, "abc123def456ghi", result.UniqueID)
@@ -205,7 +211,9 @@ func TestPollResponseRoundTrip(t *testing.T) {
 
 	mem, err := New(&Options{EvictionTTL: 1 * time.Hour})
 	require.NoError(t, err)
-	defer mem.Close()
+	defer func() {
+		_ = mem.Close()
+	}()
 
 	priv, pubKeyB64 := generateRSAKeyPair(t)
 	secret := uuid.New().String()
@@ -225,7 +233,7 @@ func TestPollResponseRoundTrip(t *testing.T) {
 		RemoteAddress: "10.0.0.1",
 		Timestamp:     time.Now(),
 	}
-	interData, err := jsoniter.Marshal(inter)
+	interData, err := json.Marshal(inter)
 	require.NoError(t, err)
 	err = mem.AddInteraction(correlationID, interData)
 	require.NoError(t, err)
@@ -237,12 +245,12 @@ func TestPollResponseRoundTrip(t *testing.T) {
 	// Simulate PollResponse JSON encoding/decoding (server→client HTTP)
 	response := &PollResponse{Data: data, AESKey: aesKey}
 	var responseBuf bytes.Buffer
-	err = jsoniter.NewEncoder(&responseBuf).Encode(response)
+	err = json.NewEncoder(&responseBuf).Encode(response)
 	require.NoError(t, err)
 
 	// Decode on client side
 	receivedResponse := &PollResponse{}
-	err = jsoniter.NewDecoder(&responseBuf).Decode(receivedResponse)
+	err = json.NewDecoder(&responseBuf).Decode(receivedResponse)
 	require.NoError(t, err)
 
 	require.Len(t, receivedResponse.Data, 1)
@@ -250,7 +258,7 @@ func TestPollResponseRoundTrip(t *testing.T) {
 	// Decrypt and unmarshal
 	plaintext := clientDecrypt(t, priv, receivedResponse.AESKey, receivedResponse.Data[0])
 	result := &interaction{}
-	err = jsoniter.Unmarshal(plaintext, result)
+	err = json.Unmarshal(plaintext, result)
 	require.NoError(t, err, "unmarshal failed: plaintext[:100]=%q", string(plaintext[:min(len(plaintext), 100)]))
 	require.Equal(t, "dns", result.Protocol)
 }
@@ -265,7 +273,7 @@ func TestTrailingNewlineHandling(t *testing.T) {
 		Timestamp:     time.Now(),
 	}
 	buffer := &bytes.Buffer{}
-	err := jsoniter.NewEncoder(buffer).Encode(inter)
+	err := json.NewEncoder(buffer).Encode(inter)
 	require.NoError(t, err)
 
 	encoded := buffer.Bytes()
@@ -275,15 +283,15 @@ func TestTrailingNewlineHandling(t *testing.T) {
 	// Verify trailing newline is present
 	require.Equal(t, byte('\n'), encoded[len(encoded)-1], "Encode() should append trailing newline")
 
-	// Verify jsoniter.Unmarshal handles trailing newline
+	// Verify json.Unmarshal handles trailing newline
 	result := &interaction{}
-	err = jsoniter.Unmarshal(encoded, result)
+	err = json.Unmarshal(encoded, result)
 	require.NoError(t, err, "Unmarshal should handle trailing newline")
 	require.Equal(t, "dns", result.Protocol)
 }
 
-// TestJsoniterControlCharacterEscaping verifies jsoniter properly escapes control characters
-func TestJsoniterControlCharacterEscaping(t *testing.T) {
+// TestControlCharacterEscaping verifies json properly escapes control characters
+func TestControlCharacterEscaping(t *testing.T) {
 	// DNS message String() output contains tabs and newlines
 	inter := &interaction{
 		Protocol:      "dns",
@@ -294,7 +302,7 @@ func TestJsoniterControlCharacterEscaping(t *testing.T) {
 		Timestamp:     time.Now(),
 	}
 	buffer := &bytes.Buffer{}
-	err := jsoniter.NewEncoder(buffer).Encode(inter)
+	err := json.NewEncoder(buffer).Encode(inter)
 	require.NoError(t, err)
 
 	encoded := buffer.Bytes()
@@ -308,7 +316,7 @@ func TestJsoniterControlCharacterEscaping(t *testing.T) {
 
 	// Verify round-trip
 	result := &interaction{}
-	err = jsoniter.Unmarshal(encoded, result)
+	err = json.Unmarshal(encoded, result)
 	require.NoError(t, err)
 	require.Equal(t, "line1\nline2\ttab\rcarriage", result.RawRequest)
 }
@@ -319,12 +327,16 @@ func TestJsoniterControlCharacterEscaping(t *testing.T) {
 func TestStaleDataCleanupOnReRegistration(t *testing.T) {
 	tmpDir, err := os.MkdirTemp("", "interactsh-stale-*")
 	require.NoError(t, err)
-	defer os.RemoveAll(tmpDir)
+	defer func() {
+		_ = os.RemoveAll(tmpDir)
+	}()
 
 	// Use a very short eviction TTL so the cache entry gets evicted quickly
 	db, err := New(&Options{EvictionTTL: 100 * time.Millisecond, DbPath: tmpDir})
 	require.NoError(t, err)
-	defer db.Close()
+	defer func() {
+		_ = db.Close()
+	}()
 
 	secret := uuid.New().String()
 	correlationID := xid.New().String()
@@ -342,7 +354,7 @@ func TestStaleDataCleanupOnReRegistration(t *testing.T) {
 		RemoteAddress: "1.2.3.4",
 		Timestamp:     time.Now(),
 	}
-	data1, err := jsoniter.Marshal(inter)
+	data1, err := json.Marshal(inter)
 	require.NoError(t, err)
 	err = db.AddInteraction(correlationID, data1)
 	require.NoError(t, err)
@@ -368,7 +380,7 @@ func TestStaleDataCleanupOnReRegistration(t *testing.T) {
 		RemoteAddress: "5.6.7.8",
 		Timestamp:     time.Now(),
 	}
-	data2, err := jsoniter.Marshal(inter2)
+	data2, err := json.Marshal(inter2)
 	require.NoError(t, err)
 	err = db.AddInteraction(correlationID, data2)
 	require.NoError(t, err)
@@ -383,7 +395,7 @@ func TestStaleDataCleanupOnReRegistration(t *testing.T) {
 	// Decrypt and verify it's the second interaction
 	plaintext := clientDecrypt(t, priv2, aesKey, interactions[0])
 	result := &interaction{}
-	err = jsoniter.Unmarshal(plaintext, result)
+	err = json.Unmarshal(plaintext, result)
 	require.NoError(t, err, "should unmarshal successfully with new key")
 	require.Equal(t, "second-registration", result.UniqueID)
 
@@ -391,16 +403,20 @@ func TestStaleDataCleanupOnReRegistration(t *testing.T) {
 	_ = priv1
 }
 
-// TestCacheEvictionCleansLevelDB verifies the OnCacheRemovalCallback properly
+// TestCacheEvictionCleansLevelDB verifies the onCacheRemoval callback properly
 // deletes LevelDB entries when cache entries are evicted.
 func TestCacheEvictionCleansLevelDB(t *testing.T) {
 	tmpDir, err := os.MkdirTemp("", "interactsh-eviction-*")
 	require.NoError(t, err)
-	defer os.RemoveAll(tmpDir)
+	defer func() {
+		_ = os.RemoveAll(tmpDir)
+	}()
 
 	db, err := New(&Options{EvictionTTL: 100 * time.Millisecond, DbPath: tmpDir})
 	require.NoError(t, err)
-	defer db.Close()
+	defer func() {
+		_ = db.Close()
+	}()
 
 	secret := uuid.New().String()
 	correlationID := xid.New().String()
@@ -417,7 +433,7 @@ func TestCacheEvictionCleansLevelDB(t *testing.T) {
 		RemoteAddress: "1.2.3.4",
 		Timestamp:     time.Now(),
 	}
-	data, err := jsoniter.Marshal(inter)
+	data, err := json.Marshal(inter)
 	require.NoError(t, err)
 	err = db.AddInteraction(correlationID, data)
 	require.NoError(t, err)
@@ -435,7 +451,74 @@ func TestCacheEvictionCleansLevelDB(t *testing.T) {
 	// Small delay for async eviction callback
 	time.Sleep(50 * time.Millisecond)
 
-	// LevelDB entry should be cleaned up by OnCacheRemovalCallback
+	// LevelDB entry should be cleaned up by onCacheRemoval
 	_, err = db.db.Get([]byte(correlationID), nil)
 	require.Error(t, err, "LevelDB entry should be deleted after cache eviction")
+}
+
+// TestOnRemovalSessionTracking verifies that the OnRemoval callback fires
+// exactly once per client session on deregister and TTL eviction, and does
+// not fire for non-session entries created via SetID.
+func TestOnRemovalSessionTracking(t *testing.T) {
+	removed := make(chan struct{}, 10)
+	onRemoval := func() { removed <- struct{}{} }
+
+	db, err := New(&Options{
+		EvictionTTL:      50 * time.Millisecond,
+		EvictionStrategy: EvictionStrategyFixed,
+		OnRemoval:        onRemoval,
+	})
+	require.NoError(t, err)
+	defer func() { _ = db.Close() }()
+
+	waitRemoval := func(msg string) {
+		t.Helper()
+		select {
+		case <-removed:
+		case <-time.After(2 * time.Second):
+			t.Fatalf("timed out waiting for OnRemoval: %s", msg)
+		}
+	}
+
+	// --- Non-session entries (SetID) must not trigger OnRemoval ---
+	// Invalidate a SetID entry, then register+deregister a real session as a
+	// FIFO barrier: the cache event channel is ordered, so receiving the
+	// session's callback proves the SetID invalidation was already processed.
+	_ = db.SetID("token-entry")
+	db.cache.Invalidate("token-entry")
+
+	secret := uuid.New().String()
+	cid := xid.New().String()
+	_, pubKey := generateRSAKeyPair(t)
+	require.NoError(t, db.SetIDPublicKey(cid, secret, pubKey))
+	require.NoError(t, db.RemoveID(cid, secret))
+	waitRemoval("deregister barrier")
+	select {
+	case <-removed:
+		t.Fatal("SetID entry should not trigger OnRemoval")
+	default:
+	}
+
+	// --- TTL eviction must trigger OnRemoval ---
+	secret2 := uuid.New().String()
+	cid2 := xid.New().String()
+	_, pubKey2 := generateRSAKeyPair(t)
+	require.NoError(t, db.SetIDPublicKey(cid2, secret2, pubKey2))
+
+	// Periodically access the cache to trigger lazy eviction.
+	stop := make(chan struct{})
+	defer close(stop)
+	go func() {
+		ticker := time.NewTicker(10 * time.Millisecond)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-stop:
+				return
+			case <-ticker.C:
+				db.cache.GetIfPresent(cid2)
+			}
+		}
+	}()
+	waitRemoval("TTL eviction")
 }

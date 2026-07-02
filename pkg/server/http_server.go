@@ -3,6 +3,7 @@ package server
 import (
 	"crypto/tls"
 	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"log"
 	"net"
@@ -16,7 +17,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	jsoniter "github.com/json-iterator/go"
 	"github.com/projectdiscovery/gologger"
 	stringsutil "github.com/projectdiscovery/utils/strings"
 )
@@ -144,8 +144,12 @@ func (h *HTTPServer) logger(handler http.Handler) http.HandlerFunc {
 
 		// if root-tld is enabled stores any interaction towards the main domain
 		if h.options.RootTLD {
+			requestHost := r.Host
+			if host, _, err := net.SplitHostPort(r.Host); err == nil {
+				requestHost = host
+			}
 			for _, domain := range h.options.Domains {
-				if h.options.RootTLD && stringsutil.HasSuffixI(r.Host, domain) {
+				if h.options.RootTLD && stringsutil.HasSuffixI(requestHost, domain) {
 					ID := domain
 					host, _, _ := net.SplitHostPort(r.RemoteAddr)
 					interaction := &Interaction{
@@ -157,7 +161,7 @@ func (h *HTTPServer) logger(handler http.Handler) http.HandlerFunc {
 						RemoteAddress: host,
 						Timestamp:     time.Now(),
 					}
-					data, err := jsoniter.Marshal(interaction)
+					data, err := json.Marshal(interaction)
 					if err != nil {
 						gologger.Warning().Msgf("Could not encode root tld http interaction: %s\n", err)
 					} else {
@@ -217,7 +221,7 @@ func (h *HTTPServer) handleInteraction(r *http.Request, uniqueID, fullID, reqStr
 		RemoteAddress: hostPort,
 		Timestamp:     time.Now(),
 	}
-	data, err := jsoniter.Marshal(interaction)
+	data, err := json.Marshal(interaction)
 	if err != nil {
 		gologger.Warning().Msgf("Could not encode http interaction: %s\n", err)
 	} else {
@@ -382,19 +386,19 @@ type RegisterRequest struct {
 // registerHandler is a handler for client register requests
 func (h *HTTPServer) registerHandler(w http.ResponseWriter, req *http.Request) {
 	r := &RegisterRequest{}
-	if err := jsoniter.NewDecoder(req.Body).Decode(r); err != nil {
+	if err := json.NewDecoder(req.Body).Decode(r); err != nil {
 		gologger.Warning().Msgf("Could not decode json body: %s\n", err)
 		jsonError(w, fmt.Sprintf("could not decode json body: %s", err), http.StatusBadRequest)
 		return
 	}
-
-	atomic.AddInt64(&h.options.Stats.Sessions, 1)
 
 	if err := h.options.Storage.SetIDPublicKey(r.CorrelationID, r.SecretKey, r.PublicKey); err != nil {
 		gologger.Warning().Msgf("Could not set id and public key for %s: %s\n", r.CorrelationID, err)
 		jsonError(w, fmt.Sprintf("could not set id and public key: %s", err), http.StatusBadRequest)
 		return
 	}
+	atomic.AddInt64(&h.options.Stats.Sessions, 1)
+	atomic.AddInt64(&h.options.Stats.SessionsTotal, 1)
 	jsonMsg(w, "registration successful", http.StatusOK)
 	gologger.Debug().Msgf("Registered correlationID %s for key\n", r.CorrelationID)
 }
@@ -409,10 +413,8 @@ type DeregisterRequest struct {
 
 // deregisterHandler is a handler for client deregister requests
 func (h *HTTPServer) deregisterHandler(w http.ResponseWriter, req *http.Request) {
-	atomic.AddInt64(&h.options.Stats.Sessions, -1)
-
 	r := &DeregisterRequest{}
-	if err := jsoniter.NewDecoder(req.Body).Decode(r); err != nil {
+	if err := json.NewDecoder(req.Body).Decode(r); err != nil {
 		gologger.Warning().Msgf("Could not decode json body: %s\n", err)
 		jsonError(w, fmt.Sprintf("could not decode json body: %s", err), http.StatusBadRequest)
 		return
@@ -478,7 +480,7 @@ func (h *HTTPServer) pollHandler(w http.ResponseWriter, req *http.Request) {
 	}
 	response := &PollResponse{Data: data, AESKey: aesKey, TLDData: tlddata, Extra: extradata}
 
-	if err := jsoniter.NewEncoder(w).Encode(response); err != nil {
+	if err := json.NewEncoder(w).Encode(response); err != nil {
 		gologger.Warning().Msgf("Could not encode interactions for %s: %s\n", ID, err)
 		jsonError(w, fmt.Sprintf("could not encode interactions: %s", err), http.StatusBadRequest)
 		return
@@ -520,7 +522,7 @@ func jsonBody(w http.ResponseWriter, key, value string, code int) {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.Header().Set("X-Content-Type-Options", "nosniff")
 	w.WriteHeader(code)
-	_ = jsoniter.NewEncoder(w).Encode(map[string]interface{}{key: value})
+	_ = json.NewEncoder(w).Encode(map[string]interface{}{key: value})
 }
 
 func jsonError(w http.ResponseWriter, err string, code int) {
@@ -555,5 +557,5 @@ func (h *HTTPServer) metricsHandler(w http.ResponseWriter, req *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.Header().Set("X-Content-Type-Options", "nosniff")
-	_ = jsoniter.NewEncoder(w).Encode(interactMetrics)
+	_ = json.NewEncoder(w).Encode(interactMetrics)
 }

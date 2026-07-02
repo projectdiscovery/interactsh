@@ -74,7 +74,7 @@ FILTER:
    -m, -match string[]   match interaction based on the specified pattern
    -f, -filter string[]  filter interaction based on the specified pattern
    -dns-only             display only dns interaction in CLI output
-   -http-only            display only http interaction in CLI output
+   -http-only            display only http/https interactions in CLI output
    -smtp-only            display only smtp interactions in CLI output
 
 UPDATE:
@@ -83,7 +83,7 @@ UPDATE:
    
 OUTPUT:
    -o string                         output file to write interaction data
-   -json                             write output in JSONL(ines) format
+   -json                             write output in JSON Lines format
    -ps, -payload-store               enable storing generated interactsh payload to file
    -psf, -payload-store-file string  store generated interactsh payloads to given file (default "interactsh_payload.txt")
    -v                                display verbose interaction
@@ -135,6 +135,7 @@ $ interactsh-client
 [c23b2la0kl1krjcrdj10cndmnioyyyyyn] Received DNS interaction (A) from 172.253.226.100 at 2021-26-26 12:26
 [c23b2la0kl1krjcrdj10cndmnioyyyyyn] Received DNS interaction (AAAA) from 32.3.34.129 at 2021-26-26 12:26
 [c23b2la0kl1krjcrdj10cndmnioyyyyyn] Received HTTP interaction from 43.22.22.50 at 2021-26-26 12:26
+[c23b2la0kl1krjcrdj10cndmnioyyyyyn] Received HTTPS interaction from 43.22.22.50 at 2021-26-26 12:26
 [c23b2la0kl1krjcrdj10cndmnioyyyyyn] Received DNS interaction (MX) from 43.3.192.3 at 2021-26-26 12:26
 [c23b2la0kl1krjcrdj10cndmnioyyyyyn] Received DNS interaction (TXT) from 74.32.183.135 at 2021-26-26 12:26
 [c23b2la0kl1krjcrdj10cndmnioyyyyyn] Received SMTP interaction from 32.85.166.50 at 2021-26-26 12:26
@@ -161,6 +162,7 @@ $ interactsh-client -sf interact.session
 [c23b2la0kl1krjcrdj10cndmnioyyyyyn] Received DNS interaction (A) from 172.253.226.100 at 2021-26-26 12:26
 [c23b2la0kl1krjcrdj10cndmnioyyyyyn] Received DNS interaction (AAAA) from 32.3.34.129 at 2021-26-26 12:26
 [c23b2la0kl1krjcrdj10cndmnioyyyyyn] Received HTTP interaction from 43.22.22.50 at 2021-26-26 12:26
+[c23b2la0kl1krjcrdj10cndmnioyyyyyn] Received HTTPS interaction from 43.22.22.50 at 2021-26-26 12:26
 [c23b2la0kl1krjcrdj10cndmnioyyyyyn] Received DNS interaction (MX) from 43.3.192.3 at 2021-26-26 12:26
 [c23b2la0kl1krjcrdj10cndmnioyyyyyn] Received DNS interaction (TXT) from 74.32.183.135 at 2021-26-26 12:26
 [c23b2la0kl1krjcrdj10cndmnioyyyyyn] Received SMTP interaction from 32.85.166.50 at 2021-26-26 12:26
@@ -185,7 +187,7 @@ $ interactsh-client -v -o interactsh-logs.txt
 [INF] Listing 1 payload for OOB Testing
 [INF] c58bduhe008dovpvhvugcfemp9yyyyyyn.oast.pro
 
-[c58bduhe008dovpvhvugcfemp9yyyyyyn] Received HTTP interaction from 103.22.142.211 at 2021-09-26 18:08:07
+[c58bduhe008dovpvhvugcfemp9yyyyyyn] Received HTTPS interaction from 103.22.142.211 at 2021-09-26 18:08:07
 ------------
 HTTP Request
 ------------
@@ -393,8 +395,8 @@ SERVICES:
    -ldap-port int          port to use for ldap service (default 389)
    -ldap                   enable ldap server with full logging (authenticated)
    -wc, -wildcard          enable wildcard interaction for interactsh domain (authenticated)
-   -smb                    start smb agent - impacket and python 3 must be installed (authenticated)
-   -responder              start responder agent - docker must be installed (authenticated)
+   -smb                    start in-process smb agent for NetNTLMv2 hash capture (authenticated)
+   -responder              start in-process responder agent (multi-port SMB NetNTLMv2 hash capture, authenticated)
    -ftp                    start ftp agent (authenticated)
    -smb-port int           port to use for smb service (default 445)
    -ftp-port int           port to use for ftp service (default 21)
@@ -534,6 +536,8 @@ $ interactsh-server -d oast.pro -ip 192.0.2.1,2001:db8::1
 
 The server will automatically detect and categorize IPv4 and IPv6 addresses, returning appropriate DNS records based on the query type.
 
+When the selected server publishes no AAAA records, the client prints a warning so that interactions from IPv6-only sources are not silently missed and mistaken for the absence of a vulnerability.
+
 <table>
 <td>
 
@@ -642,7 +646,7 @@ interactsh-server -d hackwithautomation.com -http-index banner.html
 
 Interactsh http server optionally enables file hosting to help in security testing. This capability can be used with a self-hosted server to serve files for common payloads for **XSS, XXE, RCE** and other attacks.
 
-To use this feature, `-http-directory` flag can be used which accepts diretory as input and files are served under `/s/` directory.
+To use this feature, `-http-directory` flag can be used which accepts directory as input and files are served under `/s/` directory.
 
 ```bash
 interactsh-server -d hackwithautomation.com -http-directory ./paylods
@@ -838,7 +842,14 @@ $ sudo go run . -ftp -skip-acme -debug -domain localhost
 
 ### SMB
 
-The `-smb` flag enables the Samba protocol (only for self-hosted instances). The samba protocol uses [impacket](https://github.com/SecureAuthCorp/impacket) `smbserver` class to simulate a samba daemon share listening on port `445` unless changed by the `-smb-port` flag. When enabled, interactsh executes under the hoods the script `smb_server.py`. Hence Python3 and impacket dependencies are required.
+The `-smb` flag enables an in-process SMB2 NetNTLMv2 hash capture server (only for self-hosted instances). It is implemented in pure Go on top of [goimpacket](https://github.com/Mzack9999/goimpacket) and listens on port `445` unless changed by the `-smb-port` flag. No Python, impacket or docker dependencies are required.
+
+Captured hashes are stored as `smb` interactions in the standard hashcat NetNTLMv2 (`-m 5600`) format:
+
+```
+USER::DOMAIN:serverChallenge:NTProofStr:NTLMv2Blob
+```
+
 Example of enabling the samba server:
 
 ```console
@@ -846,22 +857,14 @@ $ sudo interactsh-server -smb -skip-acme -debug -domain localhost
 ```
 
 ### Responder
-[Responder](https://github.com/lgandx/Responder) is wrapped in a docker container exposing various service ports via docker port forwarding. The interactions are retrieved by monitoring the shared log file `Responder-Session.log` in the temp folder. To use it on a self-hosted instance, it's necessary first to build the docker container and tag it as `interactsh`(docker daemon must be configured correctly and with port forwarding capabilities):
 
-```bash
-docker build . -t interactsh
-```
-
-Then run the service with:
+The `-responder` flag enables a Responder-equivalent NTLMv2 hash capture server, also backed by [goimpacket](https://github.com/Mzack9999/goimpacket). It binds the SMB-capable TCP ports (`139` and the `-smb-port` value, default `445`) and stores any captured authentication as a `responder` interaction in the same hashcat NetNTLMv2 format described above. No docker or Python dependencies are required.
 
 ```bash
 sudo interactsh-server -responder -d localhost
 ```
 
-On default settings, the daemon listens on the following ports:
-
-- UDP: 137, 138, 1434
-+ TCP: 21 (might collide with FTP daemon if used), 110, 135, 139, 389, 445, 1433, 3141, 3128
+> Note: the legacy LLMNR / NBT-NS / MDNS broadcast poisoners that ship with the Python Responder project are **not** included. They are LAN-side techniques that are out of scope for an OOB-callback server reachable over the public internet, and they are not part of the goimpacket library.
 
 ## Interactsh Integration
 

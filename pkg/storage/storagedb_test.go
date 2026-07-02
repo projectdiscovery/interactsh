@@ -138,7 +138,9 @@ func TestGetInteractionsWithIdForConsumer(t *testing.T) {
 	t.Run("two consumers independently receive all interactions", func(t *testing.T) {
 		mem, err := New(&Options{EvictionTTL: 1 * time.Hour})
 		require.NoError(t, err)
-		defer mem.Close()
+		defer func() {
+			_ = mem.Close()
+		}()
 
 		require.NoError(t, mem.SetID("shared"))
 		require.NoError(t, mem.AddInteractionWithId("shared", []byte("interaction-1")))
@@ -156,7 +158,9 @@ func TestGetInteractionsWithIdForConsumer(t *testing.T) {
 	t.Run("subsequent poll returns only unseen data", func(t *testing.T) {
 		mem, err := New(&Options{EvictionTTL: 1 * time.Hour})
 		require.NoError(t, err)
-		defer mem.Close()
+		defer func() {
+			_ = mem.Close()
+		}()
 
 		require.NoError(t, mem.SetID("shared"))
 		require.NoError(t, mem.AddInteractionWithId("shared", []byte("msg-1")))
@@ -182,7 +186,9 @@ func TestGetInteractionsWithIdForConsumer(t *testing.T) {
 	t.Run("empty poll returns nil", func(t *testing.T) {
 		mem, err := New(&Options{EvictionTTL: 1 * time.Hour})
 		require.NoError(t, err)
-		defer mem.Close()
+		defer func() {
+			_ = mem.Close()
+		}()
 
 		require.NoError(t, mem.SetID("shared"))
 
@@ -194,7 +200,9 @@ func TestGetInteractionsWithIdForConsumer(t *testing.T) {
 	t.Run("RemoveConsumer compacts data read by remaining consumers", func(t *testing.T) {
 		mem, err := New(&Options{EvictionTTL: 1 * time.Hour})
 		require.NoError(t, err)
-		defer mem.Close()
+		defer func() {
+			_ = mem.Close()
+		}()
 
 		require.NoError(t, mem.SetID("shared"))
 		require.NoError(t, mem.AddInteractionWithId("shared", []byte("msg-1")))
@@ -221,7 +229,9 @@ func TestGetInteractionsWithIdForConsumer(t *testing.T) {
 	t.Run("RemoveConsumer partial compaction", func(t *testing.T) {
 		mem, err := New(&Options{EvictionTTL: 1 * time.Hour})
 		require.NoError(t, err)
-		defer mem.Close()
+		defer func() {
+			_ = mem.Close()
+		}()
 
 		require.NoError(t, mem.SetID("shared"))
 		for i := range 5 {
@@ -254,7 +264,9 @@ func TestGetInteractionsWithIdForConsumer(t *testing.T) {
 		// Use long cache TTL but short consumer staleness check
 		mem, err := New(&Options{EvictionTTL: 1 * time.Hour})
 		require.NoError(t, err)
-		defer mem.Close()
+		defer func() {
+			_ = mem.Close()
+		}()
 
 		require.NoError(t, mem.SetID("shared"))
 		require.NoError(t, mem.AddInteractionWithId("shared", []byte("msg-1")))
@@ -287,7 +299,9 @@ func TestGetInteractionsWithIdForConsumer(t *testing.T) {
 		bufferCap := 100
 		mem, err := New(&Options{EvictionTTL: 1 * time.Hour, MaxSharedInteractions: bufferCap})
 		require.NoError(t, err)
-		defer mem.Close()
+		defer func() {
+			_ = mem.Close()
+		}()
 
 		require.NoError(t, mem.SetID("shared"))
 
@@ -311,7 +325,9 @@ func TestGetInteractionsWithIdForConsumer(t *testing.T) {
 	t.Run("RemoveConsumer last consumer discards all data", func(t *testing.T) {
 		mem, err := New(&Options{EvictionTTL: 1 * time.Hour})
 		require.NoError(t, err)
-		defer mem.Close()
+		defer func() {
+			_ = mem.Close()
+		}()
 
 		require.NoError(t, mem.SetID("shared"))
 		require.NoError(t, mem.AddInteractionWithId("shared", []byte("msg-1")))
@@ -336,7 +352,9 @@ func TestSlidingEvictionStrategy(t *testing.T) {
 	smallDelay := 10 * time.Millisecond
 	mem, err := New(&Options{EvictionTTL: testTTL, EvictionStrategy: EvictionStrategySliding})
 	require.Nil(t, err)
-	defer mem.Close()
+	defer func() {
+		_ = mem.Close()
+	}()
 
 	err = mem.SetID("test-sliding")
 	require.Nil(t, err)
@@ -361,7 +379,9 @@ func TestFixedEvictionStrategy(t *testing.T) {
 	testTTL := 100 * time.Millisecond
 	mem, err := New(&Options{EvictionTTL: testTTL, EvictionStrategy: EvictionStrategyFixed})
 	require.Nil(t, err)
-	defer mem.Close()
+	defer func() {
+		_ = mem.Close()
+	}()
 
 	err = mem.SetID("test-fixed")
 	require.Nil(t, err)
