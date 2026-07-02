@@ -490,15 +490,28 @@ func (h *HTTPServer) pollHandler(w http.ResponseWriter, req *http.Request) {
 
 func (h *HTTPServer) corsMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		allowOrigin := h.options.OriginURL
+		// When the allowed origin is the wildcard, reflect the request's Origin
+		// instead of returning "*". Browsers reject responses that combine
+		// "Access-Control-Allow-Origin: *" with "Access-Control-Allow-Credentials: true",
+		// so reflecting the origin keeps the default permissive while remaining valid.
+		if h.options.OriginURL == "*" {
+			if origin := req.Header.Get("Origin"); origin != "" {
+				allowOrigin = origin
+			}
+			// Response varies by Origin, so caches must key on it.
+			w.Header().Add("Vary", "Origin")
+		}
+
 		// Set CORS headers for the preflight request
 		if req.Method == http.MethodOptions {
-			w.Header().Set("Access-Control-Allow-Origin", h.options.OriginURL)
+			w.Header().Set("Access-Control-Allow-Origin", allowOrigin)
 			w.Header().Set("Access-Control-Allow-Credentials", "true")
 			w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
 			w.WriteHeader(http.StatusNoContent)
 			return
 		}
-		w.Header().Set("Access-Control-Allow-Origin", h.options.OriginURL)
+		w.Header().Set("Access-Control-Allow-Origin", allowOrigin)
 		w.Header().Set("Access-Control-Allow-Credentials", "true")
 		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
 		next.ServeHTTP(w, req)
