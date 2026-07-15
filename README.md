@@ -536,6 +536,8 @@ $ interactsh-server -d oast.pro -ip 192.0.2.1,2001:db8::1
 
 The server will automatically detect and categorize IPv4 and IPv6 addresses, returning appropriate DNS records based on the query type.
 
+When the selected server publishes no AAAA records, the client prints a warning so that interactions from IPv6-only sources are not silently missed and mistaken for the absence of a vulnerability.
+
 <table>
 <td>
 
@@ -644,7 +646,7 @@ interactsh-server -d hackwithautomation.com -http-index banner.html
 
 Interactsh http server optionally enables file hosting to help in security testing. This capability can be used with a self-hosted server to serve files for common payloads for **XSS, XXE, RCE** and other attacks.
 
-To use this feature, `-http-directory` flag can be used which accepts diretory as input and files are served under `/s/` directory.
+To use this feature, `-http-directory` flag can be used which accepts directory as input and files are served under `/s/` directory.
 
 ```bash
 interactsh-server -d hackwithautomation.com -http-directory ./paylods

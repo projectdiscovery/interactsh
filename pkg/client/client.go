@@ -10,7 +10,9 @@ import (
 	"crypto/sha256"
 	"crypto/x509"
 	"encoding/base64"
+	"encoding/json"
 	"encoding/pem"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -22,10 +24,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"errors"
-
 	"github.com/google/uuid"
-	jsoniter "github.com/json-iterator/go"
 	asnmap "github.com/projectdiscovery/asnmap/libs"
 	"github.com/projectdiscovery/gologger"
 	"github.com/projectdiscovery/interactsh/pkg/options"
@@ -150,8 +149,17 @@ func New(options *Options) (*Client, error) {
 		secretKey = options.SessionInfo.SecretKey
 		token = options.SessionInfo.Token
 	} else {
-		// Generate a random ksuid which will be used as server secret.
-		correlationID = xid.New().String()
+		// Use a privacy-preserving xid: keep the 4-byte timestamp prefix so the id
+		// stays k-ordered and parseable, but randomize the trailing 8 bytes
+		// (machine + pid + counter). Plain xid.New() leaks a stable per-machine
+		// fingerprint (md5(hostname)[:3]) through every OAST callback, which is
+		// observable by the target service and by third-party telemetry that
+		// logs OAST traffic (see issue #1349).
+		anonID, err := newAnonymousCorrelationID()
+		if err != nil {
+			return nil, errkit.Wrap(err, "could not generate correlation id")
+		}
+		correlationID = anonID
 		if len(correlationID) > options.CorrelationIdLength {
 			correlationID = correlationID[:options.CorrelationIdLength]
 		}
@@ -261,7 +269,7 @@ func encodeRegistrationRequest(publicKey, secretkey, correlationID string) ([]by
 		CorrelationID: correlationID,
 	}
 
-	data, err := jsoniter.Marshal(register)
+	data, err := json.Marshal(register)
 	if err != nil {
 		return nil, errkit.Wrap(err, "could not marshal register request")
 	}
@@ -448,7 +456,7 @@ func (c *Client) getInteractions(callback InteractionCallback) error {
 		return fmt.Errorf("could not poll interactions: %s", string(data))
 	}
 	response := &server.PollResponse{}
-	if err := jsoniter.NewDecoder(resp.Body).Decode(response); err != nil {
+	if err := json.NewDecoder(resp.Body).Decode(response); err != nil {
 		gologger.Error().Msgf("Could not decode interactions: %v\n", err)
 		return err
 	}
@@ -461,7 +469,7 @@ func (c *Client) getInteractions(callback InteractionCallback) error {
 		}
 		plaintext = bytes.TrimRight(plaintext, " \t\r\n")
 		interaction := &server.Interaction{}
-		if err := jsoniter.Unmarshal(plaintext, interaction); err != nil {
+		if err := json.Unmarshal(plaintext, interaction); err != nil {
 			gologger.Error().Msgf("Could not unmarshal interaction data interaction: %v\n", err)
 			continue
 		}
@@ -470,7 +478,7 @@ func (c *Client) getInteractions(callback InteractionCallback) error {
 
 	for _, plaintext := range response.Extra {
 		interaction := &server.Interaction{}
-		if err := jsoniter.UnmarshalFromString(plaintext, interaction); err != nil {
+		if err := json.Unmarshal([]byte(plaintext), interaction); err != nil {
 			gologger.Error().Msgf("Could not unmarshal interaction data interaction: %v\n", err)
 			continue
 		}
@@ -483,7 +491,7 @@ func (c *Client) getInteractions(callback InteractionCallback) error {
 			continue
 		}
 		interaction := &server.Interaction{}
-		if err := jsoniter.UnmarshalFromString(data, interaction); err != nil {
+		if err := json.Unmarshal([]byte(data), interaction); err != nil {
 			gologger.Error().Msgf("Could not unmarshal interaction data interaction: %v\n", err)
 			continue
 		}
@@ -555,7 +563,7 @@ func (c *Client) Close() error {
 		CorrelationID: c.correlationID,
 		SecretKey:     c.secretKey,
 	}
-	data, err := jsoniter.Marshal(register)
+	data, err := json.Marshal(register)
 	if err != nil {
 		return errkit.Wrap(err, "could not marshal deregister request")
 	}
@@ -625,7 +633,7 @@ func (c *Client) performRegistration(serverURL string, payload []byte) error {
 		return fmt.Errorf("could not register to server: %s", string(data))
 	}
 	response := make(map[string]interface{})
-	if err := jsoniter.NewDecoder(resp.Body).Decode(&response); err != nil {
+	if err := json.NewDecoder(resp.Body).Decode(&response); err != nil {
 		return errkit.Wrap(err, "could not register to server")
 	}
 	message, ok := response["message"]
@@ -720,4 +728,19 @@ func (c *Client) SaveSessionTo(filename string) error {
 		return err
 	}
 	return os.WriteFile(filename, data, os.ModePerm)
+}
+
+// newAnonymousCorrelationID returns an xid-formatted correlation id that
+// preserves the 4-byte timestamp prefix (for k-ordering and the server-side
+// xidAlphabet validator) and replaces the remaining 8 bytes (machine, pid,
+// counter) with crypto/rand. The result is still a valid xid string, still
+// 20 chars from the [0-9a-v] alphabet, and still parseable with xid.FromString.
+func newAnonymousCorrelationID() (string, error) {
+	id := xid.NewWithTime(time.Now())
+	// Overwrite machine (4..6), pid (7..8), counter (9..11) with random bytes.
+	// id is xid.ID ([12]byte) and id[4:] aliases the same backing array.
+	if _, err := rand.Read(id[4:]); err != nil {
+		return "", err
+	}
+	return id.String(), nil
 }

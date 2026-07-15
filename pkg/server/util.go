@@ -1,11 +1,11 @@
 package server
 
 import (
+	"encoding/json"
 	"net"
 	"strconv"
 	"strings"
 
-	jsoniter "github.com/json-iterator/go"
 	"github.com/projectdiscovery/gologger"
 )
 
@@ -61,7 +61,7 @@ func formatAddress(host string, port int) string {
 // Each protocol handler builds its own protocol-specific Interaction and delegates the marshal/log/store
 // step here so every match is stored independently (see issue #1362).
 func (options *Options) storeInteraction(interaction *Interaction, correlationID string) {
-	data, err := jsoniter.Marshal(interaction)
+	data, err := json.Marshal(interaction)
 	if err != nil {
 		gologger.Warning().Msgf("Could not encode %s interaction: %s\n", interaction.Protocol, err)
 		return
@@ -75,7 +75,7 @@ func (options *Options) storeInteraction(interaction *Interaction, correlationID
 // storeRootTLDInteraction marshals interaction and persists it under id via Storage.AddInteractionWithId.
 // Used when RootTLD is enabled and the request targets a configured parent domain directly.
 func (options *Options) storeRootTLDInteraction(interaction *Interaction, id string) {
-	data, err := jsoniter.Marshal(interaction)
+	data, err := json.Marshal(interaction)
 	if err != nil {
 		gologger.Warning().Msgf("Could not encode root tld %s interaction: %s\n", interaction.Protocol, err)
 		return

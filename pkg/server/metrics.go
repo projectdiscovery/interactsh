@@ -9,17 +9,18 @@ import (
 )
 
 type Metrics struct {
-	Dns      uint64                `json:"dns"`
-	Ftp      uint64                `json:"ftp"`
-	Http     uint64                `json:"http"`
-	Ldap     uint64                `json:"ldap"`
-	Smb      uint64                `json:"smb"`
-	Smtp     uint64                `json:"smtp"`
-	Sessions int64                 `json:"sessions"`
-	Cache    *storage.CacheMetrics `json:"cache"`
-	Memory   *MemoryMetrics        `json:"memory"`
-	Cpu      *CpuStats             `json:"cpu"`
-	Network  *NetworkStats         `json:"network"`
+	Dns           uint64                `json:"dns"`
+	Ftp           uint64                `json:"ftp"`
+	Http          uint64                `json:"http"`
+	Ldap          uint64                `json:"ldap"`
+	Smb           uint64                `json:"smb"`
+	Smtp          uint64                `json:"smtp"`
+	Sessions      int64                 `json:"sessions"`
+	SessionsTotal int64                 `json:"sessions_total"`
+	Cache         *storage.CacheMetrics `json:"cache"`
+	Memory        *MemoryMetrics        `json:"memory"`
+	Cpu           *CpuStats             `json:"cpu"`
+	Network       *NetworkStats         `json:"network"`
 }
 
 func GetCacheMetrics(options *Options) *storage.CacheMetrics {

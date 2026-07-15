@@ -1,13 +1,25 @@
 package server
 
 import (
+	"bytes"
+	"crypto/rand"
+	"crypto/rsa"
 	"crypto/tls"
+	"crypto/x509"
+	"encoding/base64"
+	"encoding/json"
+	"encoding/pem"
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
+	"github.com/google/uuid"
+	"github.com/projectdiscovery/interactsh/pkg/storage"
+	"github.com/rs/xid"
 	"github.com/stretchr/testify/require"
 )
 
@@ -21,6 +33,39 @@ func TestHttpProtocol(t *testing.T) {
 		r.TLS = &tls.ConnectionState{}
 		require.Equal(t, "https", httpProtocol(r))
 	})
+}
+
+func TestWildcardHTTPSRequestWithPortIsStoredAsRootTLDInteraction(t *testing.T) {
+	store := newTestStorage(t)
+	require.NoError(t, store.SetID("example.com"))
+
+	h, err := NewHTTPServer(&Options{
+		Domains:                  []string{"example.com"},
+		Storage:                  store,
+		RootTLD:                  true,
+		OriginURL:                "*",
+		CorrelationIdLength:      3,
+		CorrelationIdNonceLength: 3,
+		Stats:                    &Metrics{},
+	})
+	require.NoError(t, err)
+
+	req := httptest.NewRequest(http.MethodGet, "https://abc123.example.com:443/", nil)
+	req.Host = "abc123.example.com:443"
+	w := httptest.NewRecorder()
+
+	h.tlsserver.Handler.ServeHTTP(w, req)
+
+	require.Equal(t, http.StatusOK, w.Code)
+	interactions, err := store.GetInteractionsWithIdForConsumer("example.com", "consumer")
+	require.NoError(t, err)
+	require.Len(t, interactions, 1)
+
+	var interaction Interaction
+	require.NoError(t, json.Unmarshal([]byte(interactions[0]), &interaction))
+	require.Equal(t, "https", interaction.Protocol)
+	require.Equal(t, "abc123.example.com:443", interaction.UniqueID)
+	require.Equal(t, "abc123.example.com:443", interaction.FullId)
 }
 
 func TestWriteResponseFromDynamicRequest(t *testing.T) {
@@ -69,4 +114,73 @@ func TestWriteResponseFromDynamicRequest(t *testing.T) {
 		require.Equal(t, resp.Header.Get("Key"), "value", "could not get correct result")
 		require.Equal(t, resp.Header.Get("Test"), "Another", "could not get correct result")
 	})
+}
+
+func TestSessionTotalMetric(t *testing.T) {
+	stats := &Metrics{}
+	removed := make(chan struct{})
+	closeOnce := sync.Once{}
+
+	store, err := storage.New(&storage.Options{
+		EvictionTTL: 5 * time.Minute,
+		OnRemoval: func() {
+			atomic.AddInt64(&stats.Sessions, -1)
+			closeOnce.Do(func() { close(removed) })
+		},
+	})
+	require.NoError(t, err)
+	defer func() { _ = store.Close() }()
+
+	h := &HTTPServer{
+		options: &Options{
+			Storage: store,
+			Stats:   stats,
+		},
+	}
+
+	// Generate a client key pair and registration payload.
+	priv, err := rsa.GenerateKey(rand.Reader, 2048)
+	require.NoError(t, err)
+	pubBytes, err := x509.MarshalPKIXPublicKey(&priv.PublicKey)
+	require.NoError(t, err)
+	pubPem := pem.EncodeToMemory(&pem.Block{Type: "PUBLIC KEY", Bytes: pubBytes})
+	pubB64 := base64.StdEncoding.EncodeToString(pubPem)
+
+	correlationID := xid.New().String()
+	secretKey := uuid.New().String()
+
+	// --- Register ---
+	regBody, err := json.Marshal(&RegisterRequest{
+		PublicKey:     pubB64,
+		SecretKey:     secretKey,
+		CorrelationID: correlationID,
+	})
+	require.NoError(t, err)
+	req := httptest.NewRequest("POST", "/register", bytes.NewReader(regBody))
+	w := httptest.NewRecorder()
+	h.registerHandler(w, req)
+	require.Equal(t, http.StatusOK, w.Code)
+
+	require.Equal(t, int64(1), atomic.LoadInt64(&stats.Sessions), "sessions should be 1 after register")
+	require.Equal(t, int64(1), atomic.LoadInt64(&stats.SessionsTotal), "sessions_total should be 1 after register")
+
+	// --- Deregister ---
+	deregBody, err := json.Marshal(&DeregisterRequest{
+		SecretKey:     secretKey,
+		CorrelationID: correlationID,
+	})
+	require.NoError(t, err)
+	req = httptest.NewRequest("POST", "/deregister", bytes.NewReader(deregBody))
+	w = httptest.NewRecorder()
+	h.deregisterHandler(w, req)
+	require.Equal(t, http.StatusOK, w.Code)
+
+	select {
+	case <-removed:
+	case <-time.After(2 * time.Second):
+		t.Fatal("timed out waiting for OnRemoval callback")
+	}
+
+	require.Equal(t, int64(0), atomic.LoadInt64(&stats.Sessions), "sessions should be 0 after deregister")
+	require.Equal(t, int64(1), atomic.LoadInt64(&stats.SessionsTotal), "sessions_total should remain 1 after deregister")
 }

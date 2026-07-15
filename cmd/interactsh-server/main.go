@@ -14,6 +14,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	_ "net/http/pprof"
@@ -263,6 +264,11 @@ func main() {
 		}
 	}
 
+	serverOptions.Stats = &server.Metrics{}
+	storeOptions.OnRemoval = func() {
+		atomic.AddInt64(&serverOptions.Stats.Sessions, -1)
+	}
+
 	var err error
 	switch {
 	case cliOptions.RedisURL != "":
@@ -291,8 +297,6 @@ func main() {
 	if serverOptions.Auth {
 		_ = serverOptions.Storage.SetID(serverOptions.Token)
 	}
-
-	serverOptions.Stats = &server.Metrics{}
 
 	// If root-tld is enabled create a singleton unencrypted record in the store
 	if serverOptions.RootTLD {

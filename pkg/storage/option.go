@@ -15,6 +15,9 @@ type Options struct {
 	MaxSize                int
 	MaxSharedInteractions  int
 	EvictionStrategy       EvictionStrategy
+	// OnRemoval is called for each client session removed from cache
+	// (deregistration, TTL expiry, size eviction, or cache close).
+	OnRemoval func()
 }
 
 func (options *Options) UseDisk() bool {
