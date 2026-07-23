@@ -21,12 +21,13 @@ RUN git clone --depth 1 https://github.com/fortra/impacket.git \
 RUN git clone --depth 1 https://github.com/lgandx/Responder.git \
     && python3 -m pip install --no-cache-dir aioquic netifaces-plus
 
-# Keep HTTP/HTTPS off so Responder does not fight interactsh on 80/443
+# Keep HTTP/HTTPS/DNS off so Responder does not fight interactsh on those ports
 # when someone runs with --network host.
 RUN sed -i \
         -e 's/^HTTP     = On/HTTP     = Off/' \
         -e 's/^HTTPS    = On/HTTPS    = Off/' \
+        -e 's/^DNS      = On/DNS      = Off/' \
         /opt/Responder/Responder.conf
 
 WORKDIR /opt/Responder
-ENTRYPOINT ["/opt/venv/bin/python3", "/opt/Responder/Responder.py", "-I", "eth0"]
+ENTRYPOINT ["/opt/venv/bin/python3", "/opt/Responder/Responder.py", "-I", "eth0", "-v"]

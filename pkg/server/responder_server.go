@@ -15,9 +15,14 @@ import (
 	stringsutil "github.com/projectdiscovery/utils/strings"
 )
 
-var responderMonitorList map[string]string = map[string]string{
-	// search term : extract after
+// Patterns taken from Responder SaveToDb() output:
+//   [SMB] NTLMv2-SSP Hash     : user::domain:...
+// Also accept shorter variants written to per-client dump files.
+var responderMonitorList = map[string]string{
 	"NTLMv2-SSP Hash": "NTLMv2-SSP Hash     : ",
+	"NTLMv1-SSP Hash": "NTLMv1-SSP Hash     : ",
+	"NTLMv2 Hash":     "NTLMv2 Hash     : ",
+	"NTLMv1 Hash":     "NTLMv1 Hash     : ",
 }
 
 // ResponderServer is a Responder wrapper server instance
@@ -28,7 +33,7 @@ type ResponderServer struct {
 	tmpFolder string
 }
 
-// NewResponderServer returns a new SMB server.
+// NewResponderServer returns a new Responder server.
 func NewResponderServer(options *Options) (*ResponderServer, error) {
 	return &ResponderServer{options: options}, nil
 }
@@ -80,51 +85,115 @@ func (h *ResponderServer) ListenAndServe(responderAlive chan bool) error {
 		case <-time.After(1 * time.Second):
 		}
 	}
-	fw, err := filewatcher.New(filewatcher.Options{
-		Interval: time.Duration(5 * time.Second),
-		File:     outputFile,
-	})
-	if err != nil {
-		return err
-	}
 
-	ch, err := fw.Watch()
-	if err != nil {
-		return err
-	}
+	out := make(chan string, 64)
+	go h.watchFile(outputFile, out)
+	// Responder always writes fullhash lines to per-client files under logs/,
+	// even when SessionLog formatting changes.
+	go h.watchHashDumpFiles(out)
 
-	// This fetches the content at each change.
 	go func() {
-		for data := range ch {
-			for searchTerm, extractAfter := range responderMonitorList {
-				if strings.Contains(data, searchTerm) {
-					responderData, err := stringsutil.After(data, extractAfter)
-					if err != nil {
-						gologger.Warning().Msgf("Could not get responder interaction: %s\n", err)
-						continue
-					}
-
-					// Correlation id doesn't apply here, we skip encryption
-					interaction := &Interaction{
-						Protocol:   "responder",
-						RawRequest: responderData,
-						Timestamp:  time.Now(),
-					}
-					data, err := jsoniter.Marshal(interaction)
-					if err != nil {
-						gologger.Warning().Msgf("Could not encode responder interaction: %s\n", err)
-					} else {
-						gologger.Debug().Msgf("Responder Interaction: \n%s\n", string(data))
-						if err := h.options.Storage.AddInteractionWithId(h.options.Token, data); err != nil {
-							gologger.Warning().Msgf("Could not store dns interaction: %s\n", err)
-						}
-					}
-				}
-			}
+		for data := range out {
+			h.handleResponderLogLine(data)
 		}
 	}()
 
 	return <-done
+}
+
+func (h *ResponderServer) watchFile(path string, out chan<- string) {
+	fw, err := filewatcher.New(filewatcher.Options{
+		Interval: 2 * time.Second,
+		File:     path,
+	})
+	if err != nil {
+		gologger.Warning().Msgf("Could not watch responder log %s: %s\n", path, err)
+		return
+	}
+	ch, err := fw.Watch()
+	if err != nil {
+		gologger.Warning().Msgf("Could not start responder log watcher %s: %s\n", path, err)
+		return
+	}
+	for data := range ch {
+		out <- data
+	}
+}
+
+func (h *ResponderServer) watchHashDumpFiles(out chan<- string) {
+	seen := make(map[string]struct{})
+	for {
+		entries, err := os.ReadDir(h.tmpFolder)
+		if err == nil {
+			for _, entry := range entries {
+				name := entry.Name()
+				if entry.IsDir() || !strings.HasSuffix(name, ".txt") {
+					continue
+				}
+				// e.g. SMB-NTLMv2-SSP-1.2.3.4.txt
+				if !strings.Contains(name, "NTLM") && !strings.Contains(name, "ClearText") {
+					continue
+				}
+				path := filepath.Join(h.tmpFolder, name)
+				content, err := os.ReadFile(path)
+				if err != nil {
+					continue
+				}
+				for _, line := range strings.Split(string(content), "\n") {
+					line = strings.TrimSpace(line)
+					if line == "" {
+						continue
+					}
+					key := name + ":" + line
+					if _, ok := seen[key]; ok {
+						continue
+					}
+					seen[key] = struct{}{}
+					out <- line
+				}
+			}
+		}
+		time.Sleep(2 * time.Second)
+	}
+}
+
+func (h *ResponderServer) handleResponderLogLine(data string) {
+	for searchTerm, extractAfter := range responderMonitorList {
+		if strings.Contains(data, searchTerm) {
+			responderData, err := stringsutil.After(data, extractAfter)
+			if err != nil {
+				gologger.Warning().Msgf("Could not get responder interaction: %s\n", err)
+				continue
+			}
+			h.storeResponderInteraction(strings.TrimSpace(responderData))
+			return
+		}
+	}
+
+	// Per-client dump files contain the raw fullhash only (no "Hash :" prefix).
+	if strings.Count(data, ":") >= 3 && (strings.Contains(data, "::") || strings.Contains(strings.ToUpper(data), "NTLM")) {
+		h.storeResponderInteraction(data)
+	}
+}
+
+func (h *ResponderServer) storeResponderInteraction(responderData string) {
+	if responderData == "" {
+		return
+	}
+	interaction := &Interaction{
+		Protocol:   "responder",
+		RawRequest: responderData,
+		Timestamp:  time.Now(),
+	}
+	data, err := jsoniter.Marshal(interaction)
+	if err != nil {
+		gologger.Warning().Msgf("Could not encode responder interaction: %s\n", err)
+		return
+	}
+	gologger.Info().Msgf("Responder Interaction: %s\n", responderData)
+	if err := h.options.Storage.AddInteractionWithId(h.options.Token, data); err != nil {
+		gologger.Warning().Msgf("Could not store responder interaction: %s\n", err)
+	}
 }
 
 func (h *ResponderServer) Close() {
