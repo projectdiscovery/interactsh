@@ -1,6 +1,7 @@
 package server
 
 import (
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -38,25 +39,46 @@ func (h *ResponderServer) ListenAndServe(responderAlive chan bool) error {
 	defer func() {
 		responderAlive <- false
 	}()
-	tmpFolder, err := os.MkdirTemp("", "")
+	tmpFolder, err := os.MkdirTemp("", "interactsh-responder-")
 	if err != nil {
 		return err
 	}
 	h.tmpFolder = tmpFolder
-	// execute dockerized responder
-	cmdLine := "docker run -p 137:137/udp -p  138:138/udp -p 389:389 -p 1433:1433 -p 1434:1434/udp -p 135:135 -p 139:139 -p 445:445 -p 21:21 -p 3141:3141 -p 110:110 -p 3128:3128 -p 5355:5355/udp -v " + h.tmpFolder + ":/opt/Responder/logs --rm interactsh:latest"
+
+	// interactsh always binds LDAP on LdapPort (default 389). Only publish
+	// container 389 when LDAP was moved off that port (e.g. -ldap-port 10389).
+	ports := "-p 137:137/udp -p 138:138/udp -p 1433:1433 -p 1434:1434/udp -p 135:135 -p 139:139 -p 445:445 -p 21:21 -p 3141:3141 -p 110:110 -p 3128:3128 -p 5355:5355/udp"
+	if h.options.LdapPort != 389 {
+		ports = "-p 137:137/udp -p 138:138/udp -p 389:389 -p 1433:1433 -p 1434:1434/udp -p 135:135 -p 139:139 -p 445:445 -p 21:21 -p 3141:3141 -p 110:110 -p 3128:3128 -p 5355:5355/udp"
+	}
+	cmdLine := "docker run " + ports + " -v " + h.tmpFolder + ":/opt/Responder/logs --rm interactsh:latest"
 	args := strings.Fields(cmdLine)
-	h.cmd = exec.Command(args[0], args[1:]...)
+	h.cmd = exec.Command(args[0], args[1:]...) //nolint:gosec
+	h.cmd.Stdout = os.Stdout
+	h.cmd.Stderr = os.Stderr
 	err = h.cmd.Start()
 	if err != nil {
+		gologger.Error().Msgf("Could not start responder docker container: %s\n", err)
 		return err
 	}
+	gologger.Info().Msgf("Responder container started (pid %d), waiting for session log...\n", h.cmd.Process.Pid)
+
+	done := make(chan error, 1)
+	go func() {
+		done <- h.cmd.Wait()
+	}()
 
 	// watch output file
 	outputFile := filepath.Join(h.tmpFolder, "Responder-Session.log")
-	// wait until the file is created
 	for !fileutil.FileExists(outputFile) {
-		time.Sleep(1 * time.Second)
+		select {
+		case err := <-done:
+			if err != nil {
+				return fmt.Errorf("responder container exited before creating %s: %w", outputFile, err)
+			}
+			return fmt.Errorf("responder container exited before creating %s", outputFile)
+		case <-time.After(1 * time.Second):
+		}
 	}
 	fw, err := filewatcher.New(filewatcher.Options{
 		Interval: time.Duration(5 * time.Second),
@@ -102,11 +124,13 @@ func (h *ResponderServer) ListenAndServe(responderAlive chan bool) error {
 		}
 	}()
 
-	return h.cmd.Wait()
+	return <-done
 }
 
 func (h *ResponderServer) Close() {
-	_ = h.cmd.Process.Kill()
+	if h.cmd != nil && h.cmd.Process != nil {
+		_ = h.cmd.Process.Kill()
+	}
 	if fileutil.FolderExists(h.tmpFolder) {
 		_ = os.RemoveAll(h.tmpFolder)
 	}
