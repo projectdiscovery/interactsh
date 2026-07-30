@@ -125,6 +125,12 @@ type Options struct {
 	UploadTTL time.Duration
 	// UploadStore serves and stores uploaded files. Nil when uploads are disabled.
 	UploadStore *UploadStore
+	// FTPServesUploads reports whether the FTP root and the upload root resolve
+	// to the same directory, which is what makes hosted files reachable over
+	// ftp://. Derived at startup from the resolved paths, never from the flags
+	// as written, so that two spellings of one directory are not mistaken for
+	// two directories.
+	FTPServesUploads bool
 
 	ACMEStore *acme.Provider
 	Stats     *Metrics

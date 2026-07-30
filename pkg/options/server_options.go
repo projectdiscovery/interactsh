@@ -2,6 +2,7 @@ package options
 
 import (
 	"net"
+	"time"
 
 	"github.com/projectdiscovery/goflags"
 	"github.com/projectdiscovery/gologger"
@@ -64,6 +65,12 @@ type CLIServerOptions struct {
 	NoVersionHeader          bool
 	HeaderServer             string
 	DefaultHTTPResponseFile  string
+	Upload                   bool
+	UploadDirectory          string
+	UploadMaxFileSize        goflags.Size
+	UploadMaxFiles           int
+	UploadMaxTotalSize       goflags.Size
+	UploadTTL                time.Duration
 }
 
 func (cliServerOptions *CLIServerOptions) AsServerOptions() *server.Options {
@@ -119,6 +126,12 @@ func (cliServerOptions *CLIServerOptions) AsServerOptions() *server.Options {
 		NoVersionHeader:          cliServerOptions.NoVersionHeader,
 		HeaderServer:             cliServerOptions.HeaderServer,
 		DefaultHTTPResponseFile:  cliServerOptions.DefaultHTTPResponseFile,
+		Upload:                   cliServerOptions.Upload,
+		UploadDirectory:          cliServerOptions.UploadDirectory,
+		UploadMaxFileSize:        int64(cliServerOptions.UploadMaxFileSize),
+		UploadMaxFiles:           cliServerOptions.UploadMaxFiles,
+		UploadMaxTotalSize:       int64(cliServerOptions.UploadMaxTotalSize),
+		UploadTTL:                cliServerOptions.UploadTTL,
 	}
 }
 
