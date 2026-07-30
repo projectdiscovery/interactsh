@@ -98,6 +98,11 @@ func NewHTTPServer(options *Options) (*HTTPServer, error) {
 	// arriving here is a target probing the endpoint -- exactly what we exist to
 	// record.
 	router.Handle("/upload", server.corsMiddleware(http.HandlerFunc(server.uploadHandler)))
+	// Hosted files are served outside the logger middleware, which would
+	// otherwise copy each file body into an interaction record; the handler
+	// records a body-elided interaction itself. No CORS: these are fetched by
+	// the target under test, not cross-origin by a browser.
+	router.Handle("/f/", http.HandlerFunc(server.serveUploadedFile))
 	if server.options.EnableMetrics {
 		router.Handle("/metrics", server.corsMiddleware(server.authMiddleware(http.HandlerFunc(server.metricsHandler))))
 	}
