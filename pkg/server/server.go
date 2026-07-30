@@ -111,6 +111,21 @@ type Options struct {
 	// DefaultHTTPResponseFile is a file to serve for all HTTP requests (takes priority over other options)
 	DefaultHTTPResponseFile string
 
+	// Upload enables the client file upload endpoint and file hosting
+	Upload bool
+	// UploadDirectory is the root directory uploaded files are stored under
+	UploadDirectory string
+	// UploadMaxFileSize is the maximum size in bytes of a single uploaded file
+	UploadMaxFileSize int64
+	// UploadMaxFiles is the maximum number of files a single session may upload
+	UploadMaxFiles int
+	// UploadMaxTotalSize is the maximum total size in bytes of all uploaded files
+	UploadMaxTotalSize int64
+	// UploadTTL is the maximum lifetime of uploaded files on disk
+	UploadTTL time.Duration
+	// UploadStore serves and stores uploaded files. Nil when uploads are disabled.
+	UploadStore *UploadStore
+
 	ACMEStore *acme.Provider
 	Stats     *Metrics
 	OnResult  OnResultCallback
