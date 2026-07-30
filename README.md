@@ -39,6 +39,7 @@
 - NTLM/SMB/FTP(S)/RESPONDER Listener **(self-hosted)**
 - Wildcard / Protected Interactions **(self-hosted)**
 - Customizable Index / File hosting **(self-hosted)**
+- Client file hosting for second-stage OOB payloads **(self-hosted)**
 - Customizable Payload Length **(self-hosted)**
 - Custom SSL Certificate **(self-hosted)**
 
@@ -653,6 +654,124 @@ interactsh-server -d hackwithautomation.com -http-directory ./paylods
 ```
 
 ![image](https://user-images.githubusercontent.com/8293321/179396480-d5ff8399-8b91-48aa-b21f-c67e40e80945.png)
+
+## Client File Hosting
+
+Where `-http-directory` hosts operator-supplied files globally, `-upload` lets a **client** host files
+against its own correlation ID. This is aimed at second-stage out-of-band vulnerabilities — XXE with an
+external DTD, XSLT includes, JNDI staging — where the target must fetch a payload file before the
+callback fires. Each fetch is recorded as an interaction, so the second stage is visible in the client
+output.
+
+> [!WARNING]
+> `-upload` is intended for **self-hosted servers only**. Enabling it on a public instance turns it into
+> anonymous file hosting on a domain with a valid wildcard certificate, which is a magnet for malware
+> staging, and blocklists act on the registrable domain — one abusive sample affects every user of that
+> domain. It is off by default and implies authentication when enabled.
+
+Start a server with uploads enabled:
+
+```bash
+interactsh-server -d hackwithautomation.com -upload -ftp
+```
+
+Then point a client at it with one or more files:
+
+```bash
+interactsh-client -s https://hackwithautomation.com -t <token> -file evil.dtd
+```
+
+```console
+[INF] Listing 1 payload for OOB Testing
+[INF] c6rj61aciaeutn2ae680cndmnioyyyyyn.hackwithautomation.com
+[INF] Hosting 1 file(s) for OOB Testing
+[INF] https://c6rj61aciaeutn2ae680xk4tqy8pqhwmi.hackwithautomation.com/f/evil.dtd
+[INF] ftp://c6rj61aciaeutn2ae680xk4tqy8pqhwmi.hackwithautomation.com/c6rj61aciaeutn2ae680/evil.dtd
+```
+
+Files are served over HTTP(S), and over FTP(S) as well when `-ftp` is enabled. Responses are always
+`Content-Type: application/octet-stream` with `Content-Disposition: attachment`, so the server never
+renders client-supplied HTML or SVG on its own domain; DTD, XSLT and JNDI consumers ignore content type,
+so this costs nothing for the intended use.
+
+When the target fetches the file, the fetch arrives in the client like any other interaction — which is
+the point: it is the evidence that the first stage of the payload actually executed. The response body
+is replaced by a digest so a large payload is not copied back into the interaction stream on every
+fetch:
+
+```console
+[c6rj61aciaeutn2ae680xk4tqy8pqhwmi] Received HTTP interaction from 203.0.113.7 at 2026-08-05 15:47:19
+------------
+HTTP Request
+------------
+
+GET /f/evil.dtd HTTP/1.1
+Host: c6rj61aciaeutn2ae680xk4tqy8pqhwmi.hackwithautomation.com
+Accept: */*
+User-Agent: curl/8.18.0
+
+-------------
+HTTP Response
+-------------
+
+HTTP/1.1 200 OK
+Content-Type: application/octet-stream
+Content-Disposition: attachment; filename="evil.dtd"
+Content-Length: 144
+
+[body elided: 144 bytes of uploaded file "evil.dtd", sha256 0c1b960b076cdff8666f1f302dddd8f3ff0e6ed4b6c09002fbe6d1cdbb5d68f8]
+```
+
+Whatever second-stage callback the payload then triggers arrives as a further interaction on the same
+correlation ID, so both stages land in one client.
+
+A client asked to host files against a server that was not started with `-upload` says so and stops,
+rather than silently continuing without the payload:
+
+```console
+$ interactsh-client -s https://hackwithautomation.com -t <token> -file evil.dtd
+[FTL] Server does not accept file uploads; it must be started with -upload
+```
+
+Server-side options:
+
+| Flag | Default | Description |
+| --- | --- | --- |
+| `-upload` | off | enable client file upload and hosting |
+| `-ud, -upload-directory` | temporary dir | where uploaded files are stored |
+| `-umfs, -upload-max-file-size` | `1mb` | maximum size of a single file |
+| `-umf, -upload-max-files` | `5` | maximum files per session |
+| `-umts, -upload-max-total-size` | `1gb` | maximum total bytes across all sessions |
+| `-ut, -upload-ttl` | `24h` | maximum lifetime of uploaded files |
+
+Files are removed when the client deregisters, when its session leaves the cache, and in any case once
+`-upload-ttl` has elapsed since the last upload for that session.
+
+Things worth knowing before enabling it:
+
+- **Hosted files are readable by anyone who learns the correlation ID.** That ID is deliberately leaked
+  to the target — it appears in every DNS query the target's resolver makes, and so in its DNS logs, its
+  WAF, and passive-DNS aggregators. A target can fetch your payload to fingerprint your tooling, and
+  that fetch will appear in your interaction stream. Do not upload anything you would mind a target
+  reading.
+- Uploads are authenticated with the session's correlation ID and secret key, so only the client that
+  owns a session can attach files to it.
+- The client uploads to the **one server it registered with**. If `-s` lists several, files are hosted
+  only on the elected one; its payload URLs are the ones printed. **Pass a single server with `-file`:**
+  the client picks one at random from `-s` and cannot take upload support into account, since it only
+  learns that after registering — so a list mixing upload and non-upload servers fails at random.
+- `-upload` cannot be combined with `-redis-url`. Hosted bytes are written to a single instance's local
+  filesystem, so with a storage backend shared between instances the other instances would advertise
+  files they do not have. The server refuses to start on that combination:
+
+  ```console
+  $ interactsh-server -d hackwithautomation.com -upload -redis-url redis://127.0.0.1:6379/0
+  [FTL] -upload cannot be used with -redis-url: hosted files are stored on a single instance's local filesystem
+  ```
+- Uploads refuse to travel over plaintext HTTP to a remote server, since the request carries both the
+  file and the session secret key. Use an `https://` server URL.
+- The default upload directory is a temporary directory, which on many Linux distributions is
+  memory-backed. Set `-upload-directory` explicitly on a real deployment.
 
 ## Dynamic HTTP Response
 

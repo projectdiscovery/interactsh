@@ -1,12 +1,12 @@
 package server
 
 import (
+	"encoding/json"
 	"net/http"
 	"os"
 	"testing"
 	"time"
 
-	jsoniter "github.com/json-iterator/go"
 	"github.com/stretchr/testify/require"
 	ftpserver "goftp.io/server/v2"
 )
@@ -145,7 +145,7 @@ func TestFTPDownloadCorrelation(t *testing.T) {
 		require.Len(t, item.Data, 1, "the owning session should see its own file being fetched")
 
 		record := &Interaction{}
-		require.NoError(t, jsoniter.Unmarshal([]byte(item.Data[0]), record))
+		require.NoError(t, json.Unmarshal([]byte(item.Data[0]), record))
 		require.Equal(t, "ftp", record.Protocol)
 		require.Equal(t, id, record.UniqueID)
 

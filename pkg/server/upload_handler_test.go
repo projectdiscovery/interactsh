@@ -290,3 +290,32 @@ func TestRegisterAdvertisesCapabilities(t *testing.T) {
 		require.False(t, out.Capabilities.Upload)
 	})
 }
+
+// TestDeregisterRemovesFilesSynchronously pins the ordering guarantee that a
+// client which has just deregistered can no longer fetch its hosted files.
+//
+// The eviction hook reached through RemoveID only queues the directory, so a
+// queued-only deregistration would leave the files readable until a background
+// goroutine got to them. The fixture deliberately never starts that goroutine,
+// which is what makes the distinction observable here.
+func TestDeregisterRemovesFilesSynchronously(t *testing.T) {
+	h, id, secret := uploadTestServer(t, true)
+
+	resp := doUpload(t, h, uploadBody(t, id, secret, map[string][]byte{"evil.dtd": []byte("payload")}))
+	require.Equal(t, http.StatusOK, resp.StatusCode)
+
+	dir := h.options.UploadStore.sessionDir(id)
+	require.DirExists(t, dir, "upload should have created the session directory")
+
+	body := fmt.Sprintf(`{"secret-key":%q,"correlation-id":%q}`, secret, id)
+	w := httptest.NewRecorder()
+	h.deregisterHandler(w, httptest.NewRequest(http.MethodPost, "http://example.com/deregister", strings.NewReader(body)))
+	require.Equal(t, http.StatusOK, w.Result().StatusCode)
+
+	// No sleep and no polling: the files must be gone by the time the handler
+	// has returned, not merely scheduled for removal.
+	require.NoDirExists(t, dir, "deregistration must remove hosted files before returning")
+
+	_, _, err := h.options.UploadStore.Open(id, "evil.dtd")
+	require.Error(t, err, "file must not be servable after deregistration")
+}

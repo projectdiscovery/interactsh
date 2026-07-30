@@ -219,6 +219,14 @@ func TestFileURLComposition(t *testing.T) {
 		c := &Client{serverURL: &url.URL{Scheme: "http", Host: "127.0.0.1:8080"}}
 		require.Equal(t, "http://"+host+"/f/evil.dtd", c.FileURL(host, file))
 	})
+
+	// The payload host carries the HTTP listener's port, which tells us nothing
+	// about where FTP is bound, so it must not leak into the ftp:// URL.
+	t.Run("ftp url drops the http port", func(t *testing.T) {
+		c := &Client{serverURL: &url.URL{Scheme: "http", Host: "127.0.0.1:8080"}}
+		require.Equal(t, "ftp://"+host+"/.interactsh-user-uploads/c6rj61aciaeutn2ae680/evil.dtd",
+			c.FTPFileURL(host+":8080", file))
+	})
 }
 
 func TestIsLoopbackURL(t *testing.T) {

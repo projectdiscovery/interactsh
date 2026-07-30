@@ -1,6 +1,7 @@
 package server
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"net"
@@ -9,7 +10,6 @@ import (
 	"strings"
 	"testing"
 
-	jsoniter "github.com/json-iterator/go"
 	"github.com/projectdiscovery/interactsh/pkg/storage"
 	stringsutil "github.com/projectdiscovery/utils/strings"
 	"github.com/stretchr/testify/require"
@@ -137,7 +137,7 @@ func TestServeUploadedFileRecordsInteraction(t *testing.T) {
 	require.Len(t, item.Data, 1, "the fetch must be visible to the client that owns the session")
 
 	record := &Interaction{}
-	require.NoError(t, jsoniter.Unmarshal([]byte(item.Data[0]), record))
+	require.NoError(t, json.Unmarshal([]byte(item.Data[0]), record))
 
 	require.Equal(t, "http", record.Protocol)
 	require.Contains(t, record.RawRequest, "GET /f/evil.dtd")

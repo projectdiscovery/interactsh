@@ -208,8 +208,16 @@ func (c *Client) FileURL(payloadHost string, file UploadedFile) string {
 
 // FTPFileURL returns the ftp:// URL for a hosted file. FTP has no host-based
 // routing, so the correlation ID travels in the path instead.
+//
+// Any port on payloadHost is dropped: it belongs to the server's HTTP listener,
+// which says nothing about where the FTP listener is bound, so carrying it over
+// would produce a URL that cannot connect.
 func (c *Client) FTPFileURL(payloadHost string, file UploadedFile) string {
-	return "ftp://" + payloadHost + file.FTPPath
+	host := payloadHost
+	if h, _, err := net.SplitHostPort(host); err == nil {
+		host = h
+	}
+	return "ftp://" + host + file.FTPPath
 }
 
 // isLoopbackURL reports whether a host refers to the local machine, where a

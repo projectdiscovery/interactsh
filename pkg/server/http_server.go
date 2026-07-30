@@ -455,6 +455,16 @@ func (h *HTTPServer) deregisterHandler(w http.ResponseWriter, req *http.Request)
 		return
 	}
 
+	// Deleted synchronously rather than queued: the cache eviction hook fired
+	// by RemoveID above only enqueues the directory, leaving a window in which
+	// a client that has just deregistered could still fetch its own hosted
+	// files. Blocking here is safe -- unlike the cache's event goroutine, this
+	// handler can afford the filesystem call -- and the deletion is idempotent,
+	// so the queued removal that follows is a no-op.
+	if h.options.UploadStore != nil {
+		h.options.UploadStore.removeSessionNow(r.CorrelationID)
+	}
+
 	if h.options.RootTLD {
 		for _, domain := range h.options.Domains {
 			_ = h.options.Storage.RemoveConsumer(domain, r.CorrelationID)
