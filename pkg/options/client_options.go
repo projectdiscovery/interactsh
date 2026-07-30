@@ -9,6 +9,7 @@ import (
 type CLIClientOptions struct {
 	Match                    goflags.StringSlice
 	Filter                   goflags.StringSlice
+	Files                    goflags.StringSlice
 	Config                   string
 	Version                  bool
 	ServerURL                string

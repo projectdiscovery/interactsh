@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"os/signal"
@@ -44,6 +45,11 @@ func main() {
 
 	flagSet.CreateGroup("input", "Input",
 		flagSet.StringVarP(&cliOptions.ServerURL, "server", "s", defaultOpts.ServerURL, "interactsh server(s) to use"),
+		// StringSliceOptions, not the FileCommaSeparated variant used by
+		// -match/-filter: that one reads the file and splits its contents,
+		// which for -file would turn a DTD into a list of names.
+		flagSet.StringSliceVarP(&cliOptions.Files, "file", "fl", nil,
+			"local file(s) to upload and host on the interactsh server", goflags.StringSliceOptions),
 	)
 
 	flagSet.CreateGroup("config", "config",
@@ -171,6 +177,10 @@ func main() {
 		gologger.Fatal().Msgf("Could not create client: %s\n", err)
 	}
 
+	// Uploads must follow registration, since the server verifies the session,
+	// and precede the payload listing so every URL is shown together.
+	fileURLs := uploadFiles(cliOptions.Files, client)
+
 	interactshURLs := generatePayloadURL(cliOptions.NumberOfPayloads, client)
 
 	gologger.Info().Msgf("Listing %d payload for OOB Testing\n", cliOptions.NumberOfPayloads)
@@ -180,8 +190,16 @@ func main() {
 
 	warnIfServerLacksIPv6(client)
 
+	if len(fileURLs) > 0 {
+		gologger.Info().Msgf("Hosting %d file(s) for OOB Testing\n", len(cliOptions.Files))
+		for _, fileURL := range fileURLs {
+			gologger.Info().Msgf("%s\n", fileURL)
+		}
+	}
+
 	if cliOptions.StorePayload && cliOptions.StorePayloadFile != "" {
-		if err := os.WriteFile(cliOptions.StorePayloadFile, []byte(strings.Join(interactshURLs, "\n")), 0644); err != nil {
+		stored := append(append([]string{}, interactshURLs...), fileURLs...)
+		if err := os.WriteFile(cliOptions.StorePayloadFile, []byte(strings.Join(stored, "\n")), 0644); err != nil {
 			gologger.Fatal().Msgf("Could not write to payload output file: %s\n", err)
 		}
 	}
@@ -318,6 +336,44 @@ func generatePayloadURL(numberOfPayloads int, client *client.Client) []string {
 		interactshURLs[i] = client.URL()
 	}
 	return interactshURLs
+}
+
+// uploadFiles hosts local files on the interactsh server and returns the URLs a
+// target should fetch. It returns nil when no files were requested.
+func uploadFiles(paths []string, c *client.Client) []string {
+	if len(paths) == 0 {
+		return nil
+	}
+
+	uploaded, err := c.UploadFiles(paths)
+	if err != nil {
+		if errors.Is(err, client.ErrUploadUnsupported) {
+			gologger.Fatal().Msgf("Server does not accept file uploads; it must be started with -upload\n")
+		}
+		// Fatal rather than a warning: the user asked to host a payload, and
+		// carrying on without it produces a confusing "no interaction" result.
+		gologger.Fatal().Msgf("Could not upload files: %s\n", err)
+	}
+
+	// One payload host for every file, so the target performs a single DNS
+	// lookup and the output is consistent. Any nonce works, since the server
+	// only reads the correlation id prefix.
+	host := c.URL()
+	withFTP := false
+	if caps := c.Capabilities(); caps != nil {
+		withFTP = caps.FTP
+	}
+
+	var urls []string
+	for _, file := range uploaded {
+		urls = append(urls, c.FileURL(host, file))
+		// Only when the server actually runs an FTP listener, otherwise the
+		// URL would never connect.
+		if withFTP {
+			urls = append(urls, c.FTPFileURL(host, file))
+		}
+	}
+	return urls
 }
 
 func writeOutput(outputFile *os.File, builder *bytes.Buffer) {
