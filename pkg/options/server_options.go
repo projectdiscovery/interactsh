@@ -126,6 +126,7 @@ func (cliServerOptions *CLIServerOptions) AsServerOptions() *server.Options {
 		NoVersionHeader:          cliServerOptions.NoVersionHeader,
 		HeaderServer:             cliServerOptions.HeaderServer,
 		DefaultHTTPResponseFile:  cliServerOptions.DefaultHTTPResponseFile,
+		Ftp:                      cliServerOptions.Ftp,
 		Upload:                   cliServerOptions.Upload,
 		UploadDirectory:          cliServerOptions.UploadDirectory,
 		UploadMaxFileSize:        int64(cliServerOptions.UploadMaxFileSize),

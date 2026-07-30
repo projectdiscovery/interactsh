@@ -111,6 +111,9 @@ type Options struct {
 	// DefaultHTTPResponseFile is a file to serve for all HTTP requests (takes priority over other options)
 	DefaultHTTPResponseFile string
 
+	// Ftp indicates the FTP server is enabled, so uploaded files are also
+	// reachable over ftp://
+	Ftp bool
 	// Upload enables the client file upload endpoint and file hosting
 	Upload bool
 	// UploadDirectory is the root directory uploaded files are stored under
@@ -140,6 +143,15 @@ type Options struct {
 	CertFiles    []acme.CertificateFiles
 }
 type OnResultCallback func(out interface{})
+
+// UploadStorage returns the configured storage backend's upload-tracking
+// capability, or nil when the backend does not implement it. Only
+// instance-local backends do, since hosted bytes live on the local filesystem;
+// see storage.UploadStorage.
+func (options *Options) UploadStorage() storage.UploadStorage {
+	uploadStorage, _ := options.Storage.(storage.UploadStorage)
+	return uploadStorage
+}
 
 func (options *Options) GetIdLength() int {
 	return options.CorrelationIdLength + options.CorrelationIdNonceLength
