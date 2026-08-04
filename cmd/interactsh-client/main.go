@@ -179,7 +179,7 @@ func main() {
 
 	// Uploads must follow registration, since the server verifies the session,
 	// and precede the payload listing so every URL is shown together.
-	fileURLs := uploadFiles(cliOptions.Files, client)
+	fileURLs := uploadFiles(cliOptions.Files, client, cliOptions.SessionFile)
 
 	interactshURLs := generatePayloadURL(cliOptions.NumberOfPayloads, client)
 
@@ -340,13 +340,28 @@ func generatePayloadURL(numberOfPayloads int, client *client.Client) []string {
 
 // uploadFiles hosts local files on the interactsh server and returns the URLs a
 // target should fetch. It returns nil when no files were requested.
-func uploadFiles(paths []string, c *client.Client) []string {
+//
+// sessionFile mirrors -session-file: when set, the session is meant to outlive
+// this process, so the failure paths below must not deregister it.
+func uploadFiles(paths []string, c *client.Client, sessionFile string) []string {
 	if len(paths) == 0 {
 		return nil
 	}
 
 	uploaded, err := c.UploadFiles(paths)
 	if err != nil {
+		// Registration already happened -- it has to, since upload support is
+		// only advertised in the register response -- so a session exists on the
+		// server. Wind it down the same way the signal handler does, rather than
+		// leaving it to sit until the eviction TTL: persist it if the user asked
+		// for a resumable session, otherwise deregister it. Doing neither would
+		// overstate the server's live session count for every client that trips
+		// this path, and would strand a session the user cannot resume.
+		if sessionFile != "" {
+			_ = c.SaveSessionTo(sessionFile)
+		} else {
+			_ = c.Close()
+		}
 		if errors.Is(err, client.ErrUploadUnsupported) {
 			gologger.Fatal().Msgf("Server does not accept file uploads; it must be started with -upload\n")
 		}
