@@ -730,7 +730,15 @@ rather than silently continuing without the payload:
 
 ```console
 $ interactsh-client -s https://hackwithautomation.com -t <token> -file evil.dtd
-[FTL] Server does not accept file uploads; it must be started with -upload
+[FTL] Server https://hackwithautomation.com does not accept file uploads; it must be started with -upload
+```
+
+The failing server is named because the client registers with only one of the servers in `-s`. When
+several are listed, it also says how the choice was made, since the outcome can differ between runs:
+
+```console
+$ interactsh-client -s https://a.example,https://b.example -t <token> -file evil.dtd
+[FTL] Server https://a.example does not accept file uploads; it must be started with -upload (chosen at random from the 2 servers in -s, so this may differ between runs; pass a single server with -file)
 ```
 
 Server-side options:

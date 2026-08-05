@@ -179,7 +179,7 @@ func main() {
 
 	// Uploads must follow registration, since the server verifies the session,
 	// and precede the payload listing so every URL is shown together.
-	fileURLs := uploadFiles(cliOptions.Files, client, cliOptions.SessionFile)
+	fileURLs := uploadFiles(client, cliOptions)
 
 	interactshURLs := generatePayloadURL(cliOptions.NumberOfPayloads, client)
 
@@ -338,17 +338,33 @@ func generatePayloadURL(numberOfPayloads int, client *client.Client) []string {
 	return interactshURLs
 }
 
+// electionHint explains which server the complaint is about when -s named more
+// than one. The client registers with a single server chosen at random, and
+// upload support cannot influence that choice because it is only advertised in
+// the registration response. Without this, a mixed list reads as "none of my
+// servers support uploads" on the runs that happen to elect one that does not.
+func electionHint(serverList string) string {
+	var listed int
+	for _, s := range strings.Split(serverList, ",") {
+		if strings.TrimSpace(s) != "" {
+			listed++
+		}
+	}
+	if listed < 2 {
+		return ""
+	}
+	return fmt.Sprintf(" (chosen at random from the %d servers in -s, so this may differ between runs;"+
+		" pass a single server with -file)", listed)
+}
+
 // uploadFiles hosts local files on the interactsh server and returns the URLs a
 // target should fetch. It returns nil when no files were requested.
-//
-// sessionFile mirrors -session-file: when set, the session is meant to outlive
-// this process, so the failure paths below must not deregister it.
-func uploadFiles(paths []string, c *client.Client, sessionFile string) []string {
-	if len(paths) == 0 {
+func uploadFiles(c *client.Client, cliOptions *options.CLIClientOptions) []string {
+	if len(cliOptions.Files) == 0 {
 		return nil
 	}
 
-	uploaded, err := c.UploadFiles(paths)
+	uploaded, err := c.UploadFiles(cliOptions.Files)
 	if err != nil {
 		// Registration already happened -- it has to, since upload support is
 		// only advertised in the register response -- so a session exists on the
@@ -357,17 +373,21 @@ func uploadFiles(paths []string, c *client.Client, sessionFile string) []string 
 		// for a resumable session, otherwise deregister it. Doing neither would
 		// overstate the server's live session count for every client that trips
 		// this path, and would strand a session the user cannot resume.
-		if sessionFile != "" {
-			_ = c.SaveSessionTo(sessionFile)
+		if cliOptions.SessionFile != "" {
+			_ = c.SaveSessionTo(cliOptions.SessionFile)
 		} else {
 			_ = c.Close()
 		}
+		// Name the server in both failures. The client registers with one server
+		// out of -s, so without it the reader cannot tell which of their servers
+		// the complaint is about.
 		if errors.Is(err, client.ErrUploadUnsupported) {
-			gologger.Fatal().Msgf("Server does not accept file uploads; it must be started with -upload\n")
+			gologger.Fatal().Msgf("Server %s does not accept file uploads; it must be started with -upload%s\n",
+				c.ServerURL(), electionHint(cliOptions.ServerURL))
 		}
 		// Fatal rather than a warning: the user asked to host a payload, and
 		// carrying on without it produces a confusing "no interaction" result.
-		gologger.Fatal().Msgf("Could not upload files: %s\n", err)
+		gologger.Fatal().Msgf("Could not upload files to %s: %s\n", c.ServerURL(), err)
 	}
 
 	// One payload host for every file, so the target performs a single DNS
