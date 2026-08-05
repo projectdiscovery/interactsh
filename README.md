@@ -59,33 +59,37 @@ Usage:
 
 Flags:
 INPUT:
-   -s, -server string  interactsh server(s) to use (default "oast.pro,oast.live,oast.site,oast.online,oast.fun,oast.me")
+   -s, -server string   interactsh server(s) to use (default "oast.pro,oast.live,oast.site,oast.online,oast.fun,oast.me")
+   -fl, -file string[]  local file(s) to upload and host on the interactsh server
 
 CONFIG:
    -config string                           flag configuration file (default "$HOME/.config/interactsh-client/config.yaml")
+   -auth                                    configure projectdiscovery cloud (pdcp) api key (default true)
    -n, -number int                          number of interactsh payload to generate (default 1)
    -t, -token string                        authentication token to connect protected interactsh server
    -pi, -poll-interval int                  poll interval in seconds to pull interaction data (default 5)
    -nf, -no-http-fallback                   disable http fallback registration
-   -cidl, -correlation-id-length int        length of the correlation id preamble (min 3, default 20)
-   -cidn, -correlation-id-nonce-length int  length of the correlation id nonce (min 3, default 13)
+   -cidl, -correlation-id-length int        length of the correlation id preamble (min 3, default 20) (default 20)
+   -cidn, -correlation-id-nonce-length int  length of the correlation id nonce (min 3, default 13) (default 13)
    -sf, -session-file string                store/read from session file
+   -kai, -keep-alive-interval value         keep alive interval (default 1m0s)
 
 FILTER:
    -m, -match string[]   match interaction based on the specified pattern
    -f, -filter string[]  filter interaction based on the specified pattern
    -dns-only             display only dns interaction in CLI output
-   -http-only            display only http/https interactions in CLI output
+   -http-only            display only http interaction in CLI output
    -smtp-only            display only smtp interactions in CLI output
+   -asn                   include asn information of remote ip in json output
 
 UPDATE:
    -up, -update                 update interactsh-client to latest version
    -duc, -disable-update-check  disable automatic interactsh-client update check
-   
+
 OUTPUT:
    -o string                         output file to write interaction data
    -json                             write output in JSON Lines format
-   -ps, -payload-store               enable storing generated interactsh payload to file
+   -ps, -payload-store               write generated interactsh payload to file
    -psf, -payload-store-file string  store generated interactsh payloads to given file (default "interactsh_payload.txt")
    -v                                display verbose interaction
 
@@ -353,7 +357,7 @@ Usage:
 Flags:
 INPUT:
    -d, -domain string[]                     single/multiple configured domain to use for server
-   -ip string[]                             public ip address(es) to use for interactsh server (comma-separated,supports both IPv4 & IPv6)
+   -i, -ip string[]                         public IP address(es) to use for interactsh server (comma-separated, supports both IPv4 & IPv6)
    -lip, -listen-ip string                  public ip address to listen on (default "0.0.0.0")
    -e, -eviction int                        number of days to persist interaction data in memory (default 30)
    -ne, -no-eviction                        disable periodic data eviction from memory
@@ -363,29 +367,31 @@ INPUT:
    -acao-url string                         origin url to send in acao header to use web-client) (default "*")
    -sa, -skip-acme                          skip acme registration (certificate checks/handshake + TLS protocols will be disabled)
    -se, -scan-everywhere                    scan canary token everywhere
-   -cidl, -correlation-id-length int        length of the correlation id preamble (min 3, default 20)
-   -cidn, -correlation-id-nonce-length int  length of the correlation id nonce (min 3, default 13)
+   -cidl, -correlation-id-length int        length of the correlation id preamble (min 3, default 20) (default 20)
+   -cidn, -correlation-id-nonce-length int  length of the correlation id nonce (min 3, default 13) (default 13)
    -cert string                             custom certificate path
    -privkey string                          custom private key path
    -oih, -origin-ip-header string           HTTP header containing origin ip (interactsh behind a reverse proxy)
 
 CONFIG:
-   -r, -resolvers string[]      list of resolvers to use (file or comma separated)
-   -config string               flag configuration file (default "$HOME/.config/interactsh-server/config.yaml")
-   -dr, -dynamic-resp           enable setting up arbitrary response data
-   -cr, -custom-records string  custom dns records YAML file for DNS server
-   -hi, -http-index string      custom index file for http server
+   -r, -resolvers string[]              list of resolvers to use (file or comma separated)
+   -config string                       flag configuration file (default "$HOME/.config/interactsh-server/config.yaml")
+   -dr, -dynamic-resp                   enable setting up arbitrary response data
+   -cr, -custom-records string          custom dns records YAML file for DNS server
+   -hi, -http-index string              custom index file for http server
+   -hd, -http-directory string          directory with files to serve with http server
    -dhr, -default-http-response string  file to serve for all http requests (takes priority over other options)
-   -hd, -http-directory string  directory with files to serve with http server
-   -ds, -disk                   disk based storage
-   -dsp, -disk-path string      disk storage path
-   -csh, -server-header string  custom value of Server header in response
-   -dv, -disable-version        disable publishing interactsh version in response header
+   -ds, -disk                           disk based storage
+   -dsp, -disk-path string              disk storage path
+   -ru, -redis-url string               redis connection URL (enables shared state for multi-instance deployments)
+   -rp, -redis-prefix string            redis key prefix (default "interactsh:")
+   -csh, -server-header string          custom value of Server header in response
+   -dv, -disable-version                disable publishing interactsh version in response header
 
 UPDATE:
    -up, -update                 update interactsh-server to latest version
    -duc, -disable-update-check  disable automatic interactsh-server update check
-   
+
 SERVICES:
    -dns-port int           port to use for dns service (default 53)
    -http-port int          port to use for http service (default 80)
@@ -403,6 +409,14 @@ SERVICES:
    -ftp-port int           port to use for ftp service (default 21)
    -ftps-port int          port to use for ftps service (default 990)
    -ftp-dir string         ftp directory - temporary if not specified
+
+UPLOAD:
+   -upload                              enable client file upload and hosting - self-hosted servers only (authenticated)
+   -ud, -upload-directory string        directory to store uploaded files - temporary if not specified
+   -umfs, -upload-max-file-size value   maximum size of a single uploaded file (default 1mb)
+   -umf, -upload-max-files int          maximum number of uploaded files per session (default 5)
+   -umts, -upload-max-total-size value  maximum total size of all uploaded files on the server (default 1gb)
+   -ut, -upload-ttl value               maximum lifetime of uploaded files (default 24h0m0s)
 
 DEBUG:
    -version            show version of the project
