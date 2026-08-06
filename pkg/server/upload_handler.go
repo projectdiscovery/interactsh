@@ -185,6 +185,21 @@ func (h *HTTPServer) uploadHandler(w http.ResponseWriter, req *http.Request) {
 		ftpPrefix = path.Join("/", uploadsDirName, r.CorrelationID)
 	)
 
+	// Files are staged first and committed only once every one of them has been
+	// written, so a failure part-way through a batch leaves nothing reachable and
+	// nothing charged. Committing as we went would leave the earlier files on
+	// disk holding quota while UpdateUploads discarded the metadata that made
+	// them reachable -- unusable, uncollectable until the session ended, and
+	// still counted against every other session's uploads.
+	//
+	// Anything still staged when this returns is unwound, including on a panic.
+	var staged []*stagedUpload
+	defer func() {
+		for _, st := range staged {
+			store.Abort(st)
+		}
+	}()
+
 	// The disk writes happen inside UpdateUploads, i.e. under the correlation
 	// ID's lock, so the per-session quota check and the commit are atomic with
 	// respect to a concurrent upload for the same session.
@@ -206,12 +221,13 @@ func (h *HTTPServer) uploadHandler(w http.ResponseWriter, req *http.Request) {
 					"session already holds %d files, limit is %d", len(updated), store.MaxFiles())
 			}
 
-			size, sum, err := store.Save(r.CorrelationID, f.Name, decoded[i], existingSize)
+			st, err := store.Stage(r.CorrelationID, f.Name, decoded[i], existingSize)
 			if err != nil {
 				return nil, err
 			}
+			staged = append(staged, st)
 
-			record := storage.UploadedFile{Name: f.Name, Size: size, SHA256: sum, Timestamp: time.Now()}
+			record := storage.UploadedFile{Name: f.Name, Size: st.size, SHA256: st.sha256, Timestamp: time.Now()}
 			if idx == -1 {
 				updated = append(updated, record)
 			} else {
@@ -219,11 +235,21 @@ func (h *HTTPServer) uploadHandler(w http.ResponseWriter, req *http.Request) {
 			}
 			response = append(response, UploadedFileResponse{
 				Name:     f.Name,
-				Size:     size,
-				SHA256:   sum,
+				Size:     st.size,
+				SHA256:   st.sha256,
 				HTTPPath: path.Join("/f", f.Name),
 				FTPPath:  path.Join(ftpPrefix, f.Name),
 			})
+		}
+
+		// Every file is on disk under a temporary name; publish them together.
+		// A rename failing here is severe -- the write into the same directory
+		// has already succeeded -- so the batch still fails, and Abort unwinds
+		// what it safely can.
+		for _, st := range staged {
+			if err := store.Commit(st); err != nil {
+				return nil, err
+			}
 		}
 		return updated, nil
 	})
@@ -232,6 +258,8 @@ func (h *HTTPServer) uploadHandler(w http.ResponseWriter, req *http.Request) {
 		h.writeUploadError(w, err)
 		return
 	}
+	// Committed and recorded: there is nothing left to unwind.
+	staged = nil
 
 	gologger.Debug().Msgf("Stored %d uploaded file(s) for %s\n", len(response), r.CorrelationID)
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")

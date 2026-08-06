@@ -253,64 +253,154 @@ func (s *UploadStore) sessionDir(correlationID string) string {
 	return filepath.Join(s.sessionsRoot, correlationID)
 }
 
-// Save writes one file for a correlation ID and returns its size and digest.
+// stagedUpload is a file written into its session directory under a temporary
+// name, with its quota already reserved, waiting to be renamed into place.
+//
+// Staging exists so that a multi-file upload is all-or-nothing. Writing straight
+// to the final name would commit each file as it went, and a failure part-way
+// through a batch -- the per-session file cap, the global quota, a full disk --
+// left the earlier files on disk holding quota while the caller discarded the
+// metadata that made them reachable.
+type stagedUpload struct {
+	correlationID string
+	// name is the final name; tmp is where the bytes are until Commit.
+	name string
+	tmp  string
+	size int64
+	// delta is the quota reserved for this file: the net change, since
+	// overwriting a name replaces the bytes it already occupied.
+	delta  int64
+	sha256 string
+	// overwrites records that the final name already held a file, which is what
+	// makes discarding a committed file unsafe: the previous content is gone.
+	overwrites bool
+	committed  bool
+}
+
+// Stage validates one file, reserves its quota and writes it under a temporary
+// name in its session directory. Nothing is reachable until Commit.
 //
 // It is called from inside Storage.UpdateUploads, i.e. under the correlation
 // ID's lock, so the caller's quota check and this write are atomic with respect
 // to other uploads for the same session.
-func (s *UploadStore) Save(correlationID, name string, data []byte, existingSize int64) (int64, string, error) {
+func (s *UploadStore) Stage(correlationID, name string, data []byte, existingSize int64) (*stagedUpload, error) {
 	if !isSafeUploadName(name) {
-		return 0, "", uploadErr(UploadErrBadName, "invalid file name %q", name)
+		return nil, uploadErr(UploadErrBadName, "invalid file name %q", name)
 	}
 	size := int64(len(data))
 	if size == 0 {
-		return 0, "", uploadErr(UploadErrBadName, "file %q is empty", name)
+		return nil, uploadErr(UploadErrBadName, "file %q is empty", name)
 	}
 	if size > s.maxFileSize {
-		return 0, "", uploadErr(UploadErrTooLarge, "file %q is %d bytes, limit is %d", name, size, s.maxFileSize)
+		return nil, uploadErr(UploadErrTooLarge, "file %q is %d bytes, limit is %d", name, size, s.maxFileSize)
 	}
 
 	dir := s.sessionDir(correlationID)
 	if dir == "" {
-		return 0, "", uploadErr(UploadErrOther, "invalid correlation-id")
+		return nil, uploadErr(UploadErrOther, "invalid correlation-id")
 	}
 
 	// Reserve space before writing. existingSize is what this name already
 	// occupies, since overwriting replaces rather than adds.
-	if delta := size - existingSize; delta > 0 {
+	delta := size - existingSize
+	if delta > 0 {
 		if s.totalBytes.Add(delta) > s.maxTotal {
 			s.totalBytes.Add(-delta)
-			return 0, "", uploadErr(UploadErrOutOfSpace, "server upload capacity exhausted")
+			return nil, uploadErr(UploadErrOutOfSpace, "server upload capacity exhausted")
 		}
 	} else {
 		s.totalBytes.Add(delta)
 	}
 
+	release := func() { s.totalBytes.Add(-delta) }
+
 	if err := os.MkdirAll(dir, uploadSessionDirPerm); err != nil {
-		s.totalBytes.Add(existingSize - size)
-		return 0, "", errors.Wrap(err, "could not create session directory")
+		release()
+		return nil, errors.Wrap(err, "could not create session directory")
 	}
 
 	// Plain os rather than the rooted handle: os.Root has no Rename before Go
 	// 1.25, and both components are already constrained -- the correlation ID
 	// is alphanumeric and length-checked, the name passed the allowlist, so
 	// neither can contain a separator or traversal sequence.
-	//
-	// Write to a temp name and rename into place, so a reader (HTTP or the FTP
-	// file driver) never observes a partially written file.
 	tmp := filepath.Join(dir, ".upload-"+xid.New().String())
 	if err := os.WriteFile(tmp, data, uploadFilePerm); err != nil {
-		s.totalBytes.Add(existingSize - size)
-		return 0, "", errors.Wrap(err, "could not write uploaded file")
-	}
-	if err := os.Rename(tmp, filepath.Join(dir, name)); err != nil {
-		_ = os.Remove(tmp)
-		s.totalBytes.Add(existingSize - size)
-		return 0, "", errors.Wrap(err, "could not commit uploaded file")
+		release()
+		return nil, errors.Wrap(err, "could not write uploaded file")
 	}
 
 	sum := sha256.Sum256(data)
-	return size, hex.EncodeToString(sum[:]), nil
+	return &stagedUpload{
+		correlationID: correlationID,
+		name:          name,
+		tmp:           tmp,
+		size:          size,
+		delta:         delta,
+		sha256:        hex.EncodeToString(sum[:]),
+		overwrites:    existingSize > 0,
+	}, nil
+}
+
+// Commit renames a staged file into place, making it reachable. Writing to a
+// temporary name and renaming is also what stops a reader -- the HTTP handler or
+// the FTP file driver -- from ever observing a partially written file.
+func (s *UploadStore) Commit(st *stagedUpload) error {
+	dir := s.sessionDir(st.correlationID)
+	if dir == "" {
+		return uploadErr(UploadErrOther, "invalid correlation-id")
+	}
+	if err := os.Rename(st.tmp, filepath.Join(dir, st.name)); err != nil {
+		return errors.Wrap(err, "could not commit uploaded file")
+	}
+	st.committed = true
+	return nil
+}
+
+// Abort discards a staged file and releases its reservation.
+//
+// A file that was never committed is only a temp file, so it goes without
+// question. A committed one is a narrower case -- a later rename in the same
+// batch failed -- and is only removed when it did not overwrite anything: the
+// previous content of an overwritten name is already gone, so deleting it would
+// turn a leaked file into lost data. Everything Abort touches resolves to
+// <sessionsRoot>/<correlationID>/<validated name>, so it can never reach another
+// session's files.
+func (s *UploadStore) Abort(st *stagedUpload) {
+	if !st.committed {
+		if err := os.Remove(st.tmp); err != nil && !os.IsNotExist(err) {
+			gologger.Debug().Msgf("Could not remove staged upload %s: %s\n", st.tmp, err)
+		}
+		s.totalBytes.Add(-st.delta)
+		return
+	}
+	if st.overwrites {
+		gologger.Warning().Msgf("Uploaded file %s/%s replaced an existing file and cannot be rolled back\n",
+			st.correlationID, st.name)
+		return
+	}
+	dir := s.sessionDir(st.correlationID)
+	if dir == "" {
+		return
+	}
+	if err := os.Remove(filepath.Join(dir, st.name)); err != nil && !os.IsNotExist(err) {
+		gologger.Debug().Msgf("Could not roll back uploaded file %s/%s: %s\n", st.correlationID, st.name, err)
+		return
+	}
+	s.totalBytes.Add(-st.delta)
+}
+
+// Save stages and immediately commits one file, for callers handling a single
+// file with nothing to unwind.
+func (s *UploadStore) Save(correlationID, name string, data []byte, existingSize int64) (int64, string, error) {
+	st, err := s.Stage(correlationID, name, data, existingSize)
+	if err != nil {
+		return 0, "", err
+	}
+	if err := s.Commit(st); err != nil {
+		s.Abort(st)
+		return 0, "", err
+	}
+	return st.size, st.sha256, nil
 }
 
 // Open returns a readable handle to an uploaded file. The name is re-validated
