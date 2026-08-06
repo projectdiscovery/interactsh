@@ -18,6 +18,7 @@ type CLIClientOptions struct {
 	JSON                     bool
 	StorePayload             bool
 	StorePayloadFile         string
+	FileStoreFile            string
 	Verbose                  bool
 	PollInterval             int
 	DNSOnly                  bool

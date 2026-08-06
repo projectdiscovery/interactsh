@@ -91,6 +91,7 @@ OUTPUT:
    -json                             write output in JSON Lines format
    -ps, -payload-store               write generated interactsh payload to file
    -psf, -payload-store-file string  store generated interactsh payloads to given file (default "interactsh_payload.txt")
+   -fsf, -file-store-file string     store hosted file URLs to given file (requires -file)
    -v                                display verbose interaction
 
 DEBUG:

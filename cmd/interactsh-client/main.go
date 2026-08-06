@@ -84,6 +84,7 @@ func main() {
 		flagSet.BoolVar(&cliOptions.JSON, "json", false, "write output in JSON Lines format"),
 		flagSet.BoolVarP(&cliOptions.StorePayload, "payload-store", "ps", false, "write generated interactsh payload to file"),
 		flagSet.StringVarP(&cliOptions.StorePayloadFile, "payload-store-file", "psf", settings.StorePayloadFileDefault, "store generated interactsh payloads to given file"),
+		flagSet.StringVarP(&cliOptions.FileStoreFile, "file-store-file", "fsf", "", "store hosted file URLs to given file (requires -file)"),
 
 		flagSet.BoolVar(&cliOptions.Verbose, "v", false, "display verbose interaction"),
 	)
@@ -197,10 +198,22 @@ func main() {
 		}
 	}
 
+	// One record type per file. -psf is a machine-readable list of payload
+	// hostnames, one per line and exactly -n of them, which is what a wrapper
+	// script substituting into a payload template relies on; mixing hosted-file
+	// URLs into it turns "$line" into "https://host/f/x" and silently produces
+	// nonsense like http://https://host/f/x/. Hosted-file URLs get their own file.
 	if cliOptions.StorePayload && cliOptions.StorePayloadFile != "" {
-		stored := append(append([]string{}, interactshURLs...), fileURLs...)
-		if err := os.WriteFile(cliOptions.StorePayloadFile, []byte(strings.Join(stored, "\n")), 0644); err != nil {
+		if err := writeLines(cliOptions.StorePayloadFile, interactshURLs); err != nil {
 			gologger.Fatal().Msgf("Could not write to payload output file: %s\n", err)
+		}
+	}
+	if cliOptions.FileStoreFile != "" {
+		if len(fileURLs) == 0 {
+			gologger.Warning().Msgf("-file-store-file was given without -file, so no hosted file URLs were written\n")
+		}
+		if err := writeLines(cliOptions.FileStoreFile, fileURLs); err != nil {
+			gologger.Fatal().Msgf("Could not write to file URL output file: %s\n", err)
 		}
 	}
 
@@ -442,4 +455,18 @@ func (m *regexMatcher) match(item string) bool {
 		}
 	}
 	return false
+}
+
+// writeLines writes one record per line, newline-terminated.
+//
+// The terminator matters: without it the last record has no newline, so a plain
+// "while read line" loop -- the most likely consumer of these files -- drops it,
+// and wc -l reports one fewer record than the file holds.
+func writeLines(path string, lines []string) error {
+	var b strings.Builder
+	for _, line := range lines {
+		b.WriteString(line)
+		b.WriteString("\n")
+	}
+	return os.WriteFile(path, []byte(b.String()), 0644)
 }
