@@ -36,7 +36,7 @@ type CorrelationData struct {
 	// AESKey is the AES encryption key in encrypted format.
 	AESKeyEncrypted string `json:"aes-key"`
 	// decrypted AES key for signing
-	AESKey []byte `json:"-"`
+	AESKey      []byte               `json:"-"`
 	ReadOffsets map[string]int       `json:"-"`
 	LastSeen    map[string]time.Time `json:"-"`
 	// Files is metadata for files uploaded against this correlation-id.
