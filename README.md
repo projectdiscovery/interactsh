@@ -1032,7 +1032,15 @@ sudo interactsh-server -responder -d localhost
 
 ### Use as library
 
-The [examples](examples/) uses interactsh client library to get external interactions for a generated URL by making a http request to the URL.
+The [examples](examples/) use the interactsh client library to get external interactions for a generated
+URL by making an http request to the URL, and to host a file against the same session for second-stage
+verification.
+
+File hosting is an optional server capability, so a library consumer negotiates rather than assumes:
+`Capabilities()` reports what the server advertised at registration, `UploadFiles` returns
+`ErrUploadUnsupported` when a server cannot host files and `ErrUploadNotAdvertised` when it predates the
+feature, and `FileURL`/`FTPFileURL` compose the URLs a target should fetch. The public `oast.*` servers
+do not offer hosting, so the example skips it rather than failing.
 
 ### Nuclei - OAST
 
