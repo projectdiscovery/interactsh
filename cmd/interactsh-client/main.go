@@ -394,6 +394,10 @@ func uploadFiles(c *client.Client, cliOptions *options.CLIClientOptions) []strin
 		// Name the server in both failures. The client registers with one server
 		// out of -s, so without it the reader cannot tell which of their servers
 		// the complaint is about.
+		if errors.Is(err, client.ErrUploadNotAdvertised) {
+			gologger.Fatal().Msgf("Server %s did not advertise file hosting, so it predates -file; upgrade the server%s\n",
+				c.ServerURL(), electionHint(cliOptions.ServerURL))
+		}
 		if errors.Is(err, client.ErrUploadUnsupported) {
 			gologger.Fatal().Msgf("Server %s does not accept file uploads; it must be started with -upload%s\n",
 				c.ServerURL(), electionHint(cliOptions.ServerURL))

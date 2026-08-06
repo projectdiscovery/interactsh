@@ -67,6 +67,12 @@ type Client struct {
 	token                    string
 	correlationIdLength      int
 	CorrelationIdNonceLength int
+	// capabilitiesKnown records that a registration response was received and
+	// parsed, which is what makes the absence of a capabilities block meaningful.
+	// A resumed session whose re-registration was refused because the session is
+	// still alive never learns what the server offers, and "unknown" must not be
+	// read as "the server offers nothing".
+	capabilitiesKnown atomic.Bool
 	// capabilities holds the *server.Capabilities advertised at registration.
 	// Written from performRegistration, which the keep-alive goroutine also
 	// calls, hence atomic.Value rather than a bare field.
@@ -647,8 +653,10 @@ func (c *Client) performRegistration(serverURL string, payload []byte) error {
 		return fmt.Errorf("could not get register response: %s", response.Message)
 	}
 
-	// Nil against a server predating capability advertisement, which callers
-	// treat as "unknown" rather than "unsupported".
+	// A successful registration is authoritative about what the server offers,
+	// including the absence of a capabilities block, which means the server
+	// predates them.
+	c.capabilitiesKnown.Store(true)
 	if response.Capabilities != nil {
 		c.capabilities.Store(response.Capabilities)
 	}
@@ -657,6 +665,11 @@ func (c *Client) performRegistration(serverURL string, payload []byte) error {
 
 	return nil
 }
+
+// CapabilitiesKnown reports whether a registration response has been received,
+// which is what distinguishes a server that advertised no capabilities from a
+// resumed session that never got to ask.
+func (c *Client) CapabilitiesKnown() bool { return c.capabilitiesKnown.Load() }
 
 // Capabilities returns the optional features advertised by the server at
 // registration, or nil if the server did not advertise any.

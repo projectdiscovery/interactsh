@@ -38,6 +38,19 @@ func newUploadClient(t *testing.T, handler http.HandlerFunc, caps *server.Capabi
 	if caps != nil {
 		c.capabilities.Store(caps)
 	}
+	// A registration happened, so whatever it said -- including nothing -- is
+	// authoritative. newResumedUploadClient covers the other case.
+	c.capabilitiesKnown.Store(true)
+	return c
+}
+
+// newResumedUploadClient models a session resumed from -sf whose re-registration
+// was refused because the session is still alive: no capabilities were ever
+// received, so nothing is known about what the server offers.
+func newResumedUploadClient(t *testing.T, handler http.HandlerFunc) *Client {
+	t.Helper()
+	c := newUploadClient(t, handler, nil)
+	c.capabilitiesKnown.Store(false)
 	return c
 }
 
@@ -46,6 +59,17 @@ func writeTempFile(t *testing.T, name string, content []byte) string {
 	p := filepath.Join(t.TempDir(), name)
 	require.NoError(t, os.WriteFile(p, content, 0o600))
 	return p
+}
+
+// errkit compares errors by message, so building ErrUploadNotAdvertised on an
+// errkit sentinel made errors.Is match in both directions -- and the CLI checks the
+// specific error first, so a server with -upload merely switched off was told to
+// upgrade. The direction has to stay one-way.
+func TestUploadSentinelsAreDirectional(t *testing.T) {
+	require.True(t, errors.Is(ErrUploadNotAdvertised, ErrUploadUnsupported),
+		"a server that advertised nothing cannot host files either")
+	require.False(t, errors.Is(ErrUploadUnsupported, ErrUploadNotAdvertised),
+		"a server that answered 501 is not a server that failed to advertise")
 }
 
 func TestUploadFiles(t *testing.T) {
@@ -88,23 +112,95 @@ func TestUploadFiles(t *testing.T) {
 		require.Equal(t, "/f/evil.dtd", files[0].HTTPPath)
 	})
 
+	// Capabilities are advertised here, so the request is actually made: a server
+	// that says it can host files and then refuses is the case 501 is left for.
 	t.Run("501 reports unsupported", func(t *testing.T) {
+		var called atomic.Bool
 		c := newUploadClient(t, func(w http.ResponseWriter, r *http.Request) {
+			called.Store(true)
 			w.WriteHeader(http.StatusNotImplemented)
-		}, nil)
+		}, caps)
 
 		_, err := c.UploadFiles([]string{writeTempFile(t, "a.dtd", []byte("x"))})
 		require.ErrorIs(t, err, ErrUploadUnsupported)
+		require.True(t, called.Load(), "the 501 path is only reachable by sending the request")
 	})
 
-	t.Run("404 and 405 report unsupported", func(t *testing.T) {
-		for _, code := range []int{http.StatusNotFound, http.StatusMethodNotAllowed} {
-			c := newUploadClient(t, func(w http.ResponseWriter, r *http.Request) {
-				w.WriteHeader(code)
-			}, nil)
-			_, err := c.UploadFiles([]string{writeTempFile(t, "a.dtd", []byte("x"))})
-			require.ErrorIs(t, err, ErrUploadUnsupported, "status %d", code)
-		}
+	// 404 is what the server answers for an unknown correlation id -- a session
+	// problem needing a re-register, not a server missing a flag. Reporting it as
+	// "does not accept file uploads" sent the operator after the wrong remedy.
+	t.Run("404 surfaces the server's reason rather than claiming unsupported", func(t *testing.T) {
+		c := newUploadClient(t, func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusNotFound)
+			_, _ = w.Write([]byte(`{"error":"unknown correlation-id"}`))
+		}, caps)
+
+		_, err := c.UploadFiles([]string{writeTempFile(t, "a.dtd", []byte("x"))})
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "unknown correlation-id")
+		require.Contains(t, err.Error(), "404")
+		require.False(t, errors.Is(err, ErrUploadUnsupported),
+			"an unknown session must not be reported as a server without -upload")
+	})
+
+	t.Run("405 is surfaced rather than claiming unsupported", func(t *testing.T) {
+		c := newUploadClient(t, func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusMethodNotAllowed)
+		}, caps)
+
+		_, err := c.UploadFiles([]string{writeTempFile(t, "a.dtd", []byte("x"))})
+		require.Error(t, err)
+		require.False(t, errors.Is(err, ErrUploadUnsupported))
+	})
+
+	// A server advertising no capabilities predates file hosting. Its catch-all
+	// answers 200 with HTML, so without this the failure was an opaque
+	// "invalid character '<'" decode error.
+	t.Run("a server that advertised nothing is refused before any request", func(t *testing.T) {
+		var called atomic.Bool
+		c := newUploadClient(t, func(w http.ResponseWriter, r *http.Request) {
+			called.Store(true)
+			w.Header().Set("Content-Type", "text/html")
+			_, _ = w.Write([]byte("<html><head></head><body></body></html>"))
+		}, nil)
+
+		_, err := c.UploadFiles([]string{writeTempFile(t, "a.dtd", []byte("x"))})
+		require.ErrorIs(t, err, ErrUploadNotAdvertised)
+		require.ErrorIs(t, err, ErrUploadUnsupported,
+			"callers asking only whether hosting is possible need no change")
+		require.False(t, called.Load(), "no point asking a server that cannot answer")
+		require.NotContains(t, err.Error(), "invalid character")
+	})
+
+	// Regression: a resumed session knows nothing about the server's capabilities,
+	// and treating that as "the server offers nothing" made every -sf resume
+	// refuse to upload, blaming a server that hosts files perfectly well.
+	t.Run("a resumed session attempts the upload rather than assuming", func(t *testing.T) {
+		var called atomic.Bool
+		c := newResumedUploadClient(t, func(w http.ResponseWriter, r *http.Request) {
+			called.Store(true)
+			_ = json.NewEncoder(w).Encode(&server.UploadResponse{
+				Message: "upload successful",
+				Files: []server.UploadedFileResponse{{
+					Name: "a.dtd", Size: 1, SHA256: "abc", HTTPPath: "/f/a.dtd",
+				}},
+			})
+		})
+
+		files, err := c.UploadFiles([]string{writeTempFile(t, "a.dtd", []byte("x"))})
+		require.NoError(t, err, "an unknown capability set must not be read as unsupported")
+		require.True(t, called.Load(), "the request has to be made to find out")
+		require.Len(t, files, 1)
+	})
+
+	t.Run("a resumed session still reports a genuine 501", func(t *testing.T) {
+		c := newResumedUploadClient(t, func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusNotImplemented)
+		})
+		_, err := c.UploadFiles([]string{writeTempFile(t, "a.dtd", []byte("x"))})
+		require.ErrorIs(t, err, ErrUploadUnsupported)
+		require.False(t, errors.Is(err, ErrUploadNotAdvertised),
+			"the server answered, so this is not version skew")
 	})
 
 	t.Run("server error message is surfaced", func(t *testing.T) {

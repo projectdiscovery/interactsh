@@ -29,6 +29,15 @@ import (
 // message contains it match in both directions.
 var ErrUploadUnsupported = errors.New("interactsh server does not support file upload")
 
+// ErrUploadNotAdvertised is returned when the server advertised no capabilities
+// at all, which means it predates file hosting. The remedy is to upgrade the
+// server rather than to pass it a flag, so it is distinguishable from a server
+// that advertised uploads as switched off.
+//
+// It wraps ErrUploadUnsupported, so a caller that only asks "can this server
+// host files?" needs no change.
+var ErrUploadNotAdvertised = fmt.Errorf("%w: server did not advertise file hosting capabilities", ErrUploadUnsupported)
+
 // defaultMaxUploadFileSize bounds a local file when the server has not told us
 // its limit, so a mistyped -file cannot try to push a huge file over the wire.
 const defaultMaxUploadFileSize = 1 << 20
@@ -66,9 +75,18 @@ func (c *Client) UploadFiles(paths []string) ([]UploadedFile, error) {
 		return nil, errkit.New("client is not registered with any server")
 	}
 
-	// Fail closed when the server has told us it cannot host files.
-	if caps := c.Capabilities(); caps != nil && !caps.Upload {
+	// Fail closed rather than send a request that cannot succeed, but only where
+	// the answer is known. A registration that produced no capabilities block is
+	// authoritative -- that server predates the feature, and its catch-all
+	// answers 200 with HTML, which would otherwise surface as an opaque JSON
+	// decode error. A resumed session whose re-registration was refused because
+	// the session is still alive knows nothing either way, so it must attempt the
+	// upload and let the response speak.
+	switch caps := c.Capabilities(); {
+	case caps != nil && !caps.Upload:
 		return nil, ErrUploadUnsupported
+	case caps == nil && c.CapabilitiesKnown():
+		return nil, ErrUploadNotAdvertised
 	}
 
 	// Uploads carry the file and the secret key, so they must never traverse
@@ -110,11 +128,21 @@ func (c *Client) UploadFiles(paths []string) ([]UploadedFile, error) {
 
 	switch resp.StatusCode {
 	case http.StatusOK:
-	case http.StatusNotImplemented, http.StatusNotFound, http.StatusMethodNotAllowed:
+	case http.StatusNotImplemented:
+		// Advertised uploads and then refused them, which a mismatched
+		// deployment behind a load balancer can produce. The capability check
+		// above catches the ordinary case before a request is made.
 		return nil, ErrUploadUnsupported
 	case http.StatusUnauthorized:
 		return nil, errkit.New("invalid token provided for interactsh server")
 	default:
+		// 404 and 405 are deliberately not read as "uploads unsupported". The
+		// server answers 404 for an unknown correlation id, which is a session
+		// problem needing a re-register rather than a server flag, and a server
+		// predating /upload answers 200 from its catch-all rather than either
+		// status -- so mapping them here misdiagnosed the one case it caught and
+		// never caught the one it was aimed at. Reporting the status and body
+		// says something true whatever the cause.
 		body, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
 		return nil, fmt.Errorf("could not upload files (%s): %s", resp.Status, strings.TrimSpace(string(body)))
 	}
