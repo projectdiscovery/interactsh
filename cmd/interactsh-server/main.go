@@ -107,7 +107,7 @@ func main() {
 
 	flagSet.CreateGroup("upload", "Upload",
 		flagSet.BoolVar(&cliOptions.Upload, "upload", false, "enable client file upload and hosting - self-hosted servers only (authenticated)"),
-		flagSet.StringVarP(&cliOptions.UploadDirectory, "upload-directory", "ud", "", "directory to store uploaded files - temporary if not specified"),
+		flagSet.StringVarP(&cliOptions.UploadDirectory, "upload-directory", "ud", "", "directory to host uploaded files from - temporary if not specified; interactsh creates and prunes .interactsh-user-uploads inside it"),
 		flagSet.SizeVarP(&cliOptions.UploadMaxFileSize, "upload-max-file-size", "umfs", "1mb", "maximum size of a single uploaded file"),
 		flagSet.IntVarP(&cliOptions.UploadMaxFiles, "upload-max-files", "umf", 5, "maximum number of uploaded files per session"),
 		flagSet.SizeVarP(&cliOptions.UploadMaxTotalSize, "upload-max-total-size", "umts", "1gb", "maximum total size of all uploaded files on the server"),

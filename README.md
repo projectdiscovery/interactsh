@@ -412,7 +412,7 @@ SERVICES:
 
 UPLOAD:
    -upload                              enable client file upload and hosting - self-hosted servers only (authenticated)
-   -ud, -upload-directory string        directory to store uploaded files - temporary if not specified
+   -ud, -upload-directory string        directory to host uploaded files from - temporary if not specified; interactsh creates and prunes .interactsh-user-uploads inside it
    -umfs, -upload-max-file-size value   maximum size of a single uploaded file (default 1mb)
    -umf, -upload-max-files int          maximum number of uploaded files per session (default 5)
    -umts, -upload-max-total-size value  maximum total size of all uploaded files on the server (default 1gb)
@@ -760,7 +760,7 @@ Server-side options:
 | Flag | Default | Description |
 | --- | --- | --- |
 | `-upload` | off | enable client file upload and hosting |
-| `-ud, -upload-directory` | temporary dir | where uploaded files are stored |
+| `-ud, -upload-directory` | temporary dir | directory to host uploaded files from; interactsh owns `.interactsh-user-uploads` inside it |
 | `-umfs, -upload-max-file-size` | `1mb` | maximum size of a single file |
 | `-umf, -upload-max-files` | `5` | maximum files per session |
 | `-umts, -upload-max-total-size` | `1gb` | maximum total bytes across all sessions |
@@ -794,6 +794,20 @@ Things worth knowing before enabling it:
   file and the session secret key. Use an `https://` server URL.
 - The default upload directory is a temporary directory, which on many Linux distributions is
   memory-backed. Set `-upload-directory` explicitly on a real deployment.
+- **Interactsh creates and prunes one directory inside the upload root.** Hosted files are laid out as
+  `<root>/.interactsh-user-uploads/<correlation-id>/<filename>`, and everything under
+  `.interactsh-user-uploads` is deleted when its session ends, when `-upload-ttl` expires it, and at
+  startup — upload metadata lives only in memory, so nothing there survives a restart. The rest of the
+  root is never touched, which is what makes it safe to point `-upload-directory` at a directory you
+  already use, or to share it with `-ftp-dir`.
+- With `-ftp` and no `-ftp-dir`, the FTP root is set to the upload root so that hosted files are
+  reachable over FTP with no extra configuration. If you set both flags they must name the same
+  directory, otherwise FTP cannot see the uploads: the server reports the mismatch at startup and stops
+  offering `ftp://` URLs to clients, so hosting degrades to HTTP only rather than handing out FTP URLs
+  that resolve to nothing. The uploads directory is hidden from FTP listings — `LIST /` shows your own content but
+  not `.interactsh-user-uploads`, and that directory refuses to list its own contents, so an anonymous
+  client cannot enumerate the correlation IDs that currently have hosted files. `RETR` of a known path
+  works, which is what the payload URL relies on.
 
 ## Dynamic HTTP Response
 
