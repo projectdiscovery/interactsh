@@ -701,7 +701,7 @@ interactsh-client -s https://hackwithautomation.com -t <token> -file evil.dtd
 [INF] c6rj61aciaeutn2ae680cndmnioyyyyyn.hackwithautomation.com
 [INF] Hosting 1 file(s) for OOB Testing
 [INF] https://c6rj61aciaeutn2ae680xk4tqy8pqhwmi.hackwithautomation.com/f/evil.dtd
-[INF] ftp://c6rj61aciaeutn2ae680xk4tqy8pqhwmi.hackwithautomation.com/c6rj61aciaeutn2ae680/evil.dtd
+[INF] ftp://c6rj61aciaeutn2ae680xk4tqy8pqhwmi.hackwithautomation.com/.interactsh-user-uploads/c6rj61aciaeutn2ae680/evil.dtd
 ```
 
 Files are served over HTTP(S), and over FTP(S) as well when `-ftp` is enabled. Responses are always
@@ -725,6 +725,8 @@ Host: c6rj61aciaeutn2ae680xk4tqy8pqhwmi.hackwithautomation.com
 Accept: */*
 User-Agent: curl/8.18.0
 
+
+
 -------------
 HTTP Response
 -------------
@@ -734,8 +736,12 @@ Content-Type: application/octet-stream
 Content-Disposition: attachment; filename="evil.dtd"
 Content-Length: 144
 
-[body elided: 144 bytes of uploaded file "evil.dtd", sha256 0c1b960b076cdff8666f1f302dddd8f3ff0e6ed4b6c09002fbe6d1cdbb5d68f8]
+[body elided: 144 of 144 bytes of uploaded file "evil.dtd", sha256 0c1b960b076cdff8666f1f302dddd8f3ff0e6ed4b6c09002fbe6d1cdbb5d68f8]
 ```
+
+The two counts are "delivered of hosted": a conditional fetch answered `304` records `0 of 144`, and a
+ranged one records the bytes the range actually carried, so the record cannot claim a delivery that did
+not happen.
 
 Whatever second-stage callback the payload then triggers arrives as a further interaction on the same
 correlation ID, so both stages land in one client.
