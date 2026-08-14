@@ -1,8 +1,6 @@
 module github.com/projectdiscovery/interactsh
 
-go 1.24.0
-
-toolchain go1.24.2
+go 1.25.0
 
 require (
 	git.mills.io/prologic/smtpd v0.0.0-20210710122116-a525b76c287a
