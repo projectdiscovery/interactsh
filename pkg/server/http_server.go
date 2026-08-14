@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"log"
+	"maps"
 	"net"
 	"net/http"
 	"net/http/httptest"
@@ -126,9 +127,7 @@ func (h *HTTPServer) logger(handler http.Handler) http.HandlerFunc {
 		resp, _ := httputil.DumpResponse(rec.Result(), true)
 		respString := string(resp)
 
-		for k, v := range rec.Header() {
-			w.Header()[k] = v
-		}
+		maps.Copy(w.Header(), rec.Header())
 		data := rec.Body.Bytes()
 
 		w.WriteHeader(rec.Result().StatusCode)
@@ -507,7 +506,7 @@ func jsonBody(w http.ResponseWriter, key, value string, code int) {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.Header().Set("X-Content-Type-Options", "nosniff")
 	w.WriteHeader(code)
-	_ = jsoniter.NewEncoder(w).Encode(map[string]interface{}{key: value})
+	_ = jsoniter.NewEncoder(w).Encode(map[string]any{key: value})
 }
 
 func jsonError(w http.ResponseWriter, err string, code int) {

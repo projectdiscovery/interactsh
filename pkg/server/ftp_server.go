@@ -141,8 +141,8 @@ func (h *FTPServer) recordInteraction(remoteAddress, data string) {
 	}
 }
 
-func (h *FTPServer) Print(sessionID string, message interface{})              {}
-func (h *FTPServer) Printf(sessionID string, format string, v ...interface{}) {}
+func (h *FTPServer) Print(sessionID string, message any)              {}
+func (h *FTPServer) Printf(sessionID string, format string, v ...any) {}
 func (h *FTPServer) PrintCommand(sessionID string, command string, params string) {
 	h.Print(sessionID, fmt.Sprintf("%s %s", command, params))
 }

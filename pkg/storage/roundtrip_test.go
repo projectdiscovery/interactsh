@@ -14,8 +14,8 @@ import (
 	"testing"
 	"time"
 
-	jsoniter "github.com/json-iterator/go"
 	"github.com/google/uuid"
+	jsoniter "github.com/json-iterator/go"
 	"github.com/rs/xid"
 	"github.com/stretchr/testify/require"
 )
@@ -105,7 +105,7 @@ func TestFullRoundTripInMemory(t *testing.T) {
 	require.NoError(t, err)
 
 	// Create and store 3 DNS interactions (like dns_server.go does)
-	for i := 0; i < 3; i++ {
+	for i := range 3 {
 		inter := &interaction{
 			Protocol:      "dns",
 			UniqueID:      "abc123def456ghi",
@@ -158,7 +158,7 @@ func TestFullRoundTripDisk(t *testing.T) {
 	require.NoError(t, err)
 
 	// Create and store 3 DNS interactions
-	for i := 0; i < 3; i++ {
+	for i := range 3 {
 		inter := &interaction{
 			Protocol:      "dns",
 			UniqueID:      "abc123def456ghi",

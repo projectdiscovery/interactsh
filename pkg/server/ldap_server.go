@@ -387,7 +387,7 @@ func (ldapServer *LDAPServer) handleExtended(w ldap.ResponseWriter, m *ldap.Mess
 	}
 }
 
-func (ldapServer *LDAPServer) handleLog(host string, f string, v ...interface{}) {
+func (ldapServer *LDAPServer) handleLog(host string, f string, v ...any) {
 	// just discard logs if logger is disabled
 	if !ldapServer.WithLogger {
 		return

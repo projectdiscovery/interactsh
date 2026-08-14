@@ -282,7 +282,7 @@ func (s *StorageDB) GetInteractionsWithIdForConsumer(id, consumerID string) ([]s
 			}
 			return nil, err
 		}
-		for _, d := range bytes.Split(raw, []byte("\n")) {
+		for d := range bytes.SplitSeq(raw, []byte("\n")) {
 			if len(d) > 0 {
 				allData = append(allData, string(d))
 			}
@@ -387,7 +387,7 @@ func (s *StorageDB) applyTrim(value *CorrelationData, id string, trimCount int) 
 			return
 		}
 		var allData []string
-		for _, d := range bytes.Split(raw, []byte("\n")) {
+		for d := range bytes.SplitSeq(raw, []byte("\n")) {
 			if len(d) > 0 {
 				allData = append(allData, string(d))
 			}
@@ -418,7 +418,7 @@ func (s *StorageDB) dataLen(value *CorrelationData, id string) int {
 			return 0
 		}
 		count := 0
-		for _, d := range bytes.Split(raw, []byte("\n")) {
+		for d := range bytes.SplitSeq(raw, []byte("\n")) {
 			if len(d) > 0 {
 				count++
 			}
@@ -479,7 +479,7 @@ func (s *StorageDB) getInteractions(correlationData *CorrelationData, id string)
 			return nil, err
 		}
 		var dataString []string
-		for _, d := range bytes.Split(data, []byte("\n")) {
+		for d := range bytes.SplitSeq(data, []byte("\n")) {
 			if len(d) == 0 {
 				continue
 			}

@@ -624,7 +624,7 @@ func (c *Client) performRegistration(serverURL string, payload []byte) error {
 		data, _ := io.ReadAll(resp.Body)
 		return fmt.Errorf("could not register to server: %s", string(data))
 	}
-	response := make(map[string]interface{})
+	response := make(map[string]any)
 	if err := jsoniter.NewDecoder(resp.Body).Decode(&response); err != nil {
 		return errkit.Wrap(err, "could not register to server")
 	}

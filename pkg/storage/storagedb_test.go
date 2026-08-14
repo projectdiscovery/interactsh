@@ -128,7 +128,7 @@ func BenchmarkCacheParallelOther(b *testing.B) {
 }
 
 func doStuffWithOtherCache(cache cache.Cache) {
-	for i := 0; i < 1e2; i++ {
+	for i := range int(1e2) {
 		cache.Put(strconv.Itoa(i), "test")
 		_, _ = cache.GetIfPresent(strconv.Itoa(i))
 	}
@@ -347,7 +347,7 @@ func TestSlidingEvictionStrategy(t *testing.T) {
 	require.True(t, ok)
 
 	// Still present after original TTL due to sliding window
-	time.Sleep(testTTL / 2 + smallDelay)
+	time.Sleep(testTTL/2 + smallDelay)
 	_, ok = mem.cache.GetIfPresent("test-sliding")
 	require.True(t, ok)
 
@@ -372,7 +372,7 @@ func TestFixedEvictionStrategy(t *testing.T) {
 	require.True(t, ok)
 
 	// Should be expired after full TTL despite access
-	time.Sleep(testTTL / 2 + 10 * time.Millisecond)
+	time.Sleep(testTTL/2 + 10*time.Millisecond)
 	_, ok = mem.cache.GetIfPresent("test-fixed")
 	require.False(t, ok)
 }

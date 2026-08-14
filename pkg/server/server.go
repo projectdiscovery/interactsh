@@ -118,7 +118,7 @@ type Options struct {
 	Certificates []tls.Certificate
 	CertFiles    []acme.CertificateFiles
 }
-type OnResultCallback func(out interface{})
+type OnResultCallback func(out any)
 
 func (options *Options) GetIdLength() int {
 	return options.CorrelationIdLength + options.CorrelationIdNonceLength
