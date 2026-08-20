@@ -105,6 +105,42 @@ func TestWriteResponseFromDynamicRequest(t *testing.T) {
                 body, _ := io.ReadAll(resp.Body)
                 require.Equal(t, "this is example body", string(body), "could not get correct result")
         })
+	t.Run("b64_body path", func(t *testing.T) {
+		req := httptest.NewRequest("GET", "http://example.com/b64_body:dGhpcyBpcyBleGFtcGxlIGJvZHk=/", nil)
+		w := httptest.NewRecorder()
+		writeResponseFromDynamicRequest(w, req)
+
+		resp := w.Result()
+		body, _ := io.ReadAll(resp.Body)
+		require.Equal(t, "this is example body", string(body), "could not get correct result")
+	})
+	t.Run("b64_body path without a trailing slash", func(t *testing.T) {
+		req := httptest.NewRequest("GET", "http://example.com/b64_body:dGhpcyBpcyBleGFtcGxlIGJvZHk=", nil)
+		w := httptest.NewRecorder()
+		writeResponseFromDynamicRequest(w, req)
+
+		resp := w.Result()
+		body, _ := io.ReadAll(resp.Body)
+		require.Equal(t, "this is example body", string(body), "could not get correct result")
+	})
+	t.Run("b64_body path with an uppercase prefix", func(t *testing.T) {
+		req := httptest.NewRequest("GET", "http://example.com/B64_BODY:dGhpcyBpcyBleGFtcGxlIGJvZHk=/", nil)
+		w := httptest.NewRecorder()
+		writeResponseFromDynamicRequest(w, req)
+
+		resp := w.Result()
+		body, _ := io.ReadAll(resp.Body)
+		require.Equal(t, "this is example body", string(body), "could not get correct result")
+	})
+	t.Run("b64_body path with nothing encoded", func(t *testing.T) {
+		req := httptest.NewRequest("GET", "http://example.com/b64_body:", nil)
+		w := httptest.NewRecorder()
+		writeResponseFromDynamicRequest(w, req)
+
+		resp := w.Result()
+		body, _ := io.ReadAll(resp.Body)
+		require.Empty(t, string(body), "could not get correct result")
+	})
 	t.Run("header", func(t *testing.T) {
 		req := httptest.NewRequest("GET", "http://example.com/?header=Key:value&header=Test:Another", nil)
 		w := httptest.NewRecorder()

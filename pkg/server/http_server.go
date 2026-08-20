@@ -328,6 +328,9 @@ func (h *HTTPServer) defaultHandler(w http.ResponseWriter, req *http.Request) {
 	}
 }
 
+// b64BodyPrefix marks a request path carrying a base64 encoded response body.
+const b64BodyPrefix = "/b64_body:"
+
 // writeResponseFromDynamicRequest writes a response to http.ResponseWriter
 // based on dynamic data from HTTP URL Query parameters.
 //
@@ -340,13 +343,16 @@ func (h *HTTPServer) defaultHandler(w http.ResponseWriter, req *http.Request) {
 func writeResponseFromDynamicRequest(w http.ResponseWriter, req *http.Request) {
 	values := req.URL.Query()
 
-	if stringsutil.HasPrefixI(req.URL.Path, "/b64_body:") {
-		firstindex := strings.Index(req.URL.Path, "/b64_body:")
-		lastIndex := strings.LastIndex(req.URL.Path, "/")
+	if stringsutil.HasPrefixI(req.URL.Path, b64BodyPrefix) {
+		// the prefix check is case insensitive, so take the offset from its
+		// length rather than searching for it again
+		encoded := req.URL.Path[len(b64BodyPrefix):]
+		if lastIndex := strings.LastIndex(encoded, "/"); lastIndex >= 0 {
+			encoded = encoded[:lastIndex]
+		}
 
-		decodedBytes, _ := base64.StdEncoding.DecodeString(req.URL.Path[firstindex+10 : lastIndex])
+		decodedBytes, _ := base64.StdEncoding.DecodeString(encoded)
 		_, _ = w.Write(decodedBytes)
-
 	}
 	if headers := values["header"]; len(headers) > 0 {
 		for _, header := range headers {
