@@ -187,8 +187,10 @@ func New(options *Options) (*Client, error) {
 			return nil, errkit.Wrap(err, "failed to decode public key")
 		}
 		client.pubKey = pubKey
-		if serverURL, err := url.Parse(options.SessionInfo.ServerURL); err == nil {
+		registrationServerURL := options.SessionInfo.ServerURL
+		if serverURL, err := parseServerURL(options.SessionInfo.ServerURL); err == nil {
 			client.serverURL = serverURL
+			registrationServerURL = serverURL.String()
 		}
 		// attempts to re-register - server will reject is already existing
 		registrationRequest, err := encodeRegistrationRequest(options.SessionInfo.PublicKey, options.SessionInfo.SecretKey, options.SessionInfo.CorrelationID)
@@ -196,7 +198,7 @@ func New(options *Options) (*Client, error) {
 			return nil, err
 		}
 		// silently fails to re-register if the session is still alive
-		_ = client.performRegistration(options.SessionInfo.ServerURL, registrationRequest)
+		_ = client.performRegistration(registrationServerURL, registrationRequest)
 	} else {
 		payload, err := client.initializeRSAKeys()
 		if err != nil {
@@ -327,11 +329,11 @@ func (c *Client) parseServerURLs(serverURL string, payload []byte) error {
 	}
 
 	values := strings.Split(serverURL, ",")
-	registerFunc := func(idx int, value string) error {
+	registerFunc := func(_ int, value string) error {
 		if !stringsutil.HasPrefixAny(value, "http://", "https://") {
 			value = fmt.Sprintf("https://%s", value)
 		}
-		parsed, err := url.Parse(value)
+		parsed, err := parseServerURL(value)
 		if err != nil {
 			return errkit.Wrap(err, "could not parse server URL")
 		}
@@ -367,6 +369,20 @@ func (c *Client) parseServerURLs(serverURL string, payload []byte) error {
 	}
 
 	return nil
+}
+
+func parseServerURL(value string) (*url.URL, error) {
+	parsed, err := url.Parse(value)
+	if err != nil {
+		return nil, err
+	}
+
+	for strings.HasSuffix(parsed.EscapedPath(), "/") {
+		parsed.Path = strings.TrimSuffix(parsed.Path, "/")
+		parsed.RawPath = strings.TrimSuffix(parsed.RawPath, "/")
+	}
+
+	return parsed, nil
 }
 
 // InteractionCallback is a callback function for a reported interaction
