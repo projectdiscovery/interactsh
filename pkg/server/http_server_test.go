@@ -105,42 +105,6 @@ func TestWriteResponseFromDynamicRequest(t *testing.T) {
                 body, _ := io.ReadAll(resp.Body)
                 require.Equal(t, "this is example body", string(body), "could not get correct result")
         })
-	t.Run("b64_body path", func(t *testing.T) {
-		req := httptest.NewRequest("GET", "http://example.com/b64_body:dGhpcyBpcyBleGFtcGxlIGJvZHk=/", nil)
-		w := httptest.NewRecorder()
-		writeResponseFromDynamicRequest(w, req)
-
-		resp := w.Result()
-		body, _ := io.ReadAll(resp.Body)
-		require.Equal(t, "this is example body", string(body), "could not get correct result")
-	})
-	t.Run("b64_body path without a trailing slash", func(t *testing.T) {
-		req := httptest.NewRequest("GET", "http://example.com/b64_body:dGhpcyBpcyBleGFtcGxlIGJvZHk=", nil)
-		w := httptest.NewRecorder()
-		writeResponseFromDynamicRequest(w, req)
-
-		resp := w.Result()
-		body, _ := io.ReadAll(resp.Body)
-		require.Equal(t, "this is example body", string(body), "could not get correct result")
-	})
-	t.Run("b64_body path with an uppercase prefix", func(t *testing.T) {
-		req := httptest.NewRequest("GET", "http://example.com/B64_BODY:dGhpcyBpcyBleGFtcGxlIGJvZHk=/", nil)
-		w := httptest.NewRecorder()
-		writeResponseFromDynamicRequest(w, req)
-
-		resp := w.Result()
-		body, _ := io.ReadAll(resp.Body)
-		require.Equal(t, "this is example body", string(body), "could not get correct result")
-	})
-	t.Run("b64_body path with nothing encoded", func(t *testing.T) {
-		req := httptest.NewRequest("GET", "http://example.com/b64_body:", nil)
-		w := httptest.NewRecorder()
-		writeResponseFromDynamicRequest(w, req)
-
-		resp := w.Result()
-		body, _ := io.ReadAll(resp.Body)
-		require.Empty(t, string(body), "could not get correct result")
-	})
 	t.Run("header", func(t *testing.T) {
 		req := httptest.NewRequest("GET", "http://example.com/?header=Key:value&header=Test:Another", nil)
 		w := httptest.NewRecorder()
@@ -219,4 +183,70 @@ func TestSessionTotalMetric(t *testing.T) {
 
 	require.Equal(t, int64(0), atomic.LoadInt64(&stats.Sessions), "sessions should be 0 after deregister")
 	require.Equal(t, int64(1), atomic.LoadInt64(&stats.SessionsTotal), "sessions_total should remain 1 after deregister")
+}
+
+func TestDecodeB64BodyPath(t *testing.T) {
+	example := "this is example body"
+	exampleB64 := base64.StdEncoding.EncodeToString([]byte(example))
+	slashPayload := []byte{0xff, 0xff, 0xff}
+	slashB64 := base64.StdEncoding.EncodeToString(slashPayload)
+	require.Equal(t, "////", slashB64)
+	plusPayload := []byte{0xfb}
+	plusB64 := base64.StdEncoding.EncodeToString(plusPayload)
+	require.Contains(t, plusB64, "+")
+
+	tests := []struct {
+		name string
+		path string
+		want []byte
+	}{
+		{name: "trailing slash", path: "/b64_body:" + exampleB64 + "/", want: []byte(example)},
+		{name: "no trailing slash", path: "/b64_body:" + exampleB64, want: []byte(example)},
+		{name: "uppercase prefix", path: "/B64_BODY:" + exampleB64 + "/", want: []byte(example)},
+		{name: "empty payload", path: "/b64_body:", want: []byte{}},
+		{name: "slash in payload", path: "/b64_body:" + slashB64, want: slashPayload},
+		{name: "slash in payload with terminator", path: "/b64_body:" + slashB64 + "/", want: slashPayload},
+		{name: "plus in payload", path: "/b64_body:" + plusB64, want: plusPayload},
+		{name: "unrelated path", path: "/other", want: nil},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			require.NotPanics(t, func() {
+				require.Equal(t, tt.want, decodeB64BodyPath(tt.path))
+			})
+		})
+	}
+}
+
+func TestWriteResponseFromDynamicRequestB64Path(t *testing.T) {
+	example := "this is example body"
+	exampleB64 := base64.StdEncoding.EncodeToString([]byte(example))
+	slashPayload := []byte{0xff, 0xff, 0xff}
+	slashB64 := base64.StdEncoding.EncodeToString(slashPayload)
+
+	tests := []struct {
+		name string
+		path string
+		want []byte
+	}{
+		{name: "trailing slash", path: "/b64_body:" + exampleB64 + "/", want: []byte(example)},
+		{name: "no trailing slash", path: "/b64_body:" + exampleB64, want: []byte(example)},
+		{name: "uppercase prefix", path: "/B64_BODY:" + exampleB64 + "/", want: []byte(example)},
+		{name: "empty payload", path: "/b64_body:", want: []byte{}},
+		{name: "slash in payload", path: "/b64_body:" + slashB64, want: slashPayload},
+		{name: "slash in payload with terminator", path: "/b64_body:" + slashB64 + "/", want: slashPayload},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodGet, "http://example.com/", nil)
+			req.URL.Path = tt.path
+			w := httptest.NewRecorder()
+			require.NotPanics(t, func() {
+				writeResponseFromDynamicRequest(w, req)
+			})
+			body, err := io.ReadAll(w.Result().Body)
+			require.NoError(t, err)
+			require.Equal(t, tt.want, body)
+		})
+	}
 }

@@ -331,6 +331,27 @@ func (h *HTTPServer) defaultHandler(w http.ResponseWriter, req *http.Request) {
 // b64BodyPrefix marks a request path carrying a base64 encoded response body.
 const b64BodyPrefix = "/b64_body:"
 
+// decodeB64BodyPath decodes a /b64_body:<payload> path.
+// HasPrefixI is case insensitive, so the payload offset is the prefix length
+// rather than a second case-sensitive search. A single trailing slash is
+// accepted as a terminator (nuclei templates use it); other slashes are left
+// in place because they are valid in StdEncoding.
+func decodeB64BodyPath(path string) []byte {
+	if !stringsutil.HasPrefixI(path, b64BodyPrefix) {
+		return nil
+	}
+	encoded := path[len(b64BodyPrefix):]
+	decoded, err := base64.StdEncoding.DecodeString(encoded)
+	if err == nil {
+		return decoded
+	}
+	if strings.HasSuffix(encoded, "/") {
+		decoded, _ = base64.StdEncoding.DecodeString(strings.TrimSuffix(encoded, "/"))
+		return decoded
+	}
+	return nil
+}
+
 // writeResponseFromDynamicRequest writes a response to http.ResponseWriter
 // based on dynamic data from HTTP URL Query parameters.
 //
@@ -343,16 +364,8 @@ const b64BodyPrefix = "/b64_body:"
 func writeResponseFromDynamicRequest(w http.ResponseWriter, req *http.Request) {
 	values := req.URL.Query()
 
-	if stringsutil.HasPrefixI(req.URL.Path, b64BodyPrefix) {
-		// the prefix check is case insensitive, so take the offset from its
-		// length rather than searching for it again
-		encoded := req.URL.Path[len(b64BodyPrefix):]
-		if lastIndex := strings.LastIndex(encoded, "/"); lastIndex >= 0 {
-			encoded = encoded[:lastIndex]
-		}
-
-		decodedBytes, _ := base64.StdEncoding.DecodeString(encoded)
-		_, _ = w.Write(decodedBytes)
+	if decoded := decodeB64BodyPath(req.URL.Path); decoded != nil {
+		_, _ = w.Write(decoded)
 	}
 	if headers := values["header"]; len(headers) > 0 {
 		for _, header := range headers {
