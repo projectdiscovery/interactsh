@@ -84,6 +84,25 @@ func NewHTTPServer(options *Options) (*HTTPServer, error) {
 	router.Handle("/register", server.corsMiddleware(server.authMiddleware(http.HandlerFunc(server.registerHandler))))
 	router.Handle("/deregister", server.corsMiddleware(server.authMiddleware(http.HandlerFunc(server.deregisterHandler))))
 	router.Handle("/poll", server.corsMiddleware(server.authMiddleware(http.HandlerFunc(server.pollHandler))))
+	// Registered even when uploads are disabled, so that an upload request to a
+	// server without -upload gets a clean 501 rather than falling through to
+	// "/", where the logger middleware would persist the whole file body as an
+	// interaction record.
+	//
+	// Unlike the other authenticated routes this one is not wrapped in
+	// authMiddleware: it checks the token itself, because a request that fails
+	// the check has to be recorded as an interaction before the 401 and the
+	// middleware returns too early to allow that. -upload forces -auth with a
+	// random token, and the client refuses to send an upload to a server whose
+	// advertised capabilities say uploads are off, so anything unauthenticated
+	// arriving here is a target probing the endpoint -- exactly what we exist to
+	// record.
+	router.Handle("/upload", server.corsMiddleware(http.HandlerFunc(server.uploadHandler)))
+	// Hosted files are served outside the logger middleware, which would
+	// otherwise copy each file body into an interaction record; the handler
+	// records a body-elided interaction itself. No CORS: these are fetched by
+	// the target under test, not cross-origin by a browser.
+	router.Handle("/f/", http.HandlerFunc(server.serveUploadedFile))
 	if server.options.EnableMetrics {
 		router.Handle("/metrics", server.corsMiddleware(server.authMiddleware(http.HandlerFunc(server.metricsHandler))))
 	}
@@ -418,7 +437,17 @@ func (h *HTTPServer) registerHandler(w http.ResponseWriter, req *http.Request) {
 	}
 	atomic.AddInt64(&h.options.Stats.Sessions, 1)
 	atomic.AddInt64(&h.options.Stats.SessionsTotal, 1)
-	jsonMsg(w, "registration successful", http.StatusOK)
+
+	// Capabilities ride along on the registration response so the client knows
+	// whether uploads are available without a second round trip. Older clients
+	// read only "message" and ignore the extra key.
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.Header().Set("X-Content-Type-Options", "nosniff")
+	w.WriteHeader(http.StatusOK)
+	_ = json.NewEncoder(w).Encode(&RegisterResponse{
+		Message:      "registration successful",
+		Capabilities: h.capabilities(),
+	})
 	gologger.Debug().Msgf("Registered correlationID %s for key\n", r.CorrelationID)
 }
 
@@ -444,6 +473,17 @@ func (h *HTTPServer) deregisterHandler(w http.ResponseWriter, req *http.Request)
 		jsonError(w, fmt.Sprintf("could not remove id: %s", err), http.StatusBadRequest)
 		return
 	}
+
+	// Deleted synchronously rather than queued: the cache eviction hook fired
+	// by RemoveID above only enqueues the directory, leaving a window in which
+	// a client that has just deregistered could still fetch its own hosted
+	// files. Blocking here is safe -- unlike the cache's event goroutine, this
+	// handler can afford the filesystem call -- and the deletion is idempotent,
+	// so the queued removal that follows is a no-op.
+	if h.options.UploadStore != nil {
+		h.options.UploadStore.removeSessionNow(r.CorrelationID)
+	}
+
 	if h.options.RootTLD {
 		for _, domain := range h.options.Domains {
 			_ = h.options.Storage.RemoveConsumer(domain, r.CorrelationID)
@@ -568,7 +608,20 @@ func (h *HTTPServer) checkToken(req *http.Request) bool {
 
 // metricsHandler is a handler for /metrics endpoint
 func (h *HTTPServer) metricsHandler(w http.ResponseWriter, req *http.Request) {
-	interactMetrics := h.options.Stats
+	// h.options.Stats is a *Metrics shared by every protocol server, whose
+	// counters are updated concurrently with atomic adds. Snapshot it into a
+	// local value with atomic loads rather than mutating the shared struct,
+	// which would race with those writers and with concurrent /metrics calls.
+	interactMetrics := Metrics{
+		Dns:           atomic.LoadUint64(&h.options.Stats.Dns),
+		Ftp:           atomic.LoadUint64(&h.options.Stats.Ftp),
+		Http:          atomic.LoadUint64(&h.options.Stats.Http),
+		Ldap:          atomic.LoadUint64(&h.options.Stats.Ldap),
+		Smb:           atomic.LoadUint64(&h.options.Stats.Smb),
+		Smtp:          atomic.LoadUint64(&h.options.Stats.Smtp),
+		Sessions:      atomic.LoadInt64(&h.options.Stats.Sessions),
+		SessionsTotal: atomic.LoadInt64(&h.options.Stats.SessionsTotal),
+	}
 	interactMetrics.Cache = GetCacheMetrics(h.options)
 	interactMetrics.Cpu = GetCpuMetrics()
 	interactMetrics.Memory = GetMemoryMetrics()
@@ -576,5 +629,5 @@ func (h *HTTPServer) metricsHandler(w http.ResponseWriter, req *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.Header().Set("X-Content-Type-Options", "nosniff")
-	_ = json.NewEncoder(w).Encode(interactMetrics)
+	_ = json.NewEncoder(w).Encode(&interactMetrics)
 }

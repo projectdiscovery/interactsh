@@ -19,6 +19,7 @@ import (
 
 	_ "net/http/pprof"
 
+	units "github.com/docker/go-units"
 	"github.com/projectdiscovery/goflags"
 	"github.com/projectdiscovery/gologger"
 	"github.com/projectdiscovery/gologger/levels"
@@ -102,6 +103,15 @@ func main() {
 		flagSet.IntVar(&cliOptions.FtpPort, "ftp-port", 21, "port to use for ftp service"),
 		flagSet.IntVar(&cliOptions.FtpsPort, "ftps-port", 990, "port to use for ftps service"),
 		flagSet.StringVar(&cliOptions.FTPDirectory, "ftp-dir", "", "ftp directory - temporary if not specified"),
+	)
+
+	flagSet.CreateGroup("upload", "Upload",
+		flagSet.BoolVar(&cliOptions.Upload, "upload", false, "enable client file upload and hosting - self-hosted servers only (authenticated)"),
+		flagSet.StringVarP(&cliOptions.UploadDirectory, "upload-directory", "ud", "", "directory to host uploaded files from - temporary if not specified; interactsh creates and prunes .interactsh-user-uploads inside it"),
+		flagSet.SizeVarP(&cliOptions.UploadMaxFileSize, "upload-max-file-size", "umfs", "1mb", "maximum size of a single uploaded file"),
+		flagSet.IntVarP(&cliOptions.UploadMaxFiles, "upload-max-files", "umf", 5, "maximum number of uploaded files per session"),
+		flagSet.SizeVarP(&cliOptions.UploadMaxTotalSize, "upload-max-total-size", "umts", "1gb", "maximum total size of all uploaded files on the server"),
+		flagSet.DurationVarP(&cliOptions.UploadTTL, "upload-ttl", "ut", 24*time.Hour, "maximum lifetime of uploaded files"),
 	)
 
 	flagSet.CreateGroup("debug", "Debug",
@@ -209,7 +219,7 @@ func main() {
 	}
 
 	// Requires auth if token is specified or enables it automatically for responder and smb options
-	if serverOptions.Token != "" || cliOptions.Responder || cliOptions.Smb || cliOptions.Ftp || cliOptions.LdapWithFullLogger {
+	if serverOptions.Token != "" || cliOptions.Responder || cliOptions.Smb || cliOptions.Ftp || cliOptions.LdapWithFullLogger || cliOptions.Upload {
 		serverOptions.Auth = true
 	}
 
@@ -269,6 +279,54 @@ func main() {
 		atomic.AddInt64(&serverOptions.Stats.Sessions, -1)
 	}
 
+	// The upload store must exist before the HTTP and FTP servers are built,
+	// since both serve from its root.
+	var uploadStore *server.UploadStore
+	if cliOptions.Upload {
+		// Hosted bytes live on this instance's local filesystem and the
+		// capacity quota is an in-process counter, so file hosting cannot be
+		// combined with a storage backend shared between instances: peers
+		// would advertise files they do not have.
+		if cliOptions.RedisURL != "" {
+			gologger.Fatal().Msgf("-upload cannot be used with -redis-url: hosted files are stored on a single instance's local filesystem\n")
+		}
+		var err error
+		if uploadStore, err = server.NewUploadStore(serverOptions); err != nil {
+			gologger.Fatal().Msgf("could not create upload store: %s\n", err)
+		}
+		serverOptions.UploadStore = uploadStore
+
+		// Sharing the root is what lets the existing FTP file driver serve
+		// uploads. If the operator pinned both to different places, say so and
+		// stop advertising FTP, rather than printing ftp:// payload URLs that
+		// resolve to nothing.
+		switch {
+		case serverOptions.FTPDirectory == "":
+			serverOptions.FTPDirectory = uploadStore.Root()
+			serverOptions.FTPServesUploads = true
+		default:
+			// Compared as resolved paths, not as the operator typed them:
+			// "./uploads", "/abs/uploads/" and a symlink to the same place are
+			// one directory, and warning about a working configuration teaches
+			// the operator to ignore the warning that matters.
+			shared, err := sameDirectory(serverOptions.FTPDirectory, uploadStore.Root())
+			if err != nil {
+				gologger.Fatal().Msgf("could not compare ftp and upload directories: %s\n", err)
+			}
+			serverOptions.FTPServesUploads = shared
+			if !shared && cliOptions.Ftp {
+				gologger.Error().Msgf("ftp directory %s is not the upload directory %s, so uploaded files will not be served over FTP; ftp:// URLs will not be offered to clients\n",
+					serverOptions.FTPDirectory, uploadStore.Root())
+			}
+		}
+
+		// Deleting a session's files is driven by the correlation-id leaving
+		// the cache, whatever the reason.
+		storeOptions.OnEviction = func(correlationID string, _ *storage.CorrelationData) {
+			uploadStore.RemoveSession(correlationID)
+		}
+	}
+
 	var err error
 	switch {
 	case cliOptions.RedisURL != "":
@@ -293,6 +351,12 @@ func main() {
 	}
 
 	serverOptions.Storage = store
+
+	if uploadStore != nil {
+		uploadStore.Start()
+		gologger.Info().Msgf("Uploads enabled, hosting from %s (max %d files of %s each)\n",
+			uploadStore.Root(), cliOptions.UploadMaxFiles, units.BytesSize(float64(cliOptions.UploadMaxFileSize)))
+	}
 
 	if serverOptions.Auth {
 		_ = serverOptions.Storage.SetID(serverOptions.Token)
@@ -503,8 +567,15 @@ func main() {
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt)
 	for range c {
+		// Closed first: cache.Close blocks until every removal callback has run,
+		// so all session deletions are queued by the time we drain them below.
 		if err := store.Close(); err != nil {
 			gologger.Warning().Msgf("Couldn't close the storage: %s\n", err)
+		}
+		if uploadStore != nil {
+			if err := uploadStore.Close(); err != nil {
+				gologger.Warning().Msgf("Couldn't close the upload store: %s\n", err)
+			}
 		}
 		if pprofServer != nil {
 			if err := pprofServer.Close(); err != nil {
@@ -534,4 +605,37 @@ func getPublicIP() (string, error) {
 	}
 
 	return externalIP, errors.New("couldn't find an interface configured with external ip")
+}
+
+// sameDirectory reports whether two paths name the same directory. Both are made
+// absolute and symlink-resolved first, so that the FTP root and the upload root
+// are compared as directories rather than as the strings the operator typed.
+//
+// A path that does not exist yet is compared in its cleaned absolute form:
+// EvalSymlinks fails on a missing path, and that is not an error worth refusing
+// to start over.
+func sameDirectory(a, b string) (bool, error) {
+	resolve := func(p string) (string, error) {
+		abs, err := filepath.Abs(p)
+		if err != nil {
+			return "", err
+		}
+		resolved, err := filepath.EvalSymlinks(abs)
+		if err != nil {
+			if os.IsNotExist(err) {
+				return filepath.Clean(abs), nil
+			}
+			return "", err
+		}
+		return resolved, nil
+	}
+	ra, err := resolve(a)
+	if err != nil {
+		return false, err
+	}
+	rb, err := resolve(b)
+	if err != nil {
+		return false, err
+	}
+	return ra == rb, nil
 }

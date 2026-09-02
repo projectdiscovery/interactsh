@@ -111,6 +111,30 @@ type Options struct {
 	// DefaultHTTPResponseFile is a file to serve for all HTTP requests (takes priority over other options)
 	DefaultHTTPResponseFile string
 
+	// Ftp indicates the FTP server is enabled, so uploaded files are also
+	// reachable over ftp://
+	Ftp bool
+	// Upload enables the client file upload endpoint and file hosting
+	Upload bool
+	// UploadDirectory is the root directory uploaded files are stored under
+	UploadDirectory string
+	// UploadMaxFileSize is the maximum size in bytes of a single uploaded file
+	UploadMaxFileSize int64
+	// UploadMaxFiles is the maximum number of files a single session may upload
+	UploadMaxFiles int
+	// UploadMaxTotalSize is the maximum total size in bytes of all uploaded files
+	UploadMaxTotalSize int64
+	// UploadTTL is the maximum lifetime of uploaded files on disk
+	UploadTTL time.Duration
+	// UploadStore serves and stores uploaded files. Nil when uploads are disabled.
+	UploadStore *UploadStore
+	// FTPServesUploads reports whether the FTP root and the upload root resolve
+	// to the same directory, which is what makes hosted files reachable over
+	// ftp://. Derived at startup from the resolved paths, never from the flags
+	// as written, so that two spellings of one directory are not mistaken for
+	// two directories.
+	FTPServesUploads bool
+
 	ACMEStore *acme.Provider
 	Stats     *Metrics
 	OnResult  OnResultCallback
@@ -119,6 +143,15 @@ type Options struct {
 	CertFiles    []acme.CertificateFiles
 }
 type OnResultCallback func(out interface{})
+
+// UploadStorage returns the configured storage backend's upload-tracking
+// capability, or nil when the backend does not implement it. Only
+// instance-local backends do, since hosted bytes live on the local filesystem;
+// see storage.UploadStorage.
+func (options *Options) UploadStorage() storage.UploadStorage {
+	uploadStorage, _ := options.Storage.(storage.UploadStorage)
+	return uploadStorage
+}
 
 func (options *Options) GetIdLength() int {
 	return options.CorrelationIdLength + options.CorrelationIdNonceLength
