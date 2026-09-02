@@ -81,6 +81,8 @@ func HandleWildcardCertificates(domain, email string, store *Provider, debug boo
 		return nil, nil, syncErr
 	}
 
+	obtainApexCertIfMissing(cfg, &certmagic.DefaultACME, originalDomain, cfg.ObtainCertSync)
+
 	domains := []string{domain, originalDomain}
 	if syncErr := cfg.ManageSync(context.Background(), domains); syncErr != nil {
 		gologger.Error().Msgf("Could not manage certmagic certs: %s", syncErr)
@@ -128,6 +130,21 @@ func HandleWildcardCertificates(domain, email string, store *Provider, debug boo
 	}
 
 	return certs, certFiles, nil
+}
+
+// obtainApexCertIfMissing calls obtain for the apex domain when no cert is
+// cached yet. ManageSync alone is unreliable for apex issuance when a wildcard
+// cert for the same base domain was just obtained: both challenges share the
+// same _acme-challenge TXT record, and Let's Encrypt returns "order pending,
+// authorizations remaining" when the finalization races the prior DNS-01 flow.
+// Extracted as a separate function to allow unit testing without a real ACME server.
+func obtainApexCertIfMissing(cfg *certmagic.Config, issuer certmagic.Issuer, domain string, obtain func(context.Context, string) error) {
+	if certAlreadyExists(cfg, issuer, domain) {
+		return
+	}
+	if err := obtain(context.Background(), domain); err != nil {
+		gologger.Warning().Msgf("Could not obtain apex certificate for %s: %s", domain, err)
+	}
 }
 
 // certAlreadyExists returns true if a cert already exists
