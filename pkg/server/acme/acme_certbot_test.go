@@ -12,10 +12,13 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// makeRecords returns a single-element libdns record slice for use in DNS provider tests.
 func makeRecords(name, rtype, data string) []libdns.Record {
 	return []libdns.Record{libdns.RR{Name: name, Type: rtype, Data: data}}
 }
 
+// createFakeCert writes the three stub files that certmagic uses to track a certificate
+// (cert, private key, metadata) so that certAlreadyExists returns true for domain.
 func createFakeCert(t *testing.T, dir string, issuer certmagic.Issuer, domain string) {
 	t.Helper()
 	issuerKey := issuer.IssuerKey()
