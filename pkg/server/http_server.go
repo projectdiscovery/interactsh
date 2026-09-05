@@ -444,6 +444,7 @@ func (h *HTTPServer) deregisterHandler(w http.ResponseWriter, req *http.Request)
 		jsonError(w, fmt.Sprintf("could not remove id: %s", err), http.StatusBadRequest)
 		return
 	}
+
 	if h.options.RootTLD {
 		for _, domain := range h.options.Domains {
 			_ = h.options.Storage.RemoveConsumer(domain, r.CorrelationID)
@@ -568,7 +569,7 @@ func (h *HTTPServer) checkToken(req *http.Request) bool {
 
 // metricsHandler is a handler for /metrics endpoint
 func (h *HTTPServer) metricsHandler(w http.ResponseWriter, req *http.Request) {
-	interactMetrics := h.options.Stats
+	interactMetrics := h.options.Stats.snapshot()
 	interactMetrics.Cache = GetCacheMetrics(h.options)
 	interactMetrics.Cpu = GetCpuMetrics()
 	interactMetrics.Memory = GetMemoryMetrics()
@@ -576,5 +577,5 @@ func (h *HTTPServer) metricsHandler(w http.ResponseWriter, req *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.Header().Set("X-Content-Type-Options", "nosniff")
-	_ = json.NewEncoder(w).Encode(interactMetrics)
+	_ = json.NewEncoder(w).Encode(&interactMetrics)
 }
