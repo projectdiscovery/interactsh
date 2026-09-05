@@ -31,7 +31,8 @@ jobs:
         working-directory: .
 
       - name: Race Condition Tests
-        run: go build -race ./...
+        if: runner.os == 'Linux'
+        run: go test -race ./...
         working-directory: .
 
       - name: Example Code Tests

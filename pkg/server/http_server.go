@@ -550,20 +550,7 @@ func (h *HTTPServer) checkToken(req *http.Request) bool {
 
 // metricsHandler is a handler for /metrics endpoint
 func (h *HTTPServer) metricsHandler(w http.ResponseWriter, req *http.Request) {
-	// h.options.Stats is a *Metrics shared by every protocol server, whose
-	// counters are updated concurrently with atomic adds. Snapshot it into a
-	// local value with atomic loads rather than mutating the shared struct,
-	// which would race with those writers and with concurrent /metrics calls.
-	interactMetrics := Metrics{
-		Dns:           atomic.LoadUint64(&h.options.Stats.Dns),
-		Ftp:           atomic.LoadUint64(&h.options.Stats.Ftp),
-		Http:          atomic.LoadUint64(&h.options.Stats.Http),
-		Ldap:          atomic.LoadUint64(&h.options.Stats.Ldap),
-		Smb:           atomic.LoadUint64(&h.options.Stats.Smb),
-		Smtp:          atomic.LoadUint64(&h.options.Stats.Smtp),
-		Sessions:      atomic.LoadInt64(&h.options.Stats.Sessions),
-		SessionsTotal: atomic.LoadInt64(&h.options.Stats.SessionsTotal),
-	}
+	interactMetrics := h.options.Stats.snapshot()
 	interactMetrics.Cache = GetCacheMetrics(h.options)
 	interactMetrics.Cpu = GetCpuMetrics()
 	interactMetrics.Memory = GetMemoryMetrics()

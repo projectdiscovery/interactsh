@@ -1,6 +1,7 @@
 package server
 
 import (
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"sync"
@@ -12,8 +13,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// newMetricsTestServer returns an HTTPServer backed by in-memory storage and a
-// zeroed metrics struct, suitable for driving metricsHandler directly.
 func newMetricsTestServer(t *testing.T) *HTTPServer {
 	t.Helper()
 
@@ -24,16 +23,16 @@ func newMetricsTestServer(t *testing.T) *HTTPServer {
 	return &HTTPServer{options: &Options{Storage: store, Stats: &Metrics{}, EnableMetrics: true}}
 }
 
-// TestMetricsHandlerDoesNotMutateSharedStats is a regression test for the
-// /metrics handler aliasing options.Stats. It used to assign the *Metrics to a
-// local variable, which copied the pointer rather than the struct, so every
-// request wrote Cache/Cpu/Memory/Network into the one struct shared by all the
-// protocol servers. The handler must leave that struct untouched.
+func TestMetricsSnapshotNil(t *testing.T) {
+	var m *Metrics
+	require.Equal(t, Metrics{}, m.snapshot())
+}
+
 func TestMetricsHandlerDoesNotMutateSharedStats(t *testing.T) {
 	h := newMetricsTestServer(t)
 
 	w := httptest.NewRecorder()
-	h.metricsHandler(w, httptest.NewRequest("GET", "http://example.com/metrics", nil))
+	h.metricsHandler(w, httptest.NewRequest(http.MethodGet, "http://example.com/metrics", nil))
 	require.Equal(t, http.StatusOK, w.Result().StatusCode)
 
 	require.Nil(t, h.options.Stats.Cache, "handler must not write Cache into the shared stats")
@@ -42,47 +41,53 @@ func TestMetricsHandlerDoesNotMutateSharedStats(t *testing.T) {
 	require.Nil(t, h.options.Stats.Network, "handler must not write Network into the shared stats")
 }
 
-// TestMetricsHandlerConcurrent exercises the /metrics snapshot against
-// concurrent counter writers. Run with -race to catch regressions.
+func TestMetricsHandlerSnapshotsCounters(t *testing.T) {
+	h := newMetricsTestServer(t)
+	atomic.StoreUint64(&h.options.Stats.Dns, 3)
+	atomic.StoreUint64(&h.options.Stats.Http, 7)
+	atomic.StoreInt64(&h.options.Stats.Sessions, 2)
+	atomic.StoreInt64(&h.options.Stats.SessionsTotal, 11)
+
+	w := httptest.NewRecorder()
+	h.metricsHandler(w, httptest.NewRequest(http.MethodGet, "http://example.com/metrics", nil))
+	require.Equal(t, http.StatusOK, w.Result().StatusCode)
+
+	var got Metrics
+	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &got))
+	require.Equal(t, uint64(3), got.Dns)
+	require.Equal(t, uint64(7), got.Http)
+	require.Equal(t, int64(2), got.Sessions)
+	require.Equal(t, int64(11), got.SessionsTotal)
+	require.NotNil(t, got.Cache)
+	require.Nil(t, h.options.Stats.Cache)
+}
+
 func TestMetricsHandlerConcurrent(t *testing.T) {
 	h := newMetricsTestServer(t)
 
 	var wg sync.WaitGroup
-	stop := make(chan struct{})
-
-	// Writers mimic the protocol servers updating shared counters.
 	for i := 0; i < 4; i++ {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			for {
-				select {
-				case <-stop:
-					return
-				default:
-					atomic.AddUint64(&h.options.Stats.Http, 1)
-					atomic.AddUint64(&h.options.Stats.Dns, 1)
-					atomic.AddInt64(&h.options.Stats.Sessions, 1)
-					atomic.AddInt64(&h.options.Stats.SessionsTotal, 1)
-				}
+			for j := 0; j < 200; j++ {
+				atomic.AddUint64(&h.options.Stats.Http, 1)
+				atomic.AddUint64(&h.options.Stats.Dns, 1)
+				atomic.AddInt64(&h.options.Stats.Sessions, 1)
+				atomic.AddInt64(&h.options.Stats.SessionsTotal, 1)
 			}
 		}()
 	}
-
-	// Concurrent readers hitting the metrics endpoint.
 	for i := 0; i < 4; i++ {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
 			for j := 0; j < 50; j++ {
 				w := httptest.NewRecorder()
-				h.metricsHandler(w, httptest.NewRequest("GET", "http://example.com/metrics", nil))
+				h.metricsHandler(w, httptest.NewRequest(http.MethodGet, "http://example.com/metrics", nil))
 				require.Equal(t, http.StatusOK, w.Result().StatusCode)
 			}
 		}()
 	}
-
-	time.Sleep(100 * time.Millisecond)
-	close(stop)
 	wg.Wait()
 }
