@@ -31,6 +31,16 @@ type HTTPServer struct {
 	customBanner    string
 	defaultResponse string
 	staticHandler   http.Handler
+
+	// dynamic API doc endpoints
+	dynamicEndpoints map[string]dynamicEndpoint
+	dynMu            sync.RWMutex
+}
+
+type dynamicEndpoint struct {
+	Body        []byte
+	ContentType string
+	LastUpdated time.Time
 }
 
 type noopLogger struct {
