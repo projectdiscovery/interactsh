@@ -39,7 +39,7 @@ func main() {
 	cliOptions := &options.CLIClientOptions{}
 
 	flagSet := goflags.NewFlagSet()
-	flagSet.SetDescription(`Interactsh client - Go client to generate interactsh payloads and display interaction data.`)
+	flagSet.SetDescription(`Collaborator client - Go client to generate interactsh payloads and display interaction data.`)
 
 	flagSet.CreateGroup("input", "Input",
 		flagSet.StringVarP(&cliOptions.ServerURL, "server", "s", defaultOpts.ServerURL, "interactsh server(s) to use"),

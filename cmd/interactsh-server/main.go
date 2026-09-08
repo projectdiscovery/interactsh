@@ -41,7 +41,7 @@ var (
 func main() {
 	cliOptions := &options.CLIServerOptions{}
 	flagSet := goflags.NewFlagSet()
-	flagSet.SetDescription(`Interactsh server - Go client to configure and host interactsh server.`)
+	flagSet.SetDescription(`Collaborator server - Go client to configure and host interactsh server.`)
 
 	flagSet.CreateGroup("input", "Input",
 		flagSet.StringSliceVarP(&cliOptions.Domains, "domain", "d", []string{}, "single/multiple configured domain to use for server", goflags.CommaSeparatedStringSliceOptions),
