@@ -63,6 +63,7 @@ ns1.oast.fun.	3600	IN	A	1.2.3.4
 ns2.oast.fun.	3600	IN	A	1.2.3.4
 `
 
+// generateRSAKeyPair returns a test RSA private key and its base64-encoded public PEM.
 func generateRSAKeyPair(t *testing.T) (*rsa.PrivateKey, string) {
 	t.Helper()
 	priv, err := rsa.GenerateKey(rand.Reader, 2048)
@@ -73,6 +74,7 @@ func generateRSAKeyPair(t *testing.T) (*rsa.PrivateKey, string) {
 	return priv, base64.StdEncoding.EncodeToString(pubPem)
 }
 
+// clientDecrypt decrypts interaction payload data using the client RSA private key.
 func clientDecrypt(t *testing.T, priv *rsa.PrivateKey, aesKeyEncrypted string, cipherData string) []byte {
 	t.Helper()
 	decodedKey, err := base64.StdEncoding.DecodeString(aesKeyEncrypted)
@@ -92,6 +94,7 @@ func clientDecrypt(t *testing.T, priv *rsa.PrivateKey, aesKeyEncrypted string, c
 	return decoded
 }
 
+// TestFullRoundTripInMemory verifies storing and retrieving encrypted interactions in memory.
 func TestFullRoundTripInMemory(t *testing.T) {
 	mem, err := New(&Options{EvictionTTL: 1 * time.Hour})
 	require.NoError(t, err)
@@ -143,6 +146,7 @@ func TestFullRoundTripInMemory(t *testing.T) {
 	}
 }
 
+// TestFullRoundTripDisk verifies storing and retrieving encrypted interactions on disk.
 func TestFullRoundTripDisk(t *testing.T) {
 	tmpDir, err := os.MkdirTemp("", "interactsh-test-*")
 	require.NoError(t, err)
@@ -201,6 +205,7 @@ func TestFullRoundTripDisk(t *testing.T) {
 }
 
 // TestPollResponseRoundTrip tests the full flow including the HTTP PollResponse JSON encoding
+// TestPollResponseRoundTrip verifies poll responses decrypt to the stored interaction payloads.
 func TestPollResponseRoundTrip(t *testing.T) {
 	type PollResponse struct {
 		Data    []string `json:"data"`
@@ -324,6 +329,7 @@ func TestControlCharacterEscaping(t *testing.T) {
 // TestStaleDataCleanupOnReRegistration verifies that stale LevelDB data from a
 // previous registration (encrypted with an old AES key) is purged when the same
 // correlation ID is re-registered after cache eviction.
+// TestStaleDataCleanupOnReRegistration verifies stale correlation data is removed on re-registration.
 func TestStaleDataCleanupOnReRegistration(t *testing.T) {
 	tmpDir, err := os.MkdirTemp("", "interactsh-stale-*")
 	require.NoError(t, err)
@@ -405,6 +411,7 @@ func TestStaleDataCleanupOnReRegistration(t *testing.T) {
 
 // TestCacheEvictionCleansLevelDB verifies the onCacheRemoval callback properly
 // deletes LevelDB entries when cache entries are evicted.
+// TestCacheEvictionCleansLevelDB verifies cache eviction removes persisted correlation data.
 func TestCacheEvictionCleansLevelDB(t *testing.T) {
 	tmpDir, err := os.MkdirTemp("", "interactsh-eviction-*")
 	require.NoError(t, err)

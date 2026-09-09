@@ -134,6 +134,7 @@ func doStuffWithOtherCache(cache cache.Cache) {
 	}
 }
 
+// TestGetInteractionsWithIdForConsumer verifies per-consumer interaction polling and compaction behavior.
 func TestGetInteractionsWithIdForConsumer(t *testing.T) {
 	t.Run("two consumers independently receive all interactions", func(t *testing.T) {
 		mem, err := New(&Options{EvictionTTL: 1 * time.Hour})
@@ -347,6 +348,7 @@ func TestGetInteractionsWithIdForConsumer(t *testing.T) {
 	})
 }
 
+// TestSlidingEvictionStrategy verifies cache entries expire after TTL from last access.
 func TestSlidingEvictionStrategy(t *testing.T) {
 	testTTL := 100 * time.Millisecond
 	smallDelay := 10 * time.Millisecond
@@ -375,6 +377,7 @@ func TestSlidingEvictionStrategy(t *testing.T) {
 	require.False(t, ok)
 }
 
+// TestFixedEvictionStrategy verifies cache entries expire after TTL from initial insertion.
 func TestFixedEvictionStrategy(t *testing.T) {
 	testTTL := 100 * time.Millisecond
 	mem, err := New(&Options{EvictionTTL: testTTL, EvictionStrategy: EvictionStrategyFixed})

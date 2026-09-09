@@ -387,6 +387,7 @@ func (ldapServer *LDAPServer) handleExtended(w ldap.ResponseWriter, m *ldap.Mess
 	}
 }
 
+// handleLog formats and records an LDAP interaction when request logging is enabled.
 func (ldapServer *LDAPServer) handleLog(host string, f string, v ...interface{}) {
 	// just discard logs if logger is disabled
 	if !ldapServer.WithLogger {
