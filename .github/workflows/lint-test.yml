@@ -5,6 +5,8 @@ on:
     paths:
       - '**.go'
       - '**.mod'
+      - '.golangci.yml'
+      - '.golangci-lint-version'
   workflow_dispatch:
 
 jobs:
