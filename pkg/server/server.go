@@ -82,6 +82,9 @@ type Options struct {
 	FTPDirectory string
 	// ScanEverywhere for potential correlation id
 	ScanEverywhere bool
+	// RestrictToDomains answers DNS queries only for the configured domains,
+	// replying REFUSED for anything else instead of acting as a generic responder.
+	RestrictToDomains bool
 	// CorrelationIdLength of preamble
 	CorrelationIdLength int
 	// CorrelationIdNonceLength of the unique identifier

@@ -91,6 +91,7 @@ func main() {
 		flagSet.IntVar(&cliOptions.LdapPort, "ldap-port", 389, "port to use for ldap service"),
 		flagSet.BoolVar(&cliOptions.LdapWithFullLogger, "ldap", false, "enable ldap server with full logging (authenticated)"),
 		flagSet.BoolVarP(&cliOptions.RootTLD, "wildcard", "wc", false, "enable wildcard interaction for interactsh domain (authenticated)"),
+		flagSet.BoolVarP(&cliOptions.RestrictToDomains, "restrict-to-domains", "rtd", true, "only answer DNS queries for the configured domains (reply REFUSED otherwise)"),
 		flagSet.BoolVar(&cliOptions.Smb, "smb", false, "start smb agent - impacket and python 3 must be installed (authenticated)"),
 		flagSet.BoolVar(&cliOptions.Responder, "responder", false, "start responder agent - docker must be installed (authenticated)"),
 		flagSet.BoolVar(&cliOptions.Ftp, "ftp", false, "start ftp agent (authenticated)"),
