@@ -52,6 +52,7 @@ func TestServeUploadedFile(t *testing.T) {
 		require.Equal(t, "application/octet-stream", resp.Header.Get("Content-Type"))
 		require.Equal(t, `attachment; filename=evil.dtd`, resp.Header.Get("Content-Disposition"))
 		require.Equal(t, "nosniff", resp.Header.Get("X-Content-Type-Options"))
+		require.Equal(t, "sandbox; default-src 'none'", resp.Header.Get("Content-Security-Policy"))
 	})
 
 	// The old design served from defaultHandler, where these two branches

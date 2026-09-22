@@ -3,6 +3,7 @@ package server
 import (
 	"crypto/sha256"
 	"encoding/hex"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -247,10 +248,19 @@ func (s *UploadStore) looksLikeSessionDir(name string) bool {
 // a plausible correlation ID. Validating before any filepath.Join is what keeps
 // a hostile identifier from escaping the root.
 func (s *UploadStore) sessionDir(correlationID string) string {
+	relative := s.sessionPath(correlationID)
+	if relative == "" {
+		return ""
+	}
+	return filepath.Join(s.root, relative)
+}
+
+// sessionPath returns a validated path relative to rootFS.
+func (s *UploadStore) sessionPath(correlationID string) string {
 	if !s.looksLikeSessionDir(correlationID) {
 		return ""
 	}
-	return filepath.Join(s.sessionsRoot, correlationID)
+	return filepath.Join(uploadsDirName, correlationID)
 }
 
 // stagedUpload is a file written into its session directory under a temporary
@@ -295,7 +305,7 @@ func (s *UploadStore) Stage(correlationID, name string, data []byte, existingSiz
 		return nil, uploadErr(UploadErrTooLarge, "file %q is %d bytes, limit is %d", name, size, s.maxFileSize)
 	}
 
-	dir := s.sessionDir(correlationID)
+	dir := s.sessionPath(correlationID)
 	if dir == "" {
 		return nil, uploadErr(UploadErrOther, "invalid correlation-id")
 	}
@@ -314,17 +324,13 @@ func (s *UploadStore) Stage(correlationID, name string, data []byte, existingSiz
 
 	release := func() { s.totalBytes.Add(-delta) }
 
-	if err := os.MkdirAll(dir, uploadSessionDirPerm); err != nil {
+	if err := s.rootFS.MkdirAll(dir, uploadSessionDirPerm); err != nil {
 		release()
 		return nil, errors.Wrap(err, "could not create session directory")
 	}
 
-	// Plain os rather than the rooted handle: os.Root has no Rename before Go
-	// 1.25, and both components are already constrained -- the correlation ID
-	// is alphanumeric and length-checked, the name passed the allowlist, so
-	// neither can contain a separator or traversal sequence.
 	tmp := filepath.Join(dir, ".upload-"+xid.New().String())
-	if err := os.WriteFile(tmp, data, uploadFilePerm); err != nil {
+	if err := s.rootFS.WriteFile(tmp, data, uploadFilePerm); err != nil {
 		release()
 		return nil, errors.Wrap(err, "could not write uploaded file")
 	}
@@ -345,11 +351,14 @@ func (s *UploadStore) Stage(correlationID, name string, data []byte, existingSiz
 // temporary name and renaming is also what stops a reader -- the HTTP handler or
 // the FTP file driver -- from ever observing a partially written file.
 func (s *UploadStore) Commit(st *stagedUpload) error {
-	dir := s.sessionDir(st.correlationID)
+	dir := s.sessionPath(st.correlationID)
 	if dir == "" {
 		return uploadErr(UploadErrOther, "invalid correlation-id")
 	}
-	if err := os.Rename(st.tmp, filepath.Join(dir, st.name)); err != nil {
+	if !isSafeUploadName(st.name) {
+		return uploadErr(UploadErrBadName, "invalid file name")
+	}
+	if err := s.rootFS.Rename(st.tmp, filepath.Join(dir, st.name)); err != nil {
 		return errors.Wrap(err, "could not commit uploaded file")
 	}
 	st.committed = true
@@ -367,7 +376,7 @@ func (s *UploadStore) Commit(st *stagedUpload) error {
 // session's files.
 func (s *UploadStore) Abort(st *stagedUpload) {
 	if !st.committed {
-		if err := os.Remove(st.tmp); err != nil && !os.IsNotExist(err) {
+		if err := s.rootFS.Remove(st.tmp); err != nil && !os.IsNotExist(err) {
 			gologger.Debug().Msgf("Could not remove staged upload %s: %s\n", st.tmp, err)
 		}
 		s.totalBytes.Add(-st.delta)
@@ -378,11 +387,14 @@ func (s *UploadStore) Abort(st *stagedUpload) {
 			st.correlationID, st.name)
 		return
 	}
-	dir := s.sessionDir(st.correlationID)
+	dir := s.sessionPath(st.correlationID)
 	if dir == "" {
 		return
 	}
-	if err := os.Remove(filepath.Join(dir, st.name)); err != nil && !os.IsNotExist(err) {
+	if !isSafeUploadName(st.name) {
+		return
+	}
+	if err := s.rootFS.Remove(filepath.Join(dir, st.name)); err != nil && !os.IsNotExist(err) {
 		gologger.Debug().Msgf("Could not roll back uploaded file %s/%s: %s\n", st.correlationID, st.name, err)
 		return
 	}
@@ -437,7 +449,7 @@ func (s *UploadStore) Open(correlationID, name string) (*os.File, os.FileInfo, e
 // filesystem latency can never back-pressure cache maintenance. A dropped
 // request is collected by the janitor instead.
 func (s *UploadStore) RemoveSession(correlationID string) {
-	if s.sessionDir(correlationID) == "" {
+	if s.sessionPath(correlationID) == "" {
 		return
 	}
 	select {
@@ -449,12 +461,12 @@ func (s *UploadStore) RemoveSession(correlationID string) {
 
 // removeSessionNow deletes a session directory synchronously.
 func (s *UploadStore) removeSessionNow(correlationID string) {
-	dir := s.sessionDir(correlationID)
+	dir := s.sessionPath(correlationID)
 	if dir == "" {
 		return
 	}
-	freed := dirSize(dir)
-	if err := os.RemoveAll(dir); err != nil {
+	freed := s.dirSize(dir)
+	if err := s.rootFS.RemoveAll(dir); err != nil {
 		gologger.Warning().Msgf("Could not remove upload directory for %s: %s\n", correlationID, err)
 		return
 	}
@@ -519,7 +531,7 @@ func (s *UploadStore) runJanitor() {
 // eviction strategy probing every swept session would make exactly those
 // sessions immortal.
 func (s *UploadStore) sweep() {
-	entries, err := os.ReadDir(s.sessionsRoot)
+	entries, err := fs.ReadDir(s.rootFS.FS(), uploadsDirName)
 	if err != nil {
 		gologger.Warning().Msgf("Could not read upload directory: %s\n", err)
 		return
@@ -530,7 +542,7 @@ func (s *UploadStore) sweep() {
 		if !entry.IsDir() || !s.looksLikeSessionDir(entry.Name()) {
 			continue
 		}
-		dir := filepath.Join(s.sessionsRoot, entry.Name())
+		dir := filepath.Join(uploadsDirName, entry.Name())
 		info, err := entry.Info()
 		if err != nil {
 			continue
@@ -538,13 +550,13 @@ func (s *UploadStore) sweep() {
 		// Directory mtime advances when a file is added or removed, so this is
 		// effectively "time since the last upload". Reads do not touch it.
 		if time.Since(info.ModTime()) > s.ttl {
-			if err := os.RemoveAll(dir); err != nil {
+			if err := s.rootFS.RemoveAll(dir); err != nil {
 				gologger.Warning().Msgf("Could not sweep upload directory %s: %s\n", dir, err)
-				total += dirSize(dir)
+				total += s.dirSize(dir)
 			}
 			continue
 		}
-		total += dirSize(dir)
+		total += s.dirSize(dir)
 	}
 	s.totalBytes.Store(total)
 }
@@ -552,21 +564,21 @@ func (s *UploadStore) sweep() {
 // purge removes every session directory in the root, leaving anything that does
 // not look like one untouched.
 func (s *UploadStore) purge() {
-	entries, err := os.ReadDir(s.sessionsRoot)
+	entries, err := fs.ReadDir(s.rootFS.FS(), uploadsDirName)
 	if err != nil {
 		return
 	}
 	for _, entry := range entries {
 		if entry.IsDir() && s.looksLikeSessionDir(entry.Name()) {
-			_ = os.RemoveAll(filepath.Join(s.sessionsRoot, entry.Name()))
+			_ = s.rootFS.RemoveAll(filepath.Join(uploadsDirName, entry.Name()))
 		}
 	}
 	s.totalBytes.Store(0)
 }
 
 // dirSize sums the regular files directly inside dir.
-func dirSize(dir string) int64 {
-	entries, err := os.ReadDir(dir)
+func (s *UploadStore) dirSize(dir string) int64 {
+	entries, err := fs.ReadDir(s.rootFS.FS(), dir)
 	if err != nil {
 		return 0
 	}

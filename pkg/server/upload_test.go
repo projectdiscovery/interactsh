@@ -5,6 +5,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -314,6 +315,9 @@ func TestUploadStoreRootResolution(t *testing.T) {
 // A directory can exist and still be unwritable, in which case MkdirAll succeeds
 // and every upload fails later. The server must refuse to start instead.
 func TestUploadStoreRejectsUnwritableDirectory(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("Windows does not enforce Unix permission bits")
+	}
 	if os.Geteuid() == 0 {
 		t.Skip("running as root bypasses the permission bits this test relies on")
 	}

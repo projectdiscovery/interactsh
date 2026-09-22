@@ -346,6 +346,7 @@ func (h *HTTPServer) serveUploadedFile(w http.ResponseWriter, req *http.Request)
 	rec.Header().Set("Content-Type", "application/octet-stream")
 	rec.Header().Set("Content-Disposition", mime.FormatMediaType("attachment", map[string]string{"filename": name}))
 	rec.Header().Set("X-Content-Type-Options", "nosniff")
+	rec.Header().Set("Content-Security-Policy", "sandbox; default-src 'none'")
 	if !h.options.NoVersionHeader {
 		rec.Header().Set("X-Interactsh-Version", h.options.Version)
 	}
@@ -378,7 +379,9 @@ func (r *hostedFetchRecorder) Write(b []byte) (int, error) {
 	if r.status == 0 {
 		r.status = http.StatusOK
 	}
-	n, err := r.ResponseWriter.Write(b)
+	// File responses are forced to application/octet-stream with attachment,
+	// nosniff, and a sandboxed CSP before this recorder receives their bytes.
+	n, err := r.ResponseWriter.Write(b) // lgtm[go/reflected-xss]
 	r.written += int64(n)
 	return n, err
 }
