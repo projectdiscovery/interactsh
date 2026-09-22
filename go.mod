@@ -21,7 +21,7 @@ require (
 	github.com/projectdiscovery/gologger v1.1.72
 	github.com/projectdiscovery/ldapserver v1.0.2-0.20240219154113-dcc758ebc0cb
 	github.com/projectdiscovery/retryabledns v1.0.116
-	github.com/projectdiscovery/retryablehttp-go v1.3.23
+	github.com/projectdiscovery/retryablehttp-go v1.3.27
 	github.com/projectdiscovery/utils v0.11.3
 	github.com/redis/go-redis/v9 v9.19.0
 	github.com/remeh/sizedwaitgroup v1.0.0
@@ -105,8 +105,8 @@ require (
 	github.com/oiweiwei/gokrb5.fork/v9 v9.0.6 // indirect
 	github.com/power-devops/perfstat v0.0.0-20240221224432-82ca36839d55 // indirect
 	github.com/projectdiscovery/blackrock v0.0.2 // indirect
-	github.com/projectdiscovery/fastdialer v0.5.18 // indirect
-	github.com/projectdiscovery/hmap v0.0.101 // indirect
+	github.com/projectdiscovery/fastdialer v0.5.20 // indirect
+	github.com/projectdiscovery/hmap v0.0.102 // indirect
 	github.com/projectdiscovery/machineid v0.0.0-20250715113114-c77eb3567582 // indirect
 	github.com/projectdiscovery/mapcidr v1.1.97 // indirect
 	github.com/projectdiscovery/networkpolicy v0.1.51 // indirect
