@@ -17,7 +17,7 @@ require (
 	github.com/miekg/dns v1.1.72
 	github.com/pkg/errors v0.9.1
 	github.com/projectdiscovery/asnmap v1.1.1
-	github.com/projectdiscovery/goflags v0.1.74
+	github.com/projectdiscovery/goflags v0.2.1
 	github.com/projectdiscovery/gologger v1.1.72
 	github.com/projectdiscovery/ldapserver v1.0.2-0.20240219154113-dcc758ebc0cb
 	github.com/projectdiscovery/retryabledns v1.0.115
@@ -138,7 +138,7 @@ require (
 	go.uber.org/atomic v1.11.0 // indirect
 	go.uber.org/zap/exp v0.3.0 // indirect
 	golang.org/x/crypto v0.55.0 // indirect
-	golang.org/x/exp v0.0.0-20250819193227-8b4c13bb791b // indirect
+	golang.org/x/exp v0.0.0-20260112195511-716be5621a96 // indirect
 	golang.org/x/mod v0.38.0 // indirect
 	golang.org/x/net v0.57.0 // indirect
 	golang.org/x/oauth2 v0.31.0 // indirect
