@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"mime"
 	"net"
 	"net/http"
@@ -353,15 +354,14 @@ func (h *HTTPServer) serveUploadedFile(w http.ResponseWriter, req *http.Request)
 
 	// ServeContent handles Range and conditional requests. The empty name
 	// argument keeps it from re-deriving a content type from the extension.
-	http.ServeContent(rec, req, "", fi.ModTime(), f)
+	// Bytes delivered are counted from the file reader, not from wrapping
+	// ResponseWriter.Write, so this path is not a reflected-XSS sink.
+	counted := &countingSeeker{ReadSeeker: f}
+	http.ServeContent(rec, req, "", fi.ModTime(), counted)
+	rec.written = counted.n
 }
 
-// hostedFetchRecorder passes writes straight through to the real
-// ResponseWriter while noting what the response actually was, so the stored
-// interaction can state it rather than assume it. ServeContent answers a
-// conditional request with 304 and a ranged one with 206, and a record that
-// claimed 200 with the full length would be evidence of a delivery that never
-// happened.
+// hostedFetchRecorder records the status ServeContent actually sent.
 type hostedFetchRecorder struct {
 	http.ResponseWriter
 	status  int
@@ -375,14 +375,15 @@ func (r *hostedFetchRecorder) WriteHeader(code int) {
 	r.ResponseWriter.WriteHeader(code)
 }
 
-func (r *hostedFetchRecorder) Write(b []byte) (int, error) {
-	if r.status == 0 {
-		r.status = http.StatusOK
-	}
-	// File responses are forced to application/octet-stream with attachment,
-	// nosniff, and a sandboxed CSP before this recorder receives their bytes.
-	n, err := r.ResponseWriter.Write(b) // lgtm[go/reflected-xss]
-	r.written += int64(n)
+// countingSeeker counts bytes ServeContent reads from a hosted file.
+type countingSeeker struct {
+	io.ReadSeeker
+	n int64
+}
+
+func (c *countingSeeker) Read(p []byte) (int, error) {
+	n, err := c.ReadSeeker.Read(p)
+	c.n += int64(n)
 	return n, err
 }
 
