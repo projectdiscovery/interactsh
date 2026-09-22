@@ -300,8 +300,8 @@ func main() {
 		// uploads. If the operator pinned both to different places, say so and
 		// stop advertising FTP, rather than printing ftp:// payload URLs that
 		// resolve to nothing.
-		switch {
-		case serverOptions.FTPDirectory == "":
+		switch serverOptions.FTPDirectory {
+		case "":
 			serverOptions.FTPDirectory = uploadStore.Root()
 			serverOptions.FTPServesUploads = true
 		default:

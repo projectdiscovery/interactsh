@@ -80,7 +80,7 @@ func TestUploadStoreSaveOpen(t *testing.T) {
 
 		f, fi, err := store.Open(id, "evil.dtd")
 		require.NoError(t, err)
-		defer f.Close()
+		defer func() { require.NoError(t, f.Close()) }()
 
 		got, err := io.ReadAll(f)
 		require.NoError(t, err)
@@ -251,7 +251,7 @@ func TestUploadStoreRootResolution(t *testing.T) {
 			UploadDirectory:     up, FTPDirectory: ftp, UploadTTL: time.Hour,
 		})
 		require.NoError(t, err)
-		defer store.Close()
+		defer func() { require.NoError(t, store.Close()) }()
 		require.Equal(t, up, store.Root())
 	})
 
@@ -262,7 +262,7 @@ func TestUploadStoreRootResolution(t *testing.T) {
 			FTPDirectory:        ftp, UploadTTL: time.Hour,
 		})
 		require.NoError(t, err)
-		defer store.Close()
+		defer func() { require.NoError(t, store.Close()) }()
 		require.Equal(t, ftp, store.Root(), "sharing the FTP root is what makes FTP serving work")
 	})
 
@@ -275,7 +275,7 @@ func TestUploadStoreRootResolution(t *testing.T) {
 			FTPDirectory:        ftp, UploadTTL: time.Hour,
 		})
 		require.NoError(t, err)
-		defer store.Close()
+		defer func() { require.NoError(t, store.Close()) }()
 		require.DirExists(t, ftp)
 		require.DirExists(t, filepath.Join(ftp, uploadsDirName))
 	})
@@ -287,7 +287,7 @@ func TestUploadStoreRootResolution(t *testing.T) {
 			UploadDirectory:     up, UploadTTL: time.Hour, UploadMaxFileSize: 1024, UploadMaxTotalSize: 4096,
 		})
 		require.NoError(t, err)
-		defer store.Close()
+		defer func() { require.NoError(t, store.Close()) }()
 
 		id := newCorrelationID(t)
 		_, _, err = store.Save(id, "evil.dtd", []byte("payload"), 0)
@@ -354,7 +354,7 @@ func TestUploadStoreRejectsUnwritableDirectory(t *testing.T) {
 			UploadDirectory:     dir, UploadTTL: time.Hour,
 		})
 		require.NoError(t, err)
-		defer store.Close()
+		defer func() { require.NoError(t, store.Close()) }()
 
 		entries, err := os.ReadDir(filepath.Join(dir, uploadsDirName))
 		require.NoError(t, err)

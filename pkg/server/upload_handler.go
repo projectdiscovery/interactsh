@@ -337,7 +337,7 @@ func (h *HTTPServer) serveUploadedFile(w http.ResponseWriter, req *http.Request)
 		http.NotFound(rec, req)
 		return
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	// Always octet-stream with an attachment disposition: DTD, XSLT and JNDI
 	// consumers ignore content type entirely, so nothing is lost for the
