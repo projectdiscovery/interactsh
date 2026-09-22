@@ -21,12 +21,12 @@ require (
 	github.com/projectdiscovery/gologger v1.1.72
 	github.com/projectdiscovery/ldapserver v1.0.2-0.20240219154113-dcc758ebc0cb
 	github.com/projectdiscovery/retryabledns v1.0.116
-	github.com/projectdiscovery/retryablehttp-go v1.3.22
-	github.com/projectdiscovery/utils v0.11.1
+	github.com/projectdiscovery/retryablehttp-go v1.3.23
+	github.com/projectdiscovery/utils v0.11.3
 	github.com/redis/go-redis/v9 v9.19.0
 	github.com/remeh/sizedwaitgroup v1.0.0
 	github.com/rs/xid v1.6.0
-	github.com/stretchr/testify v1.12.0
+	github.com/stretchr/testify v1.12.1
 	github.com/syndtr/goleveldb v1.0.0
 	go.uber.org/multierr v1.11.0
 	go.uber.org/ratelimit v0.3.1
@@ -109,7 +109,7 @@ require (
 	github.com/projectdiscovery/hmap v0.0.101 // indirect
 	github.com/projectdiscovery/machineid v0.0.0-20250715113114-c77eb3567582 // indirect
 	github.com/projectdiscovery/mapcidr v1.1.97 // indirect
-	github.com/projectdiscovery/networkpolicy v0.1.47 // indirect
+	github.com/projectdiscovery/networkpolicy v0.1.51 // indirect
 	github.com/refraction-networking/utls v1.8.2 // indirect
 	github.com/rivo/uniseg v0.4.7 // indirect
 	github.com/saintfish/chardet v0.0.0-20230101081208-5e3ef4b5456d // indirect
@@ -137,6 +137,7 @@ require (
 	go.etcd.io/bbolt v1.4.3 // indirect
 	go.uber.org/atomic v1.11.0 // indirect
 	go.uber.org/zap/exp v0.3.0 // indirect
+	go.yaml.in/yaml/v3 v3.0.5 // indirect
 	golang.org/x/crypto v0.55.0 // indirect
 	golang.org/x/exp v0.0.0-20260112195511-716be5621a96 // indirect
 	golang.org/x/mod v0.38.0 // indirect
