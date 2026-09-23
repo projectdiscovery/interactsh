@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/projectdiscovery/gologger"
+	stringsutil "github.com/projectdiscovery/utils/strings"
 )
 
 // Correlation ids are produced from xid (cidl prefix) and zbase32 (cidn suffix),
@@ -84,4 +85,33 @@ func (options *Options) storeRootTLDInteraction(interaction *Interaction, id str
 	if err := options.Storage.AddInteractionWithId(id, data); err != nil {
 		gologger.Warning().Msgf("Could not store root tld %s interaction: %s\n", interaction.Protocol, err)
 	}
+}
+
+// extractCorrelationID finds the first correlation id embedded in a host,
+// returning the full unique id (correlation id plus nonce) and the host label
+// prefix it was found in.
+//
+// This mirrors the extraction the logger middleware performs, so that a request
+// served from the file route is attributed to the same session the logger would
+// have attributed it to. TestExtractCorrelationIDMatchesLogger keeps the two in
+// step.
+func (options *Options) extractCorrelationID(host string) (uniqueID, fullID string) {
+	if hostOnly, _, err := net.SplitHostPort(host); err == nil {
+		host = hostOnly
+	}
+	parts := strings.Split(host, ".")
+	for i, part := range parts {
+		for chunk := range stringsutil.SlideWithLength(part, options.GetIdLength()) {
+			normalized := strings.ToLower(chunk)
+			if !options.isCorrelationID(normalized) {
+				continue
+			}
+			fullID := part
+			if i+1 <= len(parts) {
+				fullID = strings.Join(parts[:i+1], ".")
+			}
+			return normalized, fullID
+		}
+	}
+	return "", ""
 }

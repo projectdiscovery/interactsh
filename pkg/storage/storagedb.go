@@ -83,12 +83,16 @@ func (s *StorageDB) onCacheRemoval(key cache.Key, value cache.Value) {
 	if s.Options.UseDisk() && s.db != nil {
 		_ = s.db.Delete([]byte(k), &opt.WriteOptions{})
 	}
+	cd, _ := value.(*CorrelationData)
 	// Only fire for client sessions (entries with a SecretKey),
 	// not for token/domain entries created via SetID.
 	if s.Options.OnRemoval != nil {
-		if cd, ok := value.(*CorrelationData); ok && cd.SecretKey != "" {
+		if cd != nil && cd.SecretKey != "" {
 			s.Options.OnRemoval()
 		}
+	}
+	if s.Options.OnEviction != nil {
+		s.Options.OnEviction(k, cd)
 	}
 }
 
@@ -461,6 +465,57 @@ func (s *StorageDB) RemoveID(correlationID, secret string) error {
 	return nil
 }
 
+// UpdateUploads verifies the secret key for a correlation-id and then runs fn
+// while holding that correlation-id's lock, replacing the upload metadata with
+// whatever fn returns. Callers perform their disk writes inside fn so that the
+// quota check and the commit are atomic with respect to concurrent uploads
+// against the same session.
+func (s *StorageDB) UpdateUploads(correlationID, secret string, fn func([]UploadedFile) ([]UploadedFile, error)) error {
+	item, ok := s.cache.GetIfPresent(correlationID)
+	if !ok {
+		return ErrCorrelationIdNotFound
+	}
+	value, ok := item.(*CorrelationData)
+	if !ok {
+		return errors.New("invalid correlation-id cache value found")
+	}
+	if !strings.EqualFold(value.SecretKey, secret) {
+		return ErrInvalidSecretKey
+	}
+	value.Lock()
+	defer value.Unlock()
+
+	updated, err := fn(value.Files)
+	if err != nil {
+		return err
+	}
+	value.Files = updated
+	return nil
+}
+
+// ListUploads returns the upload metadata for a correlation-id. No secret is
+// required: this backs the file-serving path, where possession of the
+// correlation-id is the only credential.
+func (s *StorageDB) ListUploads(correlationID string) ([]UploadedFile, bool) {
+	item, ok := s.cache.GetIfPresent(correlationID)
+	if !ok {
+		return nil, false
+	}
+	value, ok := item.(*CorrelationData)
+	if !ok {
+		return nil, false
+	}
+	value.Lock()
+	defer value.Unlock()
+
+	if len(value.Files) == 0 {
+		return nil, true
+	}
+	files := make([]UploadedFile, len(value.Files))
+	copy(files, value.Files)
+	return files, true
+}
+
 // GetCacheItem returns an item as is
 func (s *StorageDB) GetCacheItem(token string) (*CorrelationData, error) {
 	item, ok := s.cache.GetIfPresent(token)
@@ -529,3 +584,5 @@ func (s *StorageDB) Close() error {
 		os.RemoveAll(s.dbpath),
 	)
 }
+
+var _ UploadStorage = (*StorageDB)(nil)

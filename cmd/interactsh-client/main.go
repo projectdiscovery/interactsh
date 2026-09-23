@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"os/signal"
@@ -44,6 +45,11 @@ func main() {
 
 	flagSet.CreateGroup("input", "Input",
 		flagSet.StringVarP(&cliOptions.ServerURL, "server", "s", defaultOpts.ServerURL, "interactsh server(s) to use"),
+		// StringSliceOptions, not the FileCommaSeparated variant used by
+		// -match/-filter: that one reads the file and splits its contents,
+		// which for -file would turn a DTD into a list of names.
+		flagSet.StringSliceVarP(&cliOptions.Files, "file", "fl", nil,
+			"local file(s) to upload and host on the interactsh server", goflags.StringSliceOptions),
 	)
 
 	flagSet.CreateGroup("config", "config",
@@ -78,6 +84,7 @@ func main() {
 		flagSet.BoolVar(&cliOptions.JSON, "json", false, "write output in JSON Lines format"),
 		flagSet.BoolVarP(&cliOptions.StorePayload, "payload-store", "ps", false, "write generated interactsh payload to file"),
 		flagSet.StringVarP(&cliOptions.StorePayloadFile, "payload-store-file", "psf", settings.StorePayloadFileDefault, "store generated interactsh payloads to given file"),
+		flagSet.StringVarP(&cliOptions.FileStoreFile, "file-store-file", "fsf", "", "store hosted file URLs to given file (requires -file)"),
 
 		flagSet.BoolVar(&cliOptions.Verbose, "v", false, "display verbose interaction"),
 	)
@@ -171,6 +178,10 @@ func main() {
 		gologger.Fatal().Msgf("Could not create client: %s\n", err)
 	}
 
+	// Uploads must follow registration, since the server verifies the session,
+	// and precede the payload listing so every URL is shown together.
+	fileURLs := uploadFiles(client, cliOptions)
+
 	interactshURLs := generatePayloadURL(cliOptions.NumberOfPayloads, client)
 
 	gologger.Info().Msgf("Listing %d payload for OOB Testing\n", cliOptions.NumberOfPayloads)
@@ -180,9 +191,29 @@ func main() {
 
 	warnIfServerLacksIPv6(client)
 
+	if len(fileURLs) > 0 {
+		gologger.Info().Msgf("Hosting %d file(s) for OOB Testing\n", len(cliOptions.Files))
+		for _, fileURL := range fileURLs {
+			gologger.Info().Msgf("%s\n", fileURL)
+		}
+	}
+
+	// One record type per file. -psf is a machine-readable list of payload
+	// hostnames, one per line and exactly -n of them, which is what a wrapper
+	// script substituting into a payload template relies on; mixing hosted-file
+	// URLs into it turns "$line" into "https://host/f/x" and silently produces
+	// nonsense like http://https://host/f/x/. Hosted-file URLs get their own file.
 	if cliOptions.StorePayload && cliOptions.StorePayloadFile != "" {
-		if err := os.WriteFile(cliOptions.StorePayloadFile, []byte(strings.Join(interactshURLs, "\n")), 0644); err != nil {
+		if err := writeLines(cliOptions.StorePayloadFile, interactshURLs); err != nil {
 			gologger.Fatal().Msgf("Could not write to payload output file: %s\n", err)
+		}
+	}
+	if cliOptions.FileStoreFile != "" {
+		if len(fileURLs) == 0 {
+			gologger.Warning().Msgf("-file-store-file was given without -file, so no hosted file URLs were written\n")
+		}
+		if err := writeLines(cliOptions.FileStoreFile, fileURLs); err != nil {
+			gologger.Fatal().Msgf("Could not write to file URL output file: %s\n", err)
 		}
 	}
 
@@ -320,6 +351,83 @@ func generatePayloadURL(numberOfPayloads int, client *client.Client) []string {
 	return interactshURLs
 }
 
+// electionHint explains which server the complaint is about when -s named more
+// than one. The client registers with a single server chosen at random, and
+// upload support cannot influence that choice because it is only advertised in
+// the registration response. Without this, a mixed list reads as "none of my
+// servers support uploads" on the runs that happen to elect one that does not.
+func electionHint(serverList string) string {
+	var listed int
+	for _, s := range strings.Split(serverList, ",") {
+		if strings.TrimSpace(s) != "" {
+			listed++
+		}
+	}
+	if listed < 2 {
+		return ""
+	}
+	return fmt.Sprintf(" (chosen at random from the %d servers in -s, so this may differ between runs;"+
+		" pass a single server with -file)", listed)
+}
+
+// uploadFiles hosts local files on the interactsh server and returns the URLs a
+// target should fetch. It returns nil when no files were requested.
+func uploadFiles(c *client.Client, cliOptions *options.CLIClientOptions) []string {
+	if len(cliOptions.Files) == 0 {
+		return nil
+	}
+
+	uploaded, err := c.UploadFiles(cliOptions.Files)
+	if err != nil {
+		// Registration already happened -- it has to, since upload support is
+		// only advertised in the register response -- so a session exists on the
+		// server. Wind it down the same way the signal handler does, rather than
+		// leaving it to sit until the eviction TTL: persist it if the user asked
+		// for a resumable session, otherwise deregister it. Doing neither would
+		// overstate the server's live session count for every client that trips
+		// this path, and would strand a session the user cannot resume.
+		if cliOptions.SessionFile != "" {
+			_ = c.SaveSessionTo(cliOptions.SessionFile)
+		} else {
+			_ = c.Close()
+		}
+		// Name the server in both failures. The client registers with one server
+		// out of -s, so without it the reader cannot tell which of their servers
+		// the complaint is about.
+		if errors.Is(err, client.ErrUploadNotAdvertised) {
+			gologger.Fatal().Msgf("Server %s did not advertise file hosting, so it predates -file; upgrade the server%s\n",
+				c.ServerURL(), electionHint(cliOptions.ServerURL))
+		}
+		if errors.Is(err, client.ErrUploadUnsupported) {
+			gologger.Fatal().Msgf("Server %s does not accept file uploads; it must be started with -upload%s\n",
+				c.ServerURL(), electionHint(cliOptions.ServerURL))
+		}
+		// Fatal rather than a warning: the user asked to host a payload, and
+		// carrying on without it produces a confusing "no interaction" result.
+		gologger.Fatal().Msgf("Could not upload files to %s: %s\n", c.ServerURL(), err)
+	}
+
+	// One payload host for every file, so the target performs a single DNS
+	// lookup and the output is consistent. Any nonce works, since the server
+	// only reads the correlation id prefix.
+	host := c.URL()
+	withFTP := false
+	if caps := c.Capabilities(); caps != nil {
+		withFTP = caps.FTP
+	}
+
+	var urls []string
+	for _, file := range uploaded {
+		urls = append(urls, c.FileURL(host, file))
+		// Only when the server actually runs an FTP listener, otherwise the
+		// URL would never connect.
+		if withFTP {
+			urls = append(urls, c.FTPFileURL(host, file))
+		}
+	}
+	return urls
+}
+
 func writeOutput(outputFile *os.File, builder *bytes.Buffer) {
 	if outputFile != nil {
 		_, _ = outputFile.Write(builder.Bytes())
@@ -351,4 +459,18 @@ func (m *regexMatcher) match(item string) bool {
 		}
 	}
 	return false
+}
+
+// writeLines writes one record per line, newline-terminated.
+//
+// The terminator matters: without it the last record has no newline, so a plain
+// "while read line" loop -- the most likely consumer of these files -- drops it,
+// and wc -l reports one fewer record than the file holds.
+func writeLines(path string, lines []string) error {
+	var b strings.Builder
+	for _, line := range lines {
+		b.WriteString(line)
+		b.WriteString("\n")
+	}
+	return os.WriteFile(path, []byte(b.String()), 0644)
 }

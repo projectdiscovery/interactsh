@@ -5,11 +5,14 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path"
 	"strings"
 	"sync/atomic"
 	"time"
 
 	"encoding/json"
+
+	"github.com/asaskevich/govalidator"
 	"github.com/projectdiscovery/gologger"
 	ftpserver "goftp.io/server/v2"
 	"goftp.io/server/v2/driver/file"
@@ -119,6 +122,18 @@ func (h *FTPServer) Close() {
 }
 
 func (h *FTPServer) recordInteraction(remoteAddress, data string) {
+	h.recordInteractionForPath(remoteAddress, data, "")
+}
+
+// recordInteractionForPath records an FTP interaction, attributing it to the
+// session that owns dstPath when the path points into a hosted-files directory.
+//
+// Interactions that cannot be attributed go, as before, to the shared token
+// bucket, which pollHandler fans out to every authenticated client. That is
+// fine for connection noise, but a fetch of a specific session's hosted file
+// belongs to that session: otherwise it is reported to everyone and attributed
+// to no one.
+func (h *FTPServer) recordInteractionForPath(remoteAddress, data, dstPath string) {
 	atomic.AddUint64(&h.options.Stats.Ftp, 1)
 
 	if data == "" {
@@ -130,15 +145,54 @@ func (h *FTPServer) recordInteraction(remoteAddress, data string) {
 		RawRequest:    data,
 		Timestamp:     time.Now(),
 	}
+
+	correlationID := h.correlationIDFromPath(dstPath)
+	if correlationID != "" {
+		interaction.UniqueID = correlationID
+		interaction.FullId = correlationID
+	}
+
 	dataBytes, err := json.Marshal(interaction)
 	if err != nil {
 		gologger.Warning().Msgf("Could not encode ftp interaction: %s\n", err)
-	} else {
-		gologger.Debug().Msgf("FTP Interaction: \n%s\n", string(dataBytes))
-		if err := h.options.Storage.AddInteractionWithId(h.options.Token, dataBytes); err != nil {
+		return
+	}
+	gologger.Debug().Msgf("FTP Interaction: \n%s\n", string(dataBytes))
+
+	if correlationID != "" {
+		if err := h.options.Storage.AddInteraction(correlationID, dataBytes); err != nil {
 			gologger.Warning().Msgf("Could not store ftp interaction: %s\n", err)
 		}
+		return
 	}
+	if err := h.options.Storage.AddInteractionWithId(h.options.Token, dataBytes); err != nil {
+		gologger.Warning().Msgf("Could not store ftp interaction: %s\n", err)
+	}
+}
+
+// correlationIDFromPath returns the correlation id owning an FTP path, or "" if
+// the path does not name a live session with hosted files.
+func (h *FTPServer) correlationIDFromPath(dstPath string) string {
+	uploadStorage := h.options.UploadStorage()
+	if dstPath == "" || h.options.UploadStore == nil || uploadStorage == nil {
+		return ""
+	}
+	// Hosted files live at /<uploadsDirName>/<correlationID>/<name>, so the
+	// correlation id is the second segment. Cleaning first means a traversal can
+	// only ever resolve to the session it actually points at.
+	rest, ok := strings.CutPrefix(ftpCleanPath(dstPath), "/"+uploadsDirName+"/")
+	if !ok {
+		return ""
+	}
+	segment, _, _ := strings.Cut(rest, "/")
+	segment = strings.ToLower(segment)
+	if len(segment) != h.options.CorrelationIdLength || !govalidator.IsAlphanumeric(segment) {
+		return ""
+	}
+	if _, ok := uploadStorage.ListUploads(segment); !ok {
+		return ""
+	}
+	return segment
 }
 
 func (h *FTPServer) Print(sessionID string, message interface{})              {}
@@ -211,7 +265,7 @@ func (h *FTPServer) BeforeDownloadFile(ctx *ftpserver.Context, dstPath string) {
 	b.WriteString(ctx.Param)
 	b.WriteString("\n")
 	b.WriteString("downloading file " + dstPath)
-	h.recordInteraction(ctx.Sess.RemoteAddr().String(), b.String())
+	h.recordInteractionForPath(ctx.Sess.RemoteAddr().String(), b.String(), dstPath)
 }
 func (h *FTPServer) AfterUserLogin(ctx *ftpserver.Context, userName, password string, passMatched bool, err error) {
 	var b strings.Builder
@@ -247,7 +301,7 @@ func (h *FTPServer) AfterFileDownloaded(ctx *ftpserver.Context, dstPath string, 
 	b.WriteString(ctx.Param)
 	b.WriteString("\n")
 	b.WriteString("downloaded file " + dstPath)
-	h.recordInteraction(ctx.Sess.RemoteAddr().String(), b.String())
+	h.recordInteractionForPath(ctx.Sess.RemoteAddr().String(), b.String(), dstPath)
 }
 func (h *FTPServer) AfterCurDirChanged(ctx *ftpserver.Context, oldCurDir, newCurDir string, err error) {
 	var b strings.Builder
@@ -295,8 +349,53 @@ func (n *NopDriver) Stat(c *ftpserver.Context, s string) (os.FileInfo, error) {
 	return n.driver.Stat(c, s)
 }
 
+// ListDir hides interactsh's own upload storage, and nothing else.
+//
+// NopAuth accepts any credentials, so an anonymous client must not be able to
+// read off every correlation id that currently has uploaded files and then walk
+// into each one. Two rules close that off: the uploads directory never lists its
+// own contents, and it is filtered out of the root listing so that it cannot be
+// discovered in the first place. A client that already knows its own correlation
+// id can still list and RETR inside it.
+//
+// Only those two rules, deliberately: the root itself lists normally, because
+// -ftp-dir is documented as serving the operator's own directory and a blanket
+// refusal there would silently break that.
 func (n *NopDriver) ListDir(c *ftpserver.Context, s string, f func(os.FileInfo) error) error {
+	if isUploadsDir(s) {
+		return nil
+	}
+	if isFTPRoot(s) {
+		return n.driver.ListDir(c, s, func(info os.FileInfo) error {
+			if info.Name() == uploadsDirName {
+				return nil
+			}
+			return f(info)
+		})
+	}
 	return n.driver.ListDir(c, s, f)
+}
+
+// isUploadsDir reports whether an FTP path refers to the uploads directory
+// itself, which sits directly under the root.
+func isUploadsDir(p string) bool {
+	return ftpCleanPath(p) == "/"+uploadsDirName
+}
+
+// isFTPRoot reports whether an FTP path refers to the server root.
+func isFTPRoot(p string) bool {
+	switch ftpCleanPath(p) {
+	case "/", ".", "":
+		return true
+	}
+	return false
+}
+
+// ftpCleanPath resolves an FTP path to an absolute, traversal-free form. Every
+// path decision in this file goes through it, so "/a/../b", "//b" and "/./b" can
+// never be treated differently from "/b".
+func ftpCleanPath(p string) string {
+	return path.Clean("/" + strings.TrimPrefix(p, "/"))
 }
 
 func (n *NopDriver) DeleteDir(c *ftpserver.Context, s string) error {

@@ -39,6 +39,7 @@
 - NTLM/SMB/FTP(S)/RESPONDER Listener **(self-hosted)**
 - Wildcard / Protected Interactions **(self-hosted)**
 - Customizable Index / File hosting **(self-hosted)**
+- Client file hosting for second-stage OOB payloads **(self-hosted)**
 - Customizable Payload Length **(self-hosted)**
 - Custom SSL Certificate **(self-hosted)**
 
@@ -58,34 +59,39 @@ Usage:
 
 Flags:
 INPUT:
-   -s, -server string  interactsh server(s) to use (default "oast.pro,oast.live,oast.site,oast.online,oast.fun,oast.me")
+   -s, -server string   interactsh server(s) to use (default "oast.pro,oast.live,oast.site,oast.online,oast.fun,oast.me")
+   -fl, -file string[]  local file(s) to upload and host on the interactsh server
 
 CONFIG:
    -config string                           flag configuration file (default "$HOME/.config/interactsh-client/config.yaml")
+   -auth                                    configure projectdiscovery cloud (pdcp) api key (default true)
    -n, -number int                          number of interactsh payload to generate (default 1)
    -t, -token string                        authentication token to connect protected interactsh server
    -pi, -poll-interval int                  poll interval in seconds to pull interaction data (default 5)
    -nf, -no-http-fallback                   disable http fallback registration
-   -cidl, -correlation-id-length int        length of the correlation id preamble (min 3, default 20)
-   -cidn, -correlation-id-nonce-length int  length of the correlation id nonce (min 3, default 13)
+   -cidl, -correlation-id-length int        length of the correlation id preamble (min 3, default 20) (default 20)
+   -cidn, -correlation-id-nonce-length int  length of the correlation id nonce (min 3, default 13) (default 13)
    -sf, -session-file string                store/read from session file
+   -kai, -keep-alive-interval value         keep alive interval (default 1m0s)
 
 FILTER:
    -m, -match string[]   match interaction based on the specified pattern
    -f, -filter string[]  filter interaction based on the specified pattern
    -dns-only             display only dns interaction in CLI output
-   -http-only            display only http/https interactions in CLI output
+   -http-only            display only http interaction in CLI output
    -smtp-only            display only smtp interactions in CLI output
+   -asn                   include asn information of remote ip in json output
 
 UPDATE:
    -up, -update                 update interactsh-client to latest version
    -duc, -disable-update-check  disable automatic interactsh-client update check
-   
+
 OUTPUT:
    -o string                         output file to write interaction data
    -json                             write output in JSON Lines format
-   -ps, -payload-store               enable storing generated interactsh payload to file
+   -ps, -payload-store               write generated interactsh payload to file
    -psf, -payload-store-file string  store generated interactsh payloads to given file (default "interactsh_payload.txt")
+   -fsf, -file-store-file string     store hosted file URLs to given file (requires -file)
    -v                                display verbose interaction
 
 DEBUG:
@@ -352,7 +358,7 @@ Usage:
 Flags:
 INPUT:
    -d, -domain string[]                     single/multiple configured domain to use for server
-   -ip string[]                             public ip address(es) to use for interactsh server (comma-separated,supports both IPv4 & IPv6)
+   -i, -ip string[]                         public IP address(es) to use for interactsh server (comma-separated, supports both IPv4 & IPv6)
    -lip, -listen-ip string                  public ip address to listen on (default "0.0.0.0")
    -e, -eviction int                        number of days to persist interaction data in memory (default 30)
    -ne, -no-eviction                        disable periodic data eviction from memory
@@ -362,29 +368,31 @@ INPUT:
    -acao-url string                         origin url to send in acao header to use web-client) (default "*")
    -sa, -skip-acme                          skip acme registration (certificate checks/handshake + TLS protocols will be disabled)
    -se, -scan-everywhere                    scan canary token everywhere
-   -cidl, -correlation-id-length int        length of the correlation id preamble (min 3, default 20)
-   -cidn, -correlation-id-nonce-length int  length of the correlation id nonce (min 3, default 13)
+   -cidl, -correlation-id-length int        length of the correlation id preamble (min 3, default 20) (default 20)
+   -cidn, -correlation-id-nonce-length int  length of the correlation id nonce (min 3, default 13) (default 13)
    -cert string                             custom certificate path
    -privkey string                          custom private key path
    -oih, -origin-ip-header string           HTTP header containing origin ip (interactsh behind a reverse proxy)
 
 CONFIG:
-   -r, -resolvers string[]      list of resolvers to use (file or comma separated)
-   -config string               flag configuration file (default "$HOME/.config/interactsh-server/config.yaml")
-   -dr, -dynamic-resp           enable setting up arbitrary response data
-   -cr, -custom-records string  custom dns records YAML file for DNS server
-   -hi, -http-index string      custom index file for http server
+   -r, -resolvers string[]              list of resolvers to use (file or comma separated)
+   -config string                       flag configuration file (default "$HOME/.config/interactsh-server/config.yaml")
+   -dr, -dynamic-resp                   enable setting up arbitrary response data
+   -cr, -custom-records string          custom dns records YAML file for DNS server
+   -hi, -http-index string              custom index file for http server
+   -hd, -http-directory string          directory with files to serve with http server
    -dhr, -default-http-response string  file to serve for all http requests (takes priority over other options)
-   -hd, -http-directory string  directory with files to serve with http server
-   -ds, -disk                   disk based storage
-   -dsp, -disk-path string      disk storage path
-   -csh, -server-header string  custom value of Server header in response
-   -dv, -disable-version        disable publishing interactsh version in response header
+   -ds, -disk                           disk based storage
+   -dsp, -disk-path string              disk storage path
+   -ru, -redis-url string               redis connection URL (enables shared state for multi-instance deployments)
+   -rp, -redis-prefix string            redis key prefix (default "interactsh:")
+   -csh, -server-header string          custom value of Server header in response
+   -dv, -disable-version                disable publishing interactsh version in response header
 
 UPDATE:
    -up, -update                 update interactsh-server to latest version
    -duc, -disable-update-check  disable automatic interactsh-server update check
-   
+
 SERVICES:
    -dns-port int           port to use for dns service (default 53)
    -http-port int          port to use for http service (default 80)
@@ -402,6 +410,14 @@ SERVICES:
    -ftp-port int           port to use for ftp service (default 21)
    -ftps-port int          port to use for ftps service (default 990)
    -ftp-dir string         ftp directory - temporary if not specified
+
+UPLOAD:
+   -upload                              enable client file upload and hosting - self-hosted servers only (authenticated)
+   -ud, -upload-directory string        directory to host uploaded files from - temporary if not specified; interactsh creates and prunes .interactsh-user-uploads inside it
+   -umfs, -upload-max-file-size value   maximum size of a single uploaded file (default 1mb)
+   -umf, -upload-max-files int          maximum number of uploaded files per session (default 5)
+   -umts, -upload-max-total-size value  maximum total size of all uploaded files on the server (default 1gb)
+   -ut, -upload-ttl value               maximum lifetime of uploaded files (default 24h0m0s)
 
 DEBUG:
    -version            show version of the project
@@ -654,6 +670,152 @@ interactsh-server -d hackwithautomation.com -http-directory ./paylods
 
 ![image](https://user-images.githubusercontent.com/8293321/179396480-d5ff8399-8b91-48aa-b21f-c67e40e80945.png)
 
+## Client File Hosting
+
+Where `-http-directory` hosts operator-supplied files globally, `-upload` lets a **client** host files
+against its own correlation ID. This is aimed at second-stage out-of-band vulnerabilities — XXE with an
+external DTD, XSLT includes, JNDI staging — where the target must fetch a payload file before the
+callback fires. Each fetch is recorded as an interaction, so the second stage is visible in the client
+output.
+
+> [!WARNING]
+> `-upload` is intended for **self-hosted servers only**. Enabling it on a public instance turns it into
+> anonymous file hosting on a domain with a valid wildcard certificate, which is a magnet for malware
+> staging, and blocklists act on the registrable domain — one abusive sample affects every user of that
+> domain. It is off by default and implies authentication when enabled.
+
+Start a server with uploads enabled:
+
+```bash
+interactsh-server -d hackwithautomation.com -upload -ftp
+```
+
+Then point a client at it with one or more files:
+
+```bash
+interactsh-client -s https://hackwithautomation.com -t <token> -file evil.dtd
+```
+
+```console
+[INF] Listing 1 payload for OOB Testing
+[INF] c6rj61aciaeutn2ae680cndmnioyyyyyn.hackwithautomation.com
+[INF] Hosting 1 file(s) for OOB Testing
+[INF] https://c6rj61aciaeutn2ae680xk4tqy8pqhwmi.hackwithautomation.com/f/evil.dtd
+[INF] ftp://c6rj61aciaeutn2ae680xk4tqy8pqhwmi.hackwithautomation.com/.interactsh-user-uploads/c6rj61aciaeutn2ae680/evil.dtd
+```
+
+Files are served over HTTP(S), and over FTP(S) as well when `-ftp` is enabled. Responses are always
+`Content-Type: application/octet-stream` with `Content-Disposition: attachment`, so the server never
+renders client-supplied HTML or SVG on its own domain; DTD, XSLT and JNDI consumers ignore content type,
+so this costs nothing for the intended use.
+
+When the target fetches the file, the fetch arrives in the client like any other interaction — which is
+the point: it is the evidence that the first stage of the payload actually executed. The response body
+is replaced by a digest so a large payload is not copied back into the interaction stream on every
+fetch:
+
+```console
+[c6rj61aciaeutn2ae680xk4tqy8pqhwmi] Received HTTP interaction from 203.0.113.7 at 2026-08-05 15:47:19
+------------
+HTTP Request
+------------
+
+GET /f/evil.dtd HTTP/1.1
+Host: c6rj61aciaeutn2ae680xk4tqy8pqhwmi.hackwithautomation.com
+Accept: */*
+User-Agent: curl/8.18.0
+
+
+
+-------------
+HTTP Response
+-------------
+
+HTTP/1.1 200 OK
+Content-Type: application/octet-stream
+Content-Disposition: attachment; filename="evil.dtd"
+Content-Length: 144
+
+[body elided: 144 of 144 bytes of uploaded file "evil.dtd", sha256 0c1b960b076cdff8666f1f302dddd8f3ff0e6ed4b6c09002fbe6d1cdbb5d68f8]
+```
+
+The two counts are "delivered of hosted": a conditional fetch answered `304` records `0 of 144`, and a
+ranged one records the bytes the range actually carried, so the record cannot claim a delivery that did
+not happen.
+
+Whatever second-stage callback the payload then triggers arrives as a further interaction on the same
+correlation ID, so both stages land in one client.
+
+A client asked to host files against a server that was not started with `-upload` says so and stops,
+rather than silently continuing without the payload:
+
+```console
+$ interactsh-client -s https://hackwithautomation.com -t <token> -file evil.dtd
+[FTL] Server https://hackwithautomation.com does not accept file uploads; it must be started with -upload
+```
+
+The failing server is named because the client registers with only one of the servers in `-s`. When
+several are listed, it also says how the choice was made, since the outcome can differ between runs:
+
+```console
+$ interactsh-client -s https://a.example,https://b.example -t <token> -file evil.dtd
+[FTL] Server https://a.example does not accept file uploads; it must be started with -upload (chosen at random from the 2 servers in -s, so this may differ between runs; pass a single server with -file)
+```
+
+Server-side options:
+
+| Flag | Default | Description |
+| --- | --- | --- |
+| `-upload` | off | enable client file upload and hosting |
+| `-ud, -upload-directory` | temporary dir | directory to host uploaded files from; interactsh owns `.interactsh-user-uploads` inside it |
+| `-umfs, -upload-max-file-size` | `1mb` | maximum size of a single file |
+| `-umf, -upload-max-files` | `5` | maximum files per session |
+| `-umts, -upload-max-total-size` | `1gb` | maximum total bytes across all sessions |
+| `-ut, -upload-ttl` | `24h` | maximum lifetime of uploaded files |
+
+Files are removed when the client deregisters, when its session leaves the cache, and in any case once
+`-upload-ttl` has elapsed since the last upload for that session.
+
+Things worth knowing before enabling it:
+
+- **Hosted files are readable by anyone who learns the correlation ID.** That ID is deliberately leaked
+  to the target — it appears in every DNS query the target's resolver makes, and so in its DNS logs, its
+  WAF, and passive-DNS aggregators. A target can fetch your payload to fingerprint your tooling, and
+  that fetch will appear in your interaction stream. Do not upload anything you would mind a target
+  reading.
+- Uploads are authenticated with the session's correlation ID and secret key, so only the client that
+  owns a session can attach files to it.
+- The client uploads to the **one server it registered with**. If `-s` lists several, files are hosted
+  only on the elected one; its payload URLs are the ones printed. **Pass a single server with `-file`:**
+  the client picks one at random from `-s` and cannot take upload support into account, since it only
+  learns that after registering — so a list mixing upload and non-upload servers fails at random.
+- `-upload` cannot be combined with `-redis-url`. Hosted bytes are written to a single instance's local
+  filesystem, so with a storage backend shared between instances the other instances would advertise
+  files they do not have. The server refuses to start on that combination:
+
+  ```console
+  $ interactsh-server -d hackwithautomation.com -upload -redis-url redis://127.0.0.1:6379/0
+  [FTL] -upload cannot be used with -redis-url: hosted files are stored on a single instance's local filesystem
+  ```
+- Uploads refuse to travel over plaintext HTTP to a remote server, since the request carries both the
+  file and the session secret key. Use an `https://` server URL.
+- The default upload directory is a temporary directory, which on many Linux distributions is
+  memory-backed. Set `-upload-directory` explicitly on a real deployment.
+- **Interactsh creates and prunes one directory inside the upload root.** Hosted files are laid out as
+  `<root>/.interactsh-user-uploads/<correlation-id>/<filename>`, and everything under
+  `.interactsh-user-uploads` is deleted when its session ends, when `-upload-ttl` expires it, and at
+  startup — upload metadata lives only in memory, so nothing there survives a restart. The rest of the
+  root is never touched, which is what makes it safe to point `-upload-directory` at a directory you
+  already use, or to share it with `-ftp-dir`.
+- With `-ftp` and no `-ftp-dir`, the FTP root is set to the upload root so that hosted files are
+  reachable over FTP with no extra configuration. If you set both flags they must name the same
+  directory, otherwise FTP cannot see the uploads: the server reports the mismatch at startup and stops
+  offering `ftp://` URLs to clients, so hosting degrades to HTTP only rather than handing out FTP URLs
+  that resolve to nothing. The uploads directory is hidden from FTP listings — `LIST /` shows your own content but
+  not `.interactsh-user-uploads`, and that directory refuses to list its own contents, so an anonymous
+  client cannot enumerate the correlation IDs that currently have hosted files. `RETR` of a known path
+  works, which is what the payload URL relies on.
+
 ## Dynamic HTTP Response
 
 Interactsh http server optionally enables responding with dynamic HTTP response by using query parameters. This feature can be enabled by using `-dr` or `-dynamic-resp` flag.
@@ -870,7 +1032,15 @@ sudo interactsh-server -responder -d localhost
 
 ### Use as library
 
-The [examples](examples/) uses interactsh client library to get external interactions for a generated URL by making a http request to the URL.
+The [examples](examples/) use the interactsh client library to get external interactions for a generated
+URL by making an http request to the URL, and to host a file against the same session for second-stage
+verification.
+
+File hosting is an optional server capability, so a library consumer negotiates rather than assumes:
+`Capabilities()` reports what the server advertised at registration, `UploadFiles` returns
+`ErrUploadUnsupported` when a server cannot host files and `ErrUploadNotAdvertised` when it predates the
+feature, and `FileURL`/`FTPFileURL` compose the URLs a target should fetch. The public `oast.*` servers
+do not offer hosting, so the example skips it rather than failing.
 
 ### Nuclei - OAST
 

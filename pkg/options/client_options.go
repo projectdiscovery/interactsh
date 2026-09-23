@@ -9,6 +9,7 @@ import (
 type CLIClientOptions struct {
 	Match                    goflags.StringSlice
 	Filter                   goflags.StringSlice
+	Files                    goflags.StringSlice
 	Config                   string
 	Version                  bool
 	ServerURL                string
@@ -17,6 +18,7 @@ type CLIClientOptions struct {
 	JSON                     bool
 	StorePayload             bool
 	StorePayloadFile         string
+	FileStoreFile            string
 	Verbose                  bool
 	PollInterval             int
 	DNSOnly                  bool
