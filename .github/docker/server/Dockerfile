@@ -1,16 +1,16 @@
 # Base
-FROM golang:1.24-alpine AS builder
-RUN apk add --no-cache git build-base gcc musl-dev
+FROM golang:1.25-alpine3.24 AS builder
 WORKDIR /app
-COPY . /app
+COPY go.mod go.sum ./
 RUN go mod download
-RUN go build ./cmd/interactsh-server
+COPY . .
+RUN CGO_ENABLED=0 go build ./cmd/interactsh-server
 
 
 # Release
-FROM alpine:3.19
+FROM alpine:3.24
 RUN apk -U upgrade --no-cache \
-    && apk add --no-cache bind-tools ca-certificates curl
+    && apk add --no-cache bind-tools~=9.20 ca-certificates=20260909-r0 curl~=8.22
 WORKDIR "/usr/local/bin"
 COPY --from=builder /app/interactsh-server /usr/local/bin/
 
