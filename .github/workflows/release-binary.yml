@@ -20,6 +20,8 @@ jobs:
 
       - name: Create release on GitHub
         uses: projectdiscovery/actions/goreleaser@v1
+        with:
+          release: true
         env:
           GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
           SLACK_WEBHOOK: "${{ secrets.RELEASE_SLACK_WEBHOOK }}"
