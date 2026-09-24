@@ -10,7 +10,9 @@ import (
 	"crypto/sha256"
 	"crypto/x509"
 	"encoding/base64"
+	"encoding/json"
 	"encoding/pem"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -22,10 +24,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"errors"
-
 	"github.com/google/uuid"
-	jsoniter "github.com/json-iterator/go"
 	asnmap "github.com/projectdiscovery/asnmap/libs"
 	"github.com/projectdiscovery/gologger"
 	"github.com/projectdiscovery/interactsh/pkg/options"
@@ -68,6 +67,16 @@ type Client struct {
 	token                    string
 	correlationIdLength      int
 	CorrelationIdNonceLength int
+	// capabilitiesKnown records that a registration response was received and
+	// parsed, which is what makes the absence of a capabilities block meaningful.
+	// A resumed session whose re-registration was refused because the session is
+	// still alive never learns what the server offers, and "unknown" must not be
+	// read as "the server offers nothing".
+	capabilitiesKnown atomic.Bool
+	// capabilities holds the *server.Capabilities advertised at registration.
+	// Written from performRegistration, which the keep-alive goroutine also
+	// calls, hence atomic.Value rather than a bare field.
+	capabilities atomic.Value
 }
 
 // Options contains configuration options for interactsh client
@@ -150,8 +159,17 @@ func New(options *Options) (*Client, error) {
 		secretKey = options.SessionInfo.SecretKey
 		token = options.SessionInfo.Token
 	} else {
-		// Generate a random ksuid which will be used as server secret.
-		correlationID = xid.New().String()
+		// Use a privacy-preserving xid: keep the 4-byte timestamp prefix so the id
+		// stays k-ordered and parseable, but randomize the trailing 8 bytes
+		// (machine + pid + counter). Plain xid.New() leaks a stable per-machine
+		// fingerprint (md5(hostname)[:3]) through every OAST callback, which is
+		// observable by the target service and by third-party telemetry that
+		// logs OAST traffic (see issue #1349).
+		anonID, err := newAnonymousCorrelationID()
+		if err != nil {
+			return nil, errkit.Wrap(err, "could not generate correlation id")
+		}
+		correlationID = anonID
 		if len(correlationID) > options.CorrelationIdLength {
 			correlationID = correlationID[:options.CorrelationIdLength]
 		}
@@ -179,8 +197,10 @@ func New(options *Options) (*Client, error) {
 			return nil, errkit.Wrap(err, "failed to decode public key")
 		}
 		client.pubKey = pubKey
-		if serverURL, err := url.Parse(options.SessionInfo.ServerURL); err == nil {
+		registrationServerURL := options.SessionInfo.ServerURL
+		if serverURL, err := parseServerURL(options.SessionInfo.ServerURL); err == nil {
 			client.serverURL = serverURL
+			registrationServerURL = serverURL.String()
 		}
 		// attempts to re-register - server will reject is already existing
 		registrationRequest, err := encodeRegistrationRequest(options.SessionInfo.PublicKey, options.SessionInfo.SecretKey, options.SessionInfo.CorrelationID)
@@ -188,7 +208,7 @@ func New(options *Options) (*Client, error) {
 			return nil, err
 		}
 		// silently fails to re-register if the session is still alive
-		_ = client.performRegistration(options.SessionInfo.ServerURL, registrationRequest)
+		_ = client.performRegistration(registrationServerURL, registrationRequest)
 	} else {
 		payload, err := client.initializeRSAKeys()
 		if err != nil {
@@ -261,7 +281,7 @@ func encodeRegistrationRequest(publicKey, secretkey, correlationID string) ([]by
 		CorrelationID: correlationID,
 	}
 
-	data, err := jsoniter.Marshal(register)
+	data, err := json.Marshal(register)
 	if err != nil {
 		return nil, errkit.Wrap(err, "could not marshal register request")
 	}
@@ -319,11 +339,11 @@ func (c *Client) parseServerURLs(serverURL string, payload []byte) error {
 	}
 
 	values := strings.Split(serverURL, ",")
-	registerFunc := func(idx int, value string) error {
+	registerFunc := func(_ int, value string) error {
 		if !stringsutil.HasPrefixAny(value, "http://", "https://") {
 			value = fmt.Sprintf("https://%s", value)
 		}
-		parsed, err := url.Parse(value)
+		parsed, err := parseServerURL(value)
 		if err != nil {
 			return errkit.Wrap(err, "could not parse server URL")
 		}
@@ -359,6 +379,20 @@ func (c *Client) parseServerURLs(serverURL string, payload []byte) error {
 	}
 
 	return nil
+}
+
+func parseServerURL(value string) (*url.URL, error) {
+	parsed, err := url.Parse(value)
+	if err != nil {
+		return nil, err
+	}
+
+	for strings.HasSuffix(parsed.EscapedPath(), "/") {
+		parsed.Path = strings.TrimSuffix(parsed.Path, "/")
+		parsed.RawPath = strings.TrimSuffix(parsed.RawPath, "/")
+	}
+
+	return parsed, nil
 }
 
 // InteractionCallback is a callback function for a reported interaction
@@ -448,7 +482,7 @@ func (c *Client) getInteractions(callback InteractionCallback) error {
 		return fmt.Errorf("could not poll interactions: %s", string(data))
 	}
 	response := &server.PollResponse{}
-	if err := jsoniter.NewDecoder(resp.Body).Decode(response); err != nil {
+	if err := json.NewDecoder(resp.Body).Decode(response); err != nil {
 		gologger.Error().Msgf("Could not decode interactions: %v\n", err)
 		return err
 	}
@@ -461,7 +495,7 @@ func (c *Client) getInteractions(callback InteractionCallback) error {
 		}
 		plaintext = bytes.TrimRight(plaintext, " \t\r\n")
 		interaction := &server.Interaction{}
-		if err := jsoniter.Unmarshal(plaintext, interaction); err != nil {
+		if err := json.Unmarshal(plaintext, interaction); err != nil {
 			gologger.Error().Msgf("Could not unmarshal interaction data interaction: %v\n", err)
 			continue
 		}
@@ -470,7 +504,7 @@ func (c *Client) getInteractions(callback InteractionCallback) error {
 
 	for _, plaintext := range response.Extra {
 		interaction := &server.Interaction{}
-		if err := jsoniter.UnmarshalFromString(plaintext, interaction); err != nil {
+		if err := json.Unmarshal([]byte(plaintext), interaction); err != nil {
 			gologger.Error().Msgf("Could not unmarshal interaction data interaction: %v\n", err)
 			continue
 		}
@@ -483,7 +517,7 @@ func (c *Client) getInteractions(callback InteractionCallback) error {
 			continue
 		}
 		interaction := &server.Interaction{}
-		if err := jsoniter.UnmarshalFromString(data, interaction); err != nil {
+		if err := json.Unmarshal([]byte(data), interaction); err != nil {
 			gologger.Error().Msgf("Could not unmarshal interaction data interaction: %v\n", err)
 			continue
 		}
@@ -555,7 +589,7 @@ func (c *Client) Close() error {
 		CorrelationID: c.correlationID,
 		SecretKey:     c.secretKey,
 	}
-	data, err := jsoniter.Marshal(register)
+	data, err := json.Marshal(register)
 	if err != nil {
 		return errkit.Wrap(err, "could not marshal deregister request")
 	}
@@ -624,21 +658,40 @@ func (c *Client) performRegistration(serverURL string, payload []byte) error {
 		data, _ := io.ReadAll(resp.Body)
 		return fmt.Errorf("could not register to server: %s", string(data))
 	}
-	response := make(map[string]interface{})
-	if err := jsoniter.NewDecoder(resp.Body).Decode(&response); err != nil {
+	response := &server.RegisterResponse{}
+	if err := json.NewDecoder(resp.Body).Decode(response); err != nil {
 		return errkit.Wrap(err, "could not register to server")
 	}
-	message, ok := response["message"]
-	if !ok {
+	if response.Message == "" {
 		return errors.New("could not get register response")
 	}
-	if message.(string) != "registration successful" {
-		return fmt.Errorf("could not get register response: %s", message.(string))
+	if response.Message != "registration successful" {
+		return fmt.Errorf("could not get register response: %s", response.Message)
+	}
+
+	// A successful registration is authoritative about what the server offers,
+	// including the absence of a capabilities block, which means the server
+	// predates them.
+	c.capabilitiesKnown.Store(true)
+	if response.Capabilities != nil {
+		c.capabilities.Store(response.Capabilities)
 	}
 
 	c.State.Store(Idle)
 
 	return nil
+}
+
+// CapabilitiesKnown reports whether a registration response has been received,
+// which is what distinguishes a server that advertised no capabilities from a
+// resumed session that never got to ask.
+func (c *Client) CapabilitiesKnown() bool { return c.capabilitiesKnown.Load() }
+
+// Capabilities returns the optional features advertised by the server at
+// registration, or nil if the server did not advertise any.
+func (c *Client) Capabilities() *server.Capabilities {
+	caps, _ := c.capabilities.Load().(*server.Capabilities)
+	return caps
 }
 
 // URL returns a new URL that can be used for external interaction requests.
@@ -720,4 +773,19 @@ func (c *Client) SaveSessionTo(filename string) error {
 		return err
 	}
 	return os.WriteFile(filename, data, os.ModePerm)
+}
+
+// newAnonymousCorrelationID returns an xid-formatted correlation id that
+// preserves the 4-byte timestamp prefix (for k-ordering and the server-side
+// xidAlphabet validator) and replaces the remaining 8 bytes (machine, pid,
+// counter) with crypto/rand. The result is still a valid xid string, still
+// 20 chars from the [0-9a-v] alphabet, and still parseable with xid.FromString.
+func newAnonymousCorrelationID() (string, error) {
+	id := xid.NewWithTime(time.Now())
+	// Overwrite machine (4..6), pid (7..8), counter (9..11) with random bytes.
+	// id is xid.ID ([12]byte) and id[4:] aliases the same backing array.
+	if _, err := rand.Read(id[4:]); err != nil {
+		return "", err
+	}
+	return id.String(), nil
 }

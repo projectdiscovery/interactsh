@@ -3,6 +3,7 @@ package server
 import (
 	"crypto/tls"
 	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"log"
 	"net"
@@ -16,7 +17,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	jsoniter "github.com/json-iterator/go"
 	"github.com/projectdiscovery/gologger"
 	stringsutil "github.com/projectdiscovery/utils/strings"
 )
@@ -84,6 +84,25 @@ func NewHTTPServer(options *Options) (*HTTPServer, error) {
 	router.Handle("/register", server.corsMiddleware(server.authMiddleware(http.HandlerFunc(server.registerHandler))))
 	router.Handle("/deregister", server.corsMiddleware(server.authMiddleware(http.HandlerFunc(server.deregisterHandler))))
 	router.Handle("/poll", server.corsMiddleware(server.authMiddleware(http.HandlerFunc(server.pollHandler))))
+	// Registered even when uploads are disabled, so that an upload request to a
+	// server without -upload gets a clean 501 rather than falling through to
+	// "/", where the logger middleware would persist the whole file body as an
+	// interaction record.
+	//
+	// Unlike the other authenticated routes this one is not wrapped in
+	// authMiddleware: it checks the token itself, because a request that fails
+	// the check has to be recorded as an interaction before the 401 and the
+	// middleware returns too early to allow that. -upload forces -auth with a
+	// random token, and the client refuses to send an upload to a server whose
+	// advertised capabilities say uploads are off, so anything unauthenticated
+	// arriving here is a target probing the endpoint -- exactly what we exist to
+	// record.
+	router.Handle("/upload", server.corsMiddleware(http.HandlerFunc(server.uploadHandler)))
+	// Hosted files are served outside the logger middleware, which would
+	// otherwise copy each file body into an interaction record; the handler
+	// records a body-elided interaction itself. No CORS: these are fetched by
+	// the target under test, not cross-origin by a browser.
+	router.Handle("/f/", http.HandlerFunc(server.serveUploadedFile))
 	if server.options.EnableMetrics {
 		router.Handle("/metrics", server.corsMiddleware(server.authMiddleware(http.HandlerFunc(server.metricsHandler))))
 	}
@@ -144,8 +163,12 @@ func (h *HTTPServer) logger(handler http.Handler) http.HandlerFunc {
 
 		// if root-tld is enabled stores any interaction towards the main domain
 		if h.options.RootTLD {
+			requestHost := r.Host
+			if host, _, err := net.SplitHostPort(r.Host); err == nil {
+				requestHost = host
+			}
 			for _, domain := range h.options.Domains {
-				if h.options.RootTLD && stringsutil.HasSuffixI(r.Host, domain) {
+				if h.options.RootTLD && stringsutil.HasSuffixI(requestHost, domain) {
 					ID := domain
 					host, _, _ := net.SplitHostPort(r.RemoteAddr)
 					interaction := &Interaction{
@@ -157,7 +180,7 @@ func (h *HTTPServer) logger(handler http.Handler) http.HandlerFunc {
 						RemoteAddress: host,
 						Timestamp:     time.Now(),
 					}
-					data, err := jsoniter.Marshal(interaction)
+					data, err := json.Marshal(interaction)
 					if err != nil {
 						gologger.Warning().Msgf("Could not encode root tld http interaction: %s\n", err)
 					} else {
@@ -217,7 +240,7 @@ func (h *HTTPServer) handleInteraction(r *http.Request, uniqueID, fullID, reqStr
 		RemoteAddress: hostPort,
 		Timestamp:     time.Now(),
 	}
-	data, err := jsoniter.Marshal(interaction)
+	data, err := json.Marshal(interaction)
 	if err != nil {
 		gologger.Warning().Msgf("Could not encode http interaction: %s\n", err)
 	} else {
@@ -324,6 +347,30 @@ func (h *HTTPServer) defaultHandler(w http.ResponseWriter, req *http.Request) {
 	}
 }
 
+// b64BodyPrefix marks a request path carrying a base64 encoded response body.
+const b64BodyPrefix = "/b64_body:"
+
+// decodeB64BodyPath decodes a /b64_body:<payload> path.
+// HasPrefixI is case insensitive, so the payload offset is the prefix length
+// rather than a second case-sensitive search. A single trailing slash is
+// accepted as a terminator (nuclei templates use it); other slashes are left
+// in place because they are valid in StdEncoding.
+func decodeB64BodyPath(path string) []byte {
+	if !stringsutil.HasPrefixI(path, b64BodyPrefix) {
+		return nil
+	}
+	encoded := path[len(b64BodyPrefix):]
+	decoded, err := base64.StdEncoding.DecodeString(encoded)
+	if err == nil {
+		return decoded
+	}
+	if strings.HasSuffix(encoded, "/") {
+		decoded, _ = base64.StdEncoding.DecodeString(strings.TrimSuffix(encoded, "/"))
+		return decoded
+	}
+	return nil
+}
+
 // writeResponseFromDynamicRequest writes a response to http.ResponseWriter
 // based on dynamic data from HTTP URL Query parameters.
 //
@@ -336,13 +383,8 @@ func (h *HTTPServer) defaultHandler(w http.ResponseWriter, req *http.Request) {
 func writeResponseFromDynamicRequest(w http.ResponseWriter, req *http.Request) {
 	values := req.URL.Query()
 
-	if stringsutil.HasPrefixI(req.URL.Path, "/b64_body:") {
-		firstindex := strings.Index(req.URL.Path, "/b64_body:")
-		lastIndex := strings.LastIndex(req.URL.Path, "/")
-
-		decodedBytes, _ := base64.StdEncoding.DecodeString(req.URL.Path[firstindex+10 : lastIndex])
-		_, _ = w.Write(decodedBytes)
-
+	if decoded := decodeB64BodyPath(req.URL.Path); decoded != nil {
+		_, _ = w.Write(decoded)
 	}
 	if headers := values["header"]; len(headers) > 0 {
 		for _, header := range headers {
@@ -382,20 +424,30 @@ type RegisterRequest struct {
 // registerHandler is a handler for client register requests
 func (h *HTTPServer) registerHandler(w http.ResponseWriter, req *http.Request) {
 	r := &RegisterRequest{}
-	if err := jsoniter.NewDecoder(req.Body).Decode(r); err != nil {
+	if err := json.NewDecoder(req.Body).Decode(r); err != nil {
 		gologger.Warning().Msgf("Could not decode json body: %s\n", err)
 		jsonError(w, fmt.Sprintf("could not decode json body: %s", err), http.StatusBadRequest)
 		return
 	}
-
-	atomic.AddInt64(&h.options.Stats.Sessions, 1)
 
 	if err := h.options.Storage.SetIDPublicKey(r.CorrelationID, r.SecretKey, r.PublicKey); err != nil {
 		gologger.Warning().Msgf("Could not set id and public key for %s: %s\n", r.CorrelationID, err)
 		jsonError(w, fmt.Sprintf("could not set id and public key: %s", err), http.StatusBadRequest)
 		return
 	}
-	jsonMsg(w, "registration successful", http.StatusOK)
+	atomic.AddInt64(&h.options.Stats.Sessions, 1)
+	atomic.AddInt64(&h.options.Stats.SessionsTotal, 1)
+
+	// Capabilities ride along on the registration response so the client knows
+	// whether uploads are available without a second round trip. Older clients
+	// read only "message" and ignore the extra key.
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.Header().Set("X-Content-Type-Options", "nosniff")
+	w.WriteHeader(http.StatusOK)
+	_ = json.NewEncoder(w).Encode(&RegisterResponse{
+		Message:      "registration successful",
+		Capabilities: h.capabilities(),
+	})
 	gologger.Debug().Msgf("Registered correlationID %s for key\n", r.CorrelationID)
 }
 
@@ -409,10 +461,8 @@ type DeregisterRequest struct {
 
 // deregisterHandler is a handler for client deregister requests
 func (h *HTTPServer) deregisterHandler(w http.ResponseWriter, req *http.Request) {
-	atomic.AddInt64(&h.options.Stats.Sessions, -1)
-
 	r := &DeregisterRequest{}
-	if err := jsoniter.NewDecoder(req.Body).Decode(r); err != nil {
+	if err := json.NewDecoder(req.Body).Decode(r); err != nil {
 		gologger.Warning().Msgf("Could not decode json body: %s\n", err)
 		jsonError(w, fmt.Sprintf("could not decode json body: %s", err), http.StatusBadRequest)
 		return
@@ -423,6 +473,17 @@ func (h *HTTPServer) deregisterHandler(w http.ResponseWriter, req *http.Request)
 		jsonError(w, fmt.Sprintf("could not remove id: %s", err), http.StatusBadRequest)
 		return
 	}
+
+	// Deleted synchronously rather than queued: the cache eviction hook fired
+	// by RemoveID above only enqueues the directory, leaving a window in which
+	// a client that has just deregistered could still fetch its own hosted
+	// files. Blocking here is safe -- unlike the cache's event goroutine, this
+	// handler can afford the filesystem call -- and the deletion is idempotent,
+	// so the queued removal that follows is a no-op.
+	if h.options.UploadStore != nil {
+		h.options.UploadStore.removeSessionNow(r.CorrelationID)
+	}
+
 	if h.options.RootTLD {
 		for _, domain := range h.options.Domains {
 			_ = h.options.Storage.RemoveConsumer(domain, r.CorrelationID)
@@ -478,7 +539,7 @@ func (h *HTTPServer) pollHandler(w http.ResponseWriter, req *http.Request) {
 	}
 	response := &PollResponse{Data: data, AESKey: aesKey, TLDData: tlddata, Extra: extradata}
 
-	if err := jsoniter.NewEncoder(w).Encode(response); err != nil {
+	if err := json.NewEncoder(w).Encode(response); err != nil {
 		gologger.Warning().Msgf("Could not encode interactions for %s: %s\n", ID, err)
 		jsonError(w, fmt.Sprintf("could not encode interactions: %s", err), http.StatusBadRequest)
 		return
@@ -488,15 +549,28 @@ func (h *HTTPServer) pollHandler(w http.ResponseWriter, req *http.Request) {
 
 func (h *HTTPServer) corsMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		allowOrigin := h.options.OriginURL
+		// When the allowed origin is the wildcard, reflect the request's Origin
+		// instead of returning "*". Browsers reject responses that combine
+		// "Access-Control-Allow-Origin: *" with "Access-Control-Allow-Credentials: true",
+		// so reflecting the origin keeps the default permissive while remaining valid.
+		if h.options.OriginURL == "*" {
+			if origin := req.Header.Get("Origin"); origin != "" {
+				allowOrigin = origin
+			}
+			// Response varies by Origin, so caches must key on it.
+			w.Header().Add("Vary", "Origin")
+		}
+
 		// Set CORS headers for the preflight request
 		if req.Method == http.MethodOptions {
-			w.Header().Set("Access-Control-Allow-Origin", h.options.OriginURL)
+			w.Header().Set("Access-Control-Allow-Origin", allowOrigin)
 			w.Header().Set("Access-Control-Allow-Credentials", "true")
 			w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
 			w.WriteHeader(http.StatusNoContent)
 			return
 		}
-		w.Header().Set("Access-Control-Allow-Origin", h.options.OriginURL)
+		w.Header().Set("Access-Control-Allow-Origin", allowOrigin)
 		w.Header().Set("Access-Control-Allow-Credentials", "true")
 		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
 		next.ServeHTTP(w, req)
@@ -507,7 +581,7 @@ func jsonBody(w http.ResponseWriter, key, value string, code int) {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.Header().Set("X-Content-Type-Options", "nosniff")
 	w.WriteHeader(code)
-	_ = jsoniter.NewEncoder(w).Encode(map[string]interface{}{key: value})
+	_ = json.NewEncoder(w).Encode(map[string]interface{}{key: value})
 }
 
 func jsonError(w http.ResponseWriter, err string, code int) {
@@ -534,7 +608,7 @@ func (h *HTTPServer) checkToken(req *http.Request) bool {
 
 // metricsHandler is a handler for /metrics endpoint
 func (h *HTTPServer) metricsHandler(w http.ResponseWriter, req *http.Request) {
-	interactMetrics := h.options.Stats
+	interactMetrics := h.options.Stats.snapshot()
 	interactMetrics.Cache = GetCacheMetrics(h.options)
 	interactMetrics.Cpu = GetCpuMetrics()
 	interactMetrics.Memory = GetMemoryMetrics()
@@ -542,5 +616,5 @@ func (h *HTTPServer) metricsHandler(w http.ResponseWriter, req *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.Header().Set("X-Content-Type-Options", "nosniff")
-	_ = jsoniter.NewEncoder(w).Encode(interactMetrics)
+	_ = json.NewEncoder(w).Encode(&interactMetrics)
 }

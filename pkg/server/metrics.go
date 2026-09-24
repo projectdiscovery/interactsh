@@ -2,6 +2,7 @@ package server
 
 import (
 	"runtime"
+	"sync/atomic"
 
 	units "github.com/docker/go-units"
 	"github.com/mackerelio/go-osstat/network"
@@ -9,17 +10,36 @@ import (
 )
 
 type Metrics struct {
-	Dns      uint64                `json:"dns"`
-	Ftp      uint64                `json:"ftp"`
-	Http     uint64                `json:"http"`
-	Ldap     uint64                `json:"ldap"`
-	Smb      uint64                `json:"smb"`
-	Smtp     uint64                `json:"smtp"`
-	Sessions int64                 `json:"sessions"`
-	Cache    *storage.CacheMetrics `json:"cache"`
-	Memory   *MemoryMetrics        `json:"memory"`
-	Cpu      *CpuStats             `json:"cpu"`
-	Network  *NetworkStats         `json:"network"`
+	Dns           uint64                `json:"dns"`
+	Ftp           uint64                `json:"ftp"`
+	Http          uint64                `json:"http"`
+	Ldap          uint64                `json:"ldap"`
+	Smb           uint64                `json:"smb"`
+	Smtp          uint64                `json:"smtp"`
+	Sessions      int64                 `json:"sessions"`
+	SessionsTotal int64                 `json:"sessions_total"`
+	Cache         *storage.CacheMetrics `json:"cache"`
+	Memory        *MemoryMetrics        `json:"memory"`
+	Cpu           *CpuStats             `json:"cpu"`
+	Network       *NetworkStats         `json:"network"`
+}
+
+// snapshot copies atomically updated counters into a local value so callers
+// can fill Cache/Cpu/Memory/Network without mutating the shared Stats pointer.
+func (m *Metrics) snapshot() Metrics {
+	if m == nil {
+		return Metrics{}
+	}
+	return Metrics{
+		Dns:           atomic.LoadUint64(&m.Dns),
+		Ftp:           atomic.LoadUint64(&m.Ftp),
+		Http:          atomic.LoadUint64(&m.Http),
+		Ldap:          atomic.LoadUint64(&m.Ldap),
+		Smb:           atomic.LoadUint64(&m.Smb),
+		Smtp:          atomic.LoadUint64(&m.Smtp),
+		Sessions:      atomic.LoadInt64(&m.Sessions),
+		SessionsTotal: atomic.LoadInt64(&m.SessionsTotal),
+	}
 }
 
 func GetCacheMetrics(options *Options) *storage.CacheMetrics {

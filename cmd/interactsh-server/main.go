@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"crypto/rand"
 	"crypto/tls"
 	"encoding/hex"
@@ -13,10 +14,12 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	_ "net/http/pprof"
 
+	units "github.com/docker/go-units"
 	"github.com/projectdiscovery/goflags"
 	"github.com/projectdiscovery/gologger"
 	"github.com/projectdiscovery/gologger/levels"
@@ -72,6 +75,8 @@ func main() {
 		flagSet.StringVarP(&cliOptions.DefaultHTTPResponseFile, "default-http-response", "dhr", "", "file to serve for all http requests (takes priority over other options)"),
 		flagSet.BoolVarP(&cliOptions.DiskStorage, "disk", "ds", false, "disk based storage"),
 		flagSet.StringVarP(&cliOptions.DiskStoragePath, "disk-path", "dsp", "", "disk storage path"),
+		flagSet.StringVarP(&cliOptions.RedisURL, "redis-url", "ru", "", "redis connection URL (enables shared state for multi-instance deployments)"),
+		flagSet.StringVarP(&cliOptions.RedisKeyPrefix, "redis-prefix", "rp", "", "redis key prefix (default \"interactsh:\")"),
 		flagSet.StringVarP(&cliOptions.HeaderServer, "server-header", "csh", "", "custom value of Server header in response"),
 		flagSet.BoolVarP(&cliOptions.NoVersionHeader, "disable-version", "dv", false, "disable publishing interactsh version in response header"),
 	)
@@ -91,13 +96,22 @@ func main() {
 		flagSet.IntVar(&cliOptions.LdapPort, "ldap-port", 389, "port to use for ldap service"),
 		flagSet.BoolVar(&cliOptions.LdapWithFullLogger, "ldap", false, "enable ldap server with full logging (authenticated)"),
 		flagSet.BoolVarP(&cliOptions.RootTLD, "wildcard", "wc", false, "enable wildcard interaction for interactsh domain (authenticated)"),
-		flagSet.BoolVar(&cliOptions.Smb, "smb", false, "start smb agent - impacket and python 3 must be installed (authenticated)"),
-		flagSet.BoolVar(&cliOptions.Responder, "responder", false, "start responder agent - docker must be installed (authenticated)"),
+		flagSet.BoolVar(&cliOptions.Smb, "smb", false, "start in-process smb agent for NetNTLMv2 hash capture (authenticated)"),
+		flagSet.BoolVar(&cliOptions.Responder, "responder", false, "start in-process responder agent (multi-port SMB NetNTLMv2 hash capture, authenticated)"),
 		flagSet.BoolVar(&cliOptions.Ftp, "ftp", false, "start ftp agent (authenticated)"),
 		flagSet.IntVar(&cliOptions.SmbPort, "smb-port", 445, "port to use for smb service"),
 		flagSet.IntVar(&cliOptions.FtpPort, "ftp-port", 21, "port to use for ftp service"),
 		flagSet.IntVar(&cliOptions.FtpsPort, "ftps-port", 990, "port to use for ftps service"),
 		flagSet.StringVar(&cliOptions.FTPDirectory, "ftp-dir", "", "ftp directory - temporary if not specified"),
+	)
+
+	flagSet.CreateGroup("upload", "Upload",
+		flagSet.BoolVar(&cliOptions.Upload, "upload", false, "enable client file upload and hosting - self-hosted servers only (authenticated)"),
+		flagSet.StringVarP(&cliOptions.UploadDirectory, "upload-directory", "ud", "", "directory to host uploaded files from - temporary if not specified; interactsh creates and prunes .interactsh-user-uploads inside it"),
+		flagSet.SizeVarP(&cliOptions.UploadMaxFileSize, "upload-max-file-size", "umfs", "1mb", "maximum size of a single uploaded file"),
+		flagSet.IntVarP(&cliOptions.UploadMaxFiles, "upload-max-files", "umf", 5, "maximum number of uploaded files per session"),
+		flagSet.SizeVarP(&cliOptions.UploadMaxTotalSize, "upload-max-total-size", "umts", "1gb", "maximum total size of all uploaded files on the server"),
+		flagSet.DurationVarP(&cliOptions.UploadTTL, "upload-ttl", "ut", 24*time.Hour, "maximum lifetime of uploaded files"),
 	)
 
 	flagSet.CreateGroup("debug", "Debug",
@@ -176,7 +190,7 @@ func main() {
 					addressesStr = append(addressesStr, address.String())
 				}
 				if len(addressesStr) > 0 {
-					addressesBuilder.WriteString(fmt.Sprintf("%s: %s\n", networkInterface.Name, strings.Join(addressesStr, ",")))
+					_, _ = fmt.Fprintf(&addressesBuilder, "%s: %s\n", networkInterface.Name, strings.Join(addressesStr, ","))
 				}
 			}
 			gologger.Fatal().Msgf("%s\nNo bindable address could be found for port %d\nPlease ensure to have proper privileges and/or choose the correct ip:\n%s\n", err, cliOptions.DnsPort, addressesBuilder.String())
@@ -205,7 +219,7 @@ func main() {
 	}
 
 	// Requires auth if token is specified or enables it automatically for responder and smb options
-	if serverOptions.Token != "" || cliOptions.Responder || cliOptions.Smb || cliOptions.Ftp || cliOptions.LdapWithFullLogger {
+	if serverOptions.Token != "" || cliOptions.Responder || cliOptions.Smb || cliOptions.Ftp || cliOptions.LdapWithFullLogger || cliOptions.Upload {
 		serverOptions.Auth = true
 	}
 
@@ -260,19 +274,93 @@ func main() {
 		}
 	}
 
+	serverOptions.Stats = &server.Metrics{}
+	storeOptions.OnRemoval = func() {
+		atomic.AddInt64(&serverOptions.Stats.Sessions, -1)
+	}
+
+	// The upload store must exist before the HTTP and FTP servers are built,
+	// since both serve from its root.
+	var uploadStore *server.UploadStore
+	if cliOptions.Upload {
+		// Hosted bytes live on this instance's local filesystem and the
+		// capacity quota is an in-process counter, so file hosting cannot be
+		// combined with a storage backend shared between instances: peers
+		// would advertise files they do not have.
+		if cliOptions.RedisURL != "" {
+			gologger.Fatal().Msgf("-upload cannot be used with -redis-url: hosted files are stored on a single instance's local filesystem\n")
+		}
+		var err error
+		if uploadStore, err = server.NewUploadStore(serverOptions); err != nil {
+			gologger.Fatal().Msgf("could not create upload store: %s\n", err)
+		}
+		serverOptions.UploadStore = uploadStore
+
+		// Sharing the root is what lets the existing FTP file driver serve
+		// uploads. If the operator pinned both to different places, say so and
+		// stop advertising FTP, rather than printing ftp:// payload URLs that
+		// resolve to nothing.
+		switch serverOptions.FTPDirectory {
+		case "":
+			serverOptions.FTPDirectory = uploadStore.Root()
+			serverOptions.FTPServesUploads = true
+		default:
+			// Compared as resolved paths, not as the operator typed them:
+			// "./uploads", "/abs/uploads/" and a symlink to the same place are
+			// one directory, and warning about a working configuration teaches
+			// the operator to ignore the warning that matters.
+			shared, err := sameDirectory(serverOptions.FTPDirectory, uploadStore.Root())
+			if err != nil {
+				gologger.Fatal().Msgf("could not compare ftp and upload directories: %s\n", err)
+			}
+			serverOptions.FTPServesUploads = shared
+			if !shared && cliOptions.Ftp {
+				gologger.Error().Msgf("ftp directory %s is not the upload directory %s, so uploaded files will not be served over FTP; ftp:// URLs will not be offered to clients\n",
+					serverOptions.FTPDirectory, uploadStore.Root())
+			}
+		}
+
+		// Deleting a session's files is driven by the correlation-id leaving
+		// the cache, whatever the reason.
+		storeOptions.OnEviction = func(correlationID string, _ *storage.CorrelationData) {
+			uploadStore.RemoveSession(correlationID)
+		}
+	}
+
 	var err error
-	store, err = storage.New(&storeOptions)
+	switch {
+	case cliOptions.RedisURL != "":
+		// Redis-backed storage shares state across multiple interactsh-server
+		// instances behind a load balancer. Disk/in-memory flags are ignored
+		// in this mode by design.
+		if cliOptions.DiskStorage {
+			gologger.Warning().Msgf("--redis-url is set; disk-storage flags will be ignored\n")
+		}
+		store, err = storage.NewRedis(&storage.RedisOptions{
+			URL:                   cliOptions.RedisURL,
+			KeyPrefix:             cliOptions.RedisKeyPrefix,
+			EvictionTTL:           evictionTTL,
+			EvictionStrategy:      evictionStrategy,
+			MaxSharedInteractions: storeOptions.MaxSharedInteractions,
+		})
+	default:
+		store, err = storage.New(&storeOptions)
+	}
 	if err != nil {
 		gologger.Fatal().Msgf("couldn't create storage: %s\n", err)
 	}
 
 	serverOptions.Storage = store
 
+	if uploadStore != nil {
+		uploadStore.Start()
+		gologger.Info().Msgf("Uploads enabled, hosting from %s (max %d files of %s each)\n",
+			uploadStore.Root(), cliOptions.UploadMaxFiles, units.BytesSize(float64(cliOptions.UploadMaxFileSize)))
+	}
+
 	if serverOptions.Auth {
 		_ = serverOptions.Storage.SetID(serverOptions.Token)
 	}
-
-	serverOptions.Stats = &server.Metrics{}
 
 	// If root-tld is enabled create a singleton unencrypted record in the store
 	if serverOptions.RootTLD {
@@ -298,34 +386,38 @@ func main() {
 	)
 	switch {
 	case cliOptions.CertificatePath != "" && cliOptions.PrivateKeyPath != "":
-		var domain string
-		if len(cliOptions.Domains) > 0 {
-			domain = cliOptions.Domains[0]
-		}
-		acmeManagerTLS, acmeErr := acme.BuildTlsConfigWithCertAndKeyPaths(cliOptions.CertificatePath, cliOptions.PrivateKeyPath, domain)
-		if acmeErr != nil {
-			gologger.Error().Msgf("https will be disabled: %s", acmeErr)
+		reloader, reloaderErr := acme.NewCertReloader(cliOptions.CertificatePath, cliOptions.PrivateKeyPath)
+		if reloaderErr != nil {
+			gologger.Error().Msgf("https will be disabled: %s", reloaderErr)
 		} else {
-			tlsConfig = acmeManagerTLS
-		}
-	case !cliOptions.SkipAcme && len(cliOptions.Domains) > 0:
-		var certs []tls.Certificate
-		for idx, domain := range cliOptions.Domains {
-			trimmedDomain := strings.TrimSuffix(domain, ".")
-			hostmaster := serverOptions.Hostmasters[idx]
-			var acmeErr error
-			domainCerts, certFiles, acmeErr = acme.HandleWildcardCertificates(fmt.Sprintf("*.%s", trimmedDomain), hostmaster, acmeStore, cliOptions.Debug, cliOptions.Resolvers)
-			if acmeErr != nil {
-				gologger.Error().Msgf("An error occurred while applying for a certificate, error: %v", acmeErr)
-				gologger.Error().Msgf("Could not generate certs for auto TLS, https will be disabled")
-			} else {
-				certs = append(certs, domainCerts...)
+			go reloader.Start(context.Background())
+			tlsConfig = &tls.Config{
+				GetCertificate: reloader.GetCertificate,
+				NextProtos:     []string{"h2", "http/1.1"},
 			}
 		}
-		var tlsErr error
-		tlsConfig, tlsErr = acme.BuildTlsConfigWithCerts("", certs...)
-		if tlsErr != nil {
-			gologger.Error().Msgf("An error occurred while preparing tls configuration, error: %v", tlsErr)
+	case !cliOptions.SkipAcme && len(cliOptions.Domains) > 0 && len(serverOptions.Hostmasters) > 0:
+		cfg, cfgErr := acme.NewCertmagicConfig(serverOptions.Hostmasters[0], acmeStore, cliOptions.Debug, cliOptions.Resolvers)
+		if cfgErr != nil {
+			gologger.Error().Msgf("Could not configure ACME: %s", cfgErr)
+		} else {
+			for _, domain := range cliOptions.Domains {
+				trimmedDomain := strings.TrimSuffix(domain, ".")
+				certs, files, acmeErr := acme.HandleWildcardCertificates(cfg, fmt.Sprintf("*.%s", trimmedDomain))
+				if acmeErr != nil {
+					gologger.Error().Msgf("An error occurred while applying for a certificate for %s: %v", domain, acmeErr)
+					gologger.Error().Msgf("Could not generate certs for auto TLS, https will be disabled")
+				} else {
+					domainCerts = append(domainCerts, certs...)
+					certFiles = append(certFiles, files...)
+				}
+			}
+			if len(domainCerts) > 0 {
+				tlsConfig = &tls.Config{
+					GetCertificate: cfg.GetCertificate,
+					NextProtos:     []string{"h2", "http/1.1"},
+				}
+			}
 		}
 	}
 
@@ -475,8 +567,15 @@ func main() {
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt)
 	for range c {
+		// Closed first: cache.Close blocks until every removal callback has run,
+		// so all session deletions are queued by the time we drain them below.
 		if err := store.Close(); err != nil {
 			gologger.Warning().Msgf("Couldn't close the storage: %s\n", err)
+		}
+		if uploadStore != nil {
+			if err := uploadStore.Close(); err != nil {
+				gologger.Warning().Msgf("Couldn't close the upload store: %s\n", err)
+			}
 		}
 		if pprofServer != nil {
 			if err := pprofServer.Close(); err != nil {
@@ -506,4 +605,37 @@ func getPublicIP() (string, error) {
 	}
 
 	return externalIP, errors.New("couldn't find an interface configured with external ip")
+}
+
+// sameDirectory reports whether two paths name the same directory. Both are made
+// absolute and symlink-resolved first, so that the FTP root and the upload root
+// are compared as directories rather than as the strings the operator typed.
+//
+// A path that does not exist yet is compared in its cleaned absolute form:
+// EvalSymlinks fails on a missing path, and that is not an error worth refusing
+// to start over.
+func sameDirectory(a, b string) (bool, error) {
+	resolve := func(p string) (string, error) {
+		abs, err := filepath.Abs(p)
+		if err != nil {
+			return "", err
+		}
+		resolved, err := filepath.EvalSymlinks(abs)
+		if err != nil {
+			if os.IsNotExist(err) {
+				return filepath.Clean(abs), nil
+			}
+			return "", err
+		}
+		return resolved, nil
+	}
+	ra, err := resolve(a)
+	if err != nil {
+		return false, err
+	}
+	rb, err := resolve(b)
+	if err != nil {
+		return false, err
+	}
+	return ra == rb, nil
 }
