@@ -3,7 +3,6 @@ module github.com/projectdiscovery/interactsh
 go 1.26.0
 
 require (
-	github.com/Mzack9999/goimpacket v0.0.0-20260420131935-a9fe473cda7d
 	github.com/alicebob/miniredis/v2 v2.38.0
 	github.com/asaskevich/govalidator v0.0.0-20230301143203-a9d515a09cc2
 	github.com/caddyserver/certmagic v0.25.3
@@ -19,6 +18,7 @@ require (
 	github.com/pkg/errors v0.9.1
 	github.com/projectdiscovery/asnmap v1.1.1
 	github.com/projectdiscovery/goflags v0.2.1
+	github.com/projectdiscovery/goimpacket v0.1.0
 	github.com/projectdiscovery/gologger v1.1.73
 	github.com/projectdiscovery/ldapserver v1.0.2-0.20240219154113-dcc758ebc0cb
 	github.com/projectdiscovery/retryabledns v1.0.116

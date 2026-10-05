@@ -1004,7 +1004,7 @@ $ sudo go run . -ftp -skip-acme -debug -domain localhost
 
 ### SMB
 
-The `-smb` flag enables an in-process SMB2 NetNTLMv2 hash capture server (only for self-hosted instances). It is implemented in pure Go on top of [goimpacket](https://github.com/Mzack9999/goimpacket) and listens on port `445` unless changed by the `-smb-port` flag. No Python, impacket or docker dependencies are required.
+The `-smb` flag enables an in-process SMB2 NetNTLMv2 hash capture server (only for self-hosted instances). It is implemented in pure Go on top of [goimpacket](https://github.com/projectdiscovery/goimpacket) and listens on port `445` unless changed by the `-smb-port` flag. No Python, impacket or docker dependencies are required.
 
 Captured hashes are stored as `smb` interactions in the standard hashcat NetNTLMv2 (`-m 5600`) format:
 
@@ -1020,7 +1020,7 @@ $ sudo interactsh-server -smb -skip-acme -debug -domain localhost
 
 ### Responder
 
-The `-responder` flag enables a Responder-equivalent NTLMv2 hash capture server, also backed by [goimpacket](https://github.com/Mzack9999/goimpacket). It binds the SMB-capable TCP ports (`139` and the `-smb-port` value, default `445`) and stores any captured authentication as a `responder` interaction in the same hashcat NetNTLMv2 format described above. No docker or Python dependencies are required.
+The `-responder` flag enables a Responder-equivalent NTLMv2 hash capture server, also backed by [goimpacket](https://github.com/projectdiscovery/goimpacket). It binds the SMB-capable TCP ports (`139` and the `-smb-port` value, default `445`) and stores any captured authentication as a `responder` interaction in the same hashcat NetNTLMv2 format described above. No docker or Python dependencies are required.
 
 ```bash
 sudo interactsh-server -responder -d localhost
