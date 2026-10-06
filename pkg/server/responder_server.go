@@ -4,7 +4,7 @@ import (
 	"context"
 	"sync"
 
-	"github.com/Mzack9999/goimpacket/pkg/relay"
+	"github.com/projectdiscovery/goimpacket/pkg/relay"
 	"github.com/projectdiscovery/gologger"
 	"go.uber.org/multierr"
 )

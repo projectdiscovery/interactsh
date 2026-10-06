@@ -3,7 +3,7 @@ package server
 import (
 	"context"
 
-	"github.com/Mzack9999/goimpacket/pkg/relay"
+	"github.com/projectdiscovery/goimpacket/pkg/relay"
 	"github.com/projectdiscovery/gologger"
 )
 
@@ -22,13 +22,13 @@ func NewSMBServer(options *Options) (*SMBServer, error) {
 // ListenAndServe listens on the configured SMB port and forwards captured
 // NetNTLMv2 hashes into the interactsh storage.
 func (h *SMBServer) ListenAndServe(smbAlive chan bool) error {
+	ctx, cancel := context.WithCancel(context.Background())
+	h.cancel = cancel
+
 	smbAlive <- true
 	defer func() {
 		smbAlive <- false
 	}()
-
-	ctx, cancel := context.WithCancel(context.Background())
-	h.cancel = cancel
 
 	listenAddr := formatAddress(h.options.ListenIP, h.options.SmbPort)
 	srv := relay.NewSMBRelayServer(listenAddr)
