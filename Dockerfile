@@ -1,4 +1,4 @@
-FROM alpine:3.24 AS client
+FROM alpine:latest AS client
 
 LABEL org.opencontainers.image.authors="ProjectDiscovery"
 LABEL org.opencontainers.image.description="Interactsh client - Go client to generate interactsh payloads and display interaction data."
@@ -14,7 +14,7 @@ COPY $TARGETPLATFORM/interactsh-client /usr/local/bin/
 
 ENTRYPOINT ["interactsh-client"]
 
-FROM alpine:3.24 AS server
+FROM alpine:latest AS server
 
 LABEL org.opencontainers.image.authors="ProjectDiscovery"
 LABEL org.opencontainers.image.description="Interactsh server runs multiple services and captures all the incoming requests."
