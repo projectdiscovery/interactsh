@@ -905,6 +905,19 @@ $ interactsh-server -domain hackwithautomation.com -sa -ldap
 [DNS] Listening on TCP 157.230.223.165:53
 ```
 
+## Callback identifier format
+
+A callback label consists of a registered correlation ID followed by a per-callback
+nonce. Registration requires exactly `cidl` lowercase characters from
+`0123456789abcdefghijklmnopqrstuv` (the xid alphabet). The nonce must contain
+exactly `cidn` characters from `ybndrfg8ejkmcpqxot1uwisza345h769` (z-base-32), as
+used by the native client. The defaults are 20 and 13 characters respectively.
+
+`/register` returns HTTP 400 for an incompatible correlation ID instead of
+accepting a session whose callbacks cannot be collected. Registration does not
+include the nonce, so clients must also generate compatible nonces. Callback
+DNS labels remain case-insensitive; registered session keys must be lowercase.
+
 ## Custom Payload Length
 
 The length of the interactsh payload is **33** by default, consisting of **20** (unique correlation-id) + **13** (nonce token), which can be customized using the `cidl` and `cidn` flags to make shorter when required with self-hosted interacsh server.
