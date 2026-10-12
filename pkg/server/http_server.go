@@ -430,6 +430,13 @@ func (h *HTTPServer) registerHandler(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
+	// Callback handlers lowercase DNS identifiers before using them as storage keys.
+	// Reject registrations that those handlers could never correlate.
+	if !h.options.isCorrelationIDPrefix(r.CorrelationID) || r.CorrelationID != strings.ToLower(r.CorrelationID) {
+		jsonError(w, fmt.Sprintf("correlation-id must be %d lowercase characters from %q", h.options.CorrelationIdLength, xidAlphabet), http.StatusBadRequest)
+		return
+	}
+
 	if err := h.options.Storage.SetIDPublicKey(r.CorrelationID, r.SecretKey, r.PublicKey); err != nil {
 		gologger.Warning().Msgf("Could not set id and public key for %s: %s\n", r.CorrelationID, err)
 		jsonError(w, fmt.Sprintf("could not set id and public key: %s", err), http.StatusBadRequest)

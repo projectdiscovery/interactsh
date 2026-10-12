@@ -44,11 +44,16 @@ func inAlphabet(table [256]bool, s string) bool {
 	return true
 }
 
+// isCorrelationIDPrefix checks the registered part of a callback identifier.
+func (options *Options) isCorrelationIDPrefix(s string) bool {
+	return len(s) == options.CorrelationIdLength && inAlphabet(xidAlphabetTable, s)
+}
+
 func (options *Options) isCorrelationID(s string) bool {
 	if len(s) != options.GetIdLength() {
 		return false
 	}
-	if !inAlphabet(xidAlphabetTable, s[:options.CorrelationIdLength]) {
+	if !options.isCorrelationIDPrefix(s[:options.CorrelationIdLength]) {
 		return false
 	}
 	return inAlphabet(zbase32AlphabetTable, s[options.CorrelationIdLength:])
