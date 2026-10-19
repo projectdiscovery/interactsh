@@ -23,7 +23,7 @@ require (
 	github.com/projectdiscovery/ldapserver v1.0.2-0.20240219154113-dcc758ebc0cb
 	github.com/projectdiscovery/retryabledns v1.0.116
 	github.com/projectdiscovery/retryablehttp-go v1.3.31
-	github.com/projectdiscovery/utils v0.11.9
+	github.com/projectdiscovery/utils v0.11.10-0.20261013234757-73f5497aaf2e
 	github.com/redis/go-redis/v9 v9.19.0
 	github.com/remeh/sizedwaitgroup v1.0.0
 	github.com/rs/xid v1.6.0
@@ -86,7 +86,6 @@ require (
 	github.com/jcmturner/rpc/v2 v2.0.3 // indirect
 	github.com/klauspost/compress v1.18.2 // indirect
 	github.com/klauspost/cpuid/v2 v2.3.0 // indirect
-	github.com/kr/pretty v0.3.1 // indirect
 	github.com/logrusorgru/aurora/v4 v4.0.0 // indirect
 	github.com/lor00x/goldap v0.0.0-20240304151906-8d785c64d1c8 // indirect
 	github.com/lucasb-eyer/go-colorful v1.2.0 // indirect
@@ -105,7 +104,7 @@ require (
 	github.com/oiweiwei/gokrb5.fork/v9 v9.0.6 // indirect
 	github.com/power-devops/perfstat v0.0.0-20240221224432-82ca36839d55 // indirect
 	github.com/projectdiscovery/blackrock v0.0.2 // indirect
-	github.com/projectdiscovery/fastdialer v0.5.24 // indirect
+	github.com/projectdiscovery/fastdialer v0.5.26 // indirect
 	github.com/projectdiscovery/hmap v0.0.102 // indirect
 	github.com/projectdiscovery/machineid v0.0.0-20250715113114-c77eb3567582 // indirect
 	github.com/projectdiscovery/mapcidr v1.1.97 // indirect
@@ -124,7 +123,7 @@ require (
 	github.com/tidwall/tinyqueue v0.1.1 // indirect
 	github.com/tklauser/go-sysconf v0.3.16 // indirect
 	github.com/tklauser/numcpus v0.11.0 // indirect
-	github.com/weppos/publicsuffix-go v0.50.3-0.20260104170930-90713dec78f2 // indirect
+	github.com/weppos/publicsuffix-go v0.50.4-0.20260918082853-3c3d7dc4a0cb // indirect
 	github.com/xo/terminfo v0.0.0-20220910002029-abceb7e1c41e // indirect
 	github.com/yuin/goldmark v1.7.13 // indirect
 	github.com/yuin/goldmark-emoji v1.0.6 // indirect
@@ -132,8 +131,7 @@ require (
 	github.com/yusufpapurcu/wmi v1.2.4 // indirect
 	github.com/zcalusic/sysinfo v1.1.3 // indirect
 	github.com/zeebo/blake3 v0.2.4 // indirect
-	github.com/zmap/rc2 v0.0.0-20190804163417-abaa70531248 // indirect
-	github.com/zmap/zcrypto v0.0.0-20240803002437-3a861682ac77 // indirect
+	github.com/zmap/zcrypto v0.0.0-20261015050653-aa1de3126e87 // indirect
 	go.etcd.io/bbolt v1.4.3 // indirect
 	go.uber.org/atomic v1.11.0 // indirect
 	go.uber.org/zap/exp v0.3.0 // indirect
@@ -141,7 +139,7 @@ require (
 	golang.org/x/crypto v0.55.0 // indirect
 	golang.org/x/exp v0.0.0-20260112195511-716be5621a96 // indirect
 	golang.org/x/mod v0.38.0 // indirect
-	golang.org/x/net v0.57.0 // indirect
+	golang.org/x/net v0.58.0 // indirect
 	golang.org/x/oauth2 v0.31.0 // indirect
 	golang.org/x/sync v0.22.0 // indirect
 	golang.org/x/sys v0.47.0 // indirect
