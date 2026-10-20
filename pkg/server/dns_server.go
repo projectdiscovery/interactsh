@@ -171,32 +171,60 @@ func (h *DNSServer) handleACNAMEANY(zone string, m *dns.Msg) {
 	}
 
 	// No custom records, use default IP
-	nsHeader := dns.RR_Header{Name: zone, Rrtype: dns.TypeNS, Class: dns.ClassINET, Ttl: h.timeToLive}
-	h.resultFunction(nsHeader, zone, h.ipAddresses, m)
+	h.resultFunction(zone, qtype, m)
 }
 
-func (h *DNSServer) resultFunction(nsHeader dns.RR_Header, zone string, ipAddresses []net.IP, m *dns.Msg) {
-	unique := uniqueIPs(ipAddresses)
+func (h *DNSServer) resultFunction(zone string, qtype uint16, m *dns.Msg) {
 	var answered bool
-	for _, ipAddress := range unique {
-		if h.appendAnswerRecord(zone, ipAddress, m) {
+	for _, ipAddress := range uniqueIPs(h.ipAddresses) {
+		if matchesQtype(ipAddress, qtype) && h.appendAnswerRecord(zone, ipAddress, m) {
 			answered = true
 		}
 	}
+
+	apex := h.zoneApex(zone)
 	if !answered {
+		// NODATA: without the SOA, clients that query us directly treat the empty
+		// answer as invalid and retry instead of caching it negatively (#1484).
+		m.Ns = append(m.Ns, &dns.SOA{
+			Hdr: dns.RR_Header{Name: apex, Rrtype: dns.TypeSOA, Class: dns.ClassINET, Ttl: h.timeToLive},
+			Ns:  h.nsDomains[apex][0], Mbox: acme.CertificateAuthority, Serial: 1, Expire: 60, Minttl: 60,
+		})
 		return
 	}
 
-	dotDomains := []string{zone, dns.Fqdn(h.options.Domains[0])}
-	for _, dotDomain := range dotDomains {
-		if nsDomains, ok := h.nsDomains[dotDomain]; ok {
-			for _, nsDomain := range nsDomains {
-				m.Ns = append(m.Ns, &dns.NS{Hdr: nsHeader, Ns: nsDomain})
-				h.appendGlueRecords(nsDomain, m)
-			}
-			return
+	nsHeader := dns.RR_Header{Name: apex, Rrtype: dns.TypeNS, Class: dns.ClassINET, Ttl: h.timeToLive}
+	for _, nsDomain := range h.nsDomains[apex] {
+		m.Ns = append(m.Ns, &dns.NS{Hdr: nsHeader, Ns: nsDomain})
+		h.appendGlueRecords(nsDomain, m)
+	}
+}
+
+// matchesQtype reports whether ip belongs in the answer to a qtype question.
+func matchesQtype(ip net.IP, qtype uint16) bool {
+	switch qtype {
+	case dns.TypeA:
+		return ip.To4() != nil
+	case dns.TypeAAAA:
+		return ip.To4() == nil
+	case dns.TypeANY:
+		return true
+	}
+	return false
+}
+
+// zoneApex returns the most specific configured domain containing name,
+// falling back to the first one for names outside every configured domain.
+func (h *DNSServer) zoneApex(name string) string {
+	apex := dns.Fqdn(h.options.Domains[0])
+	var matched bool
+	for _, domain := range h.options.Domains {
+		dotDomain := dns.Fqdn(domain)
+		if dns.IsSubDomain(dotDomain, name) && (!matched || len(dotDomain) > len(apex)) {
+			apex, matched = dotDomain, true
 		}
 	}
+	return apex
 }
 
 func (h *DNSServer) handleMX(zone string, m *dns.Msg) {
