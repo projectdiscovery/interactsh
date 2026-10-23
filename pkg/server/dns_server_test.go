@@ -13,8 +13,7 @@ func TestDNSServerReturnsAAAARecords(t *testing.T) {
 	opts := newTestOptions([]string{"192.0.2.1", "2001:db8::1"}, "127.0.0.1")
 	dnsServer := NewDNSServer("udp", opts)
 
-	msg := new(dns.Msg)
-	dnsServer.handleACNAMEANY(dns.Fqdn("test.example.com"), msg)
+	msg := queryACNAMEANY(dnsServer, "test.example.com", dns.TypeANY)
 
 	require.True(t, hasRecord(msg.Answer, dns.TypeA, "192.0.2.1"), "expected A record")
 	require.True(t, hasRecord(msg.Answer, dns.TypeAAAA, "2001:db8::1"), "expected AAAA record")
@@ -25,8 +24,7 @@ func TestDNSServerIPv6OnlyResponses(t *testing.T) {
 	opts := newTestOptions([]string{"2001:db8::5"}, "::1")
 	dnsServer := NewDNSServer("udp", opts)
 
-	msg := new(dns.Msg)
-	dnsServer.handleACNAMEANY(dns.Fqdn("ipv6.example.com"), msg)
+	msg := queryACNAMEANY(dnsServer, "ipv6.example.com", dns.TypeAAAA)
 
 	require.False(t, hasRecord(msg.Answer, dns.TypeA, ""), "did not expect IPv4 record")
 	require.True(t, hasRecord(msg.Answer, dns.TypeAAAA, "2001:db8::5"), "expected IPv6 answer")
@@ -161,8 +159,7 @@ func TestDNSServerMixedIPv4AndIPv6(t *testing.T) {
 	opts := newTestOptions([]string{"192.0.2.1", "2001:db8::1", "198.51.100.1", "2001:db8::2"}, "127.0.0.1")
 	dnsServer := NewDNSServer("udp", opts)
 
-	msg := new(dns.Msg)
-	dnsServer.handleACNAMEANY(dns.Fqdn("mixed.example.com"), msg)
+	msg := queryACNAMEANY(dnsServer, "mixed.example.com", dns.TypeANY)
 
 	require.Len(t, msg.Answer, 4)
 	require.True(t, hasRecord(msg.Answer, dns.TypeA, "192.0.2.1"))
@@ -201,4 +198,70 @@ func newTestOptions(ips []string, listenIP string) *Options {
 		IPAddresses: parsed,
 		ListenIP:    listenIP,
 	}
+}
+
+func TestDNSServerAnswersMatchQuestionType(t *testing.T) {
+	dualStack := []string{"192.0.2.1", "2001:db8::1"}
+	tests := []struct {
+		name     string
+		ips      []string
+		qtype    uint16
+		wantA    bool
+		wantAAAA bool
+	}{
+		{"A on dual stack", dualStack, dns.TypeA, true, false},
+		{"AAAA on dual stack", dualStack, dns.TypeAAAA, false, true},
+		{"ANY on dual stack", dualStack, dns.TypeANY, true, true},
+		{"AAAA on IPv4 only", []string{"192.0.2.1"}, dns.TypeAAAA, false, false},
+		{"A on IPv6 only", []string{"2001:db8::1"}, dns.TypeA, false, false},
+		{"CNAME", dualStack, dns.TypeCNAME, false, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			msg := queryACNAMEANY(NewDNSServer("udp", newTestOptions(tt.ips, "127.0.0.1")), "x.example.com", tt.qtype)
+
+			require.Equal(t, tt.wantA, hasRecord(msg.Answer, dns.TypeA, ""))
+			require.Equal(t, tt.wantAAAA, hasRecord(msg.Answer, dns.TypeAAAA, ""))
+		})
+	}
+}
+
+func TestDNSServerNoDataReturnsApexSOA(t *testing.T) {
+	dnsServer := NewDNSServer("udp", newTestOptions([]string{"192.0.2.1"}, "127.0.0.1"))
+
+	msg := queryACNAMEANY(dnsServer, "x.example.com", dns.TypeAAAA)
+
+	require.Empty(t, msg.Answer)
+	require.Empty(t, msg.Extra)
+	require.Len(t, msg.Ns, 1)
+	soa, ok := msg.Ns[0].(*dns.SOA)
+	require.True(t, ok, "expected SOA in authority")
+	require.Equal(t, "example.com.", soa.Hdr.Name)
+	require.Equal(t, "ns1.example.com.", soa.Ns)
+	require.NotZero(t, soa.Hdr.Ttl, "zero TTL defeats negative caching")
+}
+
+func TestDNSServerAuthorityOwnedByApex(t *testing.T) {
+	opts := newTestOptions([]string{"192.0.2.1"}, "127.0.0.1")
+	opts.Domains = []string{"example.com", "example.org"}
+	dnsServer := NewDNSServer("udp", opts)
+
+	for name, apex := range map[string]string{"a.b.example.com": "example.com.", "x.example.org": "example.org."} {
+		msg := queryACNAMEANY(dnsServer, name, dns.TypeA)
+
+		require.Len(t, msg.Ns, 2)
+		for _, rr := range msg.Ns {
+			ns, ok := rr.(*dns.NS)
+			require.True(t, ok)
+			require.Equal(t, apex, ns.Hdr.Name)
+			require.True(t, dns.IsSubDomain(apex, ns.Ns), "nameserver %s not under %s", ns.Ns, apex)
+		}
+	}
+}
+
+func queryACNAMEANY(dnsServer *DNSServer, name string, qtype uint16) *dns.Msg {
+	msg := new(dns.Msg)
+	msg.SetQuestion(dns.Fqdn(name), qtype)
+	dnsServer.handleACNAMEANY(dns.Fqdn(name), msg)
+	return msg
 }

@@ -101,7 +101,7 @@ DEBUG:
 
 ## Interactsh CLI Client
 
-Interactsh Cli client requires **go1.20+** to install successfully. Run the following command to get the repo - 
+Interactsh Cli client requires **go1.26.10+** to install successfully. Run the following command to get the repo - 
 
 ```sh
 go install -v github.com/projectdiscovery/interactsh/cmd/interactsh-client@latest
