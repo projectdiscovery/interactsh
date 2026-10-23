@@ -176,14 +176,15 @@ func startTestDNSServer(t *testing.T, opts *Options) {
 	alive := make(chan bool, 2)
 	go server.ListenAndServe(alive)
 	<-alive
+	// ListenAndServe signals before the socket is bound, and a UDP dial
+	// succeeds when nothing is listening. Wait until a query is answered.
 	require.Eventually(t, func() bool {
-		c, err := net.DialTimeout("udp", fmt.Sprintf("127.0.0.1:%d", opts.DnsPort), 100*time.Millisecond)
-		if err != nil {
-			return false
-		}
-		_ = c.Close()
-		return true
-	}, time.Second, 20*time.Millisecond)
+		msg := new(dns.Msg)
+		msg.SetQuestion("ready."+dns.Fqdn(opts.Domains[0]), dns.TypeA)
+		client := &dns.Client{Net: "udp", Timeout: 100 * time.Millisecond}
+		_, _, err := client.Exchange(msg, fmt.Sprintf("127.0.0.1:%d", opts.DnsPort))
+		return err == nil
+	}, 2*time.Second, 10*time.Millisecond)
 	t.Cleanup(func() { _ = server.server.Shutdown() })
 }
 
