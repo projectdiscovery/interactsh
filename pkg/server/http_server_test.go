@@ -133,8 +133,10 @@ func TestSessionTotalMetric(t *testing.T) {
 
 	h := &HTTPServer{
 		options: &Options{
-			Storage: store,
-			Stats:   stats,
+			Storage:                  store,
+			Stats:                    stats,
+			CorrelationIdLength:      20,
+			CorrelationIdNonceLength: 13,
 		},
 	}
 
