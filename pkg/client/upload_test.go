@@ -11,6 +11,7 @@ import (
 	"sync/atomic"
 	"testing"
 
+	"github.com/projectdiscovery/gologger"
 	"github.com/projectdiscovery/interactsh/pkg/server"
 	"github.com/projectdiscovery/retryablehttp-go"
 	"github.com/stretchr/testify/require"
@@ -33,6 +34,7 @@ func newUploadClient(t *testing.T, handler http.HandlerFunc, caps *server.Capabi
 		httpClient:               retryablehttp.NewClient(retryablehttp.DefaultOptionsSingle),
 		correlationIdLength:      20,
 		CorrelationIdNonceLength: 13,
+		logger:                   gologger.DefaultLogger,
 	}
 	c.State.Store(Idle)
 	if caps != nil {
@@ -306,20 +308,20 @@ func TestFileURLComposition(t *testing.T) {
 	host := "c6rj61aciaeutn2ae680xk4tqy8pqhwmi.oast.test"
 
 	t.Run("https server", func(t *testing.T) {
-		c := &Client{serverURL: &url.URL{Scheme: "https", Host: "oast.test"}}
+		c := &Client{serverURL: &url.URL{Scheme: "https", Host: "oast.test"}, logger: gologger.DefaultLogger}
 		require.Equal(t, "https://"+host+"/f/evil.dtd", c.FileURL(host, file))
 		require.Equal(t, "ftp://"+host+"/.interactsh-user-uploads/c6rj61aciaeutn2ae680/evil.dtd", c.FTPFileURL(host, file))
 	})
 
 	t.Run("http server", func(t *testing.T) {
-		c := &Client{serverURL: &url.URL{Scheme: "http", Host: "127.0.0.1:8080"}}
+		c := &Client{serverURL: &url.URL{Scheme: "http", Host: "127.0.0.1:8080"}, logger: gologger.DefaultLogger}
 		require.Equal(t, "http://"+host+"/f/evil.dtd", c.FileURL(host, file))
 	})
 
 	// The payload host carries the HTTP listener's port, which tells us nothing
 	// about where FTP is bound, so it must not leak into the ftp:// URL.
 	t.Run("ftp url drops the http port", func(t *testing.T) {
-		c := &Client{serverURL: &url.URL{Scheme: "http", Host: "127.0.0.1:8080"}}
+		c := &Client{serverURL: &url.URL{Scheme: "http", Host: "127.0.0.1:8080"}, logger: gologger.DefaultLogger}
 		require.Equal(t, "ftp://"+host+"/.interactsh-user-uploads/c6rj61aciaeutn2ae680/evil.dtd",
 			c.FTPFileURL(host+":8080", file))
 	})

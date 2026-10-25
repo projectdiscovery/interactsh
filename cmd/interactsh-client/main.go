@@ -173,6 +173,7 @@ func main() {
 		CorrelationIdLength:      cliOptions.CorrelationIdLength,
 		CorrelationIdNonceLength: cliOptions.CorrelationIdNonceLength,
 		SessionInfo:              sessionInfo,
+		Logger:                   gologger.DefaultLogger,
 	})
 	if err != nil {
 		gologger.Fatal().Msgf("Could not create client: %s\n", err)
