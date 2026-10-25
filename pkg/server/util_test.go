@@ -36,3 +36,39 @@ func TestIsCorrelationID_AlphabetBoundaries(t *testing.T) {
 	require.False(t, opts.isCorrelationID("xyzbnd"), "xid prefix must reject chars outside 0-9a-v")
 	require.False(t, opts.isCorrelationID("abclmv"), "zbase32 suffix must reject chars outside its alphabet")
 }
+
+func TestIsValidCorrelationID(t *testing.T) {
+	opts := &Options{
+		CorrelationIdLength: settings.CorrelationIdLengthDefault,
+	}
+
+	// Valid xid lowercase string of default length (20)
+	require.True(t, opts.isValidCorrelationID("c6rj61aciaeutn2ae680"))
+
+	// Reject uppercase characters
+	require.False(t, opts.isValidCorrelationID("C6RJ61ACIAEUTN2AE680"))
+	require.False(t, opts.isValidCorrelationID("c6rj61aciaeutn2ae68A"))
+
+	// Reject characters outside xid alphabet (w, x, y, z)
+	require.False(t, opts.isValidCorrelationID("c6rj61aciaeutn2ae68w"))
+	require.False(t, opts.isValidCorrelationID("c6rj61aciaeutn2ae68x"))
+	require.False(t, opts.isValidCorrelationID("c6rj61aciaeutn2ae68y"))
+	require.False(t, opts.isValidCorrelationID("c6rj61aciaeutn2ae68z"))
+
+	// Reject invalid lengths
+	require.False(t, opts.isValidCorrelationID("c6rj61aciaeutn2ae68"))
+	require.False(t, opts.isValidCorrelationID("c6rj61aciaeutn2ae6800"))
+	require.False(t, opts.isValidCorrelationID(""))
+
+	// Reject non-alphanumeric characters
+	require.False(t, opts.isValidCorrelationID("c6rj61aciaeutn2ae68-"))
+	require.False(t, opts.isValidCorrelationID("c6rj61aciaeutn2ae68."))
+
+	// Custom CorrelationIdLength
+	customOpts := &Options{
+		CorrelationIdLength: 5,
+	}
+	require.True(t, customOpts.isValidCorrelationID("c6rj6"))
+	require.False(t, customOpts.isValidCorrelationID("c6rj61"))
+	require.False(t, customOpts.isValidCorrelationID("c6rjW"))
+}

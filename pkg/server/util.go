@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/projectdiscovery/gologger"
+	"github.com/projectdiscovery/interactsh/pkg/settings"
 	stringsutil "github.com/projectdiscovery/utils/strings"
 )
 
@@ -38,6 +39,26 @@ func newAlphabetTable(alphabet string) [256]bool {
 func inAlphabet(table [256]bool, s string) bool {
 	for i := 0; i < len(s); i++ {
 		if !table[s[i]] {
+			return false
+		}
+	}
+	return true
+}
+
+// isValidCorrelationID checks whether a correlation ID preamble is valid for registration.
+// It must match the configured CorrelationIdLength (defaulting to CorrelationIdLengthDefault)
+// and contain only characters from the lowercase xid alphabet (0-9, a-v).
+func (options *Options) isValidCorrelationID(s string) bool {
+	expectedLen := settings.CorrelationIdLengthDefault
+	if options != nil && options.CorrelationIdLength > 0 {
+		expectedLen = options.CorrelationIdLength
+	}
+	if len(s) != expectedLen {
+		return false
+	}
+	for i := 0; i < len(s); i++ {
+		c := s[i]
+		if !(c >= '0' && c <= '9' || c >= 'a' && c <= 'v') {
 			return false
 		}
 	}

@@ -250,3 +250,80 @@ func TestWriteResponseFromDynamicRequestB64Path(t *testing.T) {
 		})
 	}
 }
+
+func TestRegisterHandler_CorrelationIDValidation(t *testing.T) {
+	store, err := storage.New(&storage.Options{
+		EvictionTTL: 5 * time.Minute,
+	})
+	require.NoError(t, err)
+	defer func() { _ = store.Close() }()
+
+	stats := &Metrics{}
+	h := &HTTPServer{
+		options: &Options{
+			Storage: store,
+			Stats:   stats,
+		},
+	}
+
+	priv, err := rsa.GenerateKey(rand.Reader, 2048)
+	require.NoError(t, err)
+	pubBytes, err := x509.MarshalPKIXPublicKey(&priv.PublicKey)
+	require.NoError(t, err)
+	pubPem := pem.EncodeToMemory(&pem.Block{Type: "PUBLIC KEY", Bytes: pubBytes})
+	pubB64 := base64.StdEncoding.EncodeToString(pubPem)
+	secretKey := uuid.New().String()
+
+	tests := []struct {
+		name          string
+		correlationID string
+		wantStatus    int
+	}{
+		{
+			name:          "valid lowercase xid",
+			correlationID: "c6rj61aciaeutn2ae680",
+			wantStatus:    http.StatusOK,
+		},
+		{
+			name:          "uppercase rejected (#1490)",
+			correlationID: "C6RJ61ACIAEUTN2AE680",
+			wantStatus:    http.StatusBadRequest,
+		},
+		{
+			name:          "character w rejected outside xid alphabet (#1490)",
+			correlationID: "c6rj61aciaeutn2ae68w",
+			wantStatus:    http.StatusBadRequest,
+		},
+		{
+			name:          "character z rejected outside xid alphabet",
+			correlationID: "c6rj61aciaeutn2ae68z",
+			wantStatus:    http.StatusBadRequest,
+		},
+		{
+			name:          "too short length rejected",
+			correlationID: "short",
+			wantStatus:    http.StatusBadRequest,
+		},
+		{
+			name:          "too long length rejected",
+			correlationID: "c6rj61aciaeutn2ae680123",
+			wantStatus:    http.StatusBadRequest,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			regBody, err := json.Marshal(&RegisterRequest{
+				PublicKey:     pubB64,
+				SecretKey:     secretKey,
+				CorrelationID: tt.correlationID,
+			})
+			require.NoError(t, err)
+
+			req := httptest.NewRequest("POST", "/register", bytes.NewReader(regBody))
+			w := httptest.NewRecorder()
+			h.registerHandler(w, req)
+			require.Equal(t, tt.wantStatus, w.Code)
+		})
+	}
+}
