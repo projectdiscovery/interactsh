@@ -58,7 +58,7 @@ func (options *Options) isValidCorrelationID(s string) bool {
 	}
 	for i := 0; i < len(s); i++ {
 		c := s[i]
-		if !(c >= '0' && c <= '9' || c >= 'a' && c <= 'v') {
+		if (c < '0' || c > '9') && (c < 'a' || c > 'v') {
 			return false
 		}
 	}
