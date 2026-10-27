@@ -1,6 +1,10 @@
 package client
 
 import (
+	"bytes"
+	"github.com/projectdiscovery/gologger"
+	"github.com/projectdiscovery/gologger/formatter"
+	"github.com/projectdiscovery/gologger/levels"
 	"crypto/x509"
 	"encoding/json"
 	"fmt"
@@ -92,5 +96,70 @@ func TestNewAcceptsServerURLWithOptionalTrailingSlash(t *testing.T) {
 		require.Equal(t, registrationsBeforeResume+1, registrationCount.Load())
 		require.NoError(t, resumedClient.getInteractions(func(*server.Interaction) {}))
 		require.NoError(t, resumedClient.Close())
+	})
+}
+
+type testBufferWriter struct {
+	buf bytes.Buffer
+}
+
+func (w *testBufferWriter) Write(data []byte, level levels.Level) {
+	w.buf.Write(data)
+}
+
+func TestClient_CustomLogger(t *testing.T) {
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/register":
+			_, _ = w.Write([]byte(`{"message":"registration successful"}`))
+		case "/deregister":
+			w.WriteHeader(http.StatusOK)
+		case "/poll":
+			// Return invalid JSON to trigger a poll decode error
+			_, _ = w.Write([]byte(`invalid json`))
+		default:
+			http.NotFound(w, r)
+		}
+	})
+
+	testServer := httptest.NewTLSServer(handler)
+	t.Cleanup(testServer.Close)
+
+	httpClient := retryablehttp.NewClient(retryablehttp.DefaultOptionsSpraying)
+	httpClient.HTTPClient = testServer.Client()
+
+	t.Run("defaults to gologger.DefaultLogger when nil", func(t *testing.T) {
+		c, err := New(&Options{
+			ServerURL:           testServer.URL,
+			DisableHTTPFallback: true,
+			HTTPClient:          httpClient,
+		})
+		require.NoError(t, err)
+		require.Equal(t, gologger.DefaultLogger, c.logger)
+		require.NoError(t, c.Close())
+	})
+
+	t.Run("uses custom caller logger when specified", func(t *testing.T) {
+		bw := &testBufferWriter{}
+		customLogger := &gologger.Logger{}
+		customLogger.SetFormatter(formatter.NewCLI(false))
+		customLogger.SetWriter(bw)
+		customLogger.SetMaxLevel(levels.LevelVerbose)
+
+		c, err := New(&Options{
+			ServerURL:           testServer.URL,
+			DisableHTTPFallback: true,
+			HTTPClient:          httpClient,
+			Logger:              customLogger,
+		})
+		require.NoError(t, err)
+		require.Equal(t, customLogger, c.logger)
+
+		// Poll returns invalid JSON, which should log to customLogger
+		err = c.getInteractions(func(*server.Interaction) {})
+		require.Error(t, err)
+		require.Contains(t, bw.buf.String(), "Could not decode interactions")
+
+		require.NoError(t, c.Close())
 	})
 }

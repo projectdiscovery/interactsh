@@ -67,6 +67,7 @@ type Client struct {
 	token                    string
 	correlationIdLength      int
 	CorrelationIdNonceLength int
+	logger                   *gologger.Logger
 	// capabilitiesKnown records that a registration response was received and
 	// parsed, which is what makes the absence of a capabilities block meaningful.
 	// A resumed session whose re-registration was refused because the session is
@@ -97,6 +98,8 @@ type Options struct {
 	SessionInfo *options.SessionInfo
 	// keepAliveInterval to renew the session
 	KeepAliveInterval time.Duration
+	// Logger is an optional custom logger. If nil, gologger.DefaultLogger is used.
+	Logger *gologger.Logger
 }
 
 // DefaultOptions is the default options for the interact client
@@ -177,7 +180,13 @@ func New(options *Options) (*Client, error) {
 		token = options.Token
 	}
 
+	logger := options.Logger
+	if logger == nil {
+		logger = gologger.DefaultLogger
+	}
+
 	client := &Client{
+		logger:                   logger,
 		secretKey:                secretKey,
 		correlationID:            correlationID,
 		httpClient:               httpclient,
@@ -351,7 +360,7 @@ func (c *Client) parseServerURLs(serverURL string, payload []byte) error {
 		if err := c.performRegistration(parsed.String(), payload); err != nil {
 			if !c.disableHTTPFallback && parsed.Scheme == "https" {
 				parsed.Scheme = "http"
-				gologger.Verbose().Msgf("Could not register to %s: %s, retrying with http\n", parsed.String(), err)
+				c.logger.Verbose().Msgf("Could not register to %s: %s, retrying with http\n", parsed.String(), err)
 				goto makeReq
 			}
 			return err
@@ -368,7 +377,7 @@ func (c *Client) parseServerURLs(serverURL string, payload []byte) error {
 		}
 		err := registerFunc(index, item)
 		if err != nil {
-			gologger.Verbose().Msgf("Could not register to %s: %s, retrying with remaining\n", item, err)
+			c.logger.Verbose().Msgf("Could not register to %s: %s, retrying with remaining\n", item, err)
 			registerErrors = append(registerErrors, err)
 		}
 		return nil
@@ -423,9 +432,9 @@ func (c *Client) StartPolling(duration time.Duration, callback InteractionCallba
 				err := c.getInteractions(callback)
 				if err != nil {
 					if errkit.Is(err, errAuth) {
-						gologger.Error().Msgf("Could not authenticate to the server %v", err)
+						c.logger.Error().Msgf("Could not authenticate to the server %v", err)
 					} else if errkit.Is(err, storage.ErrCorrelationIdNotFound) {
-						gologger.Error().Msgf("The correlation id was not found (probably evicted due to inactivity): %v", err)
+						c.logger.Error().Msgf("The correlation id was not found (probably evicted due to inactivity): %v", err)
 					}
 				}
 			case <-c.quitChan:
@@ -483,20 +492,20 @@ func (c *Client) getInteractions(callback InteractionCallback) error {
 	}
 	response := &server.PollResponse{}
 	if err := json.NewDecoder(resp.Body).Decode(response); err != nil {
-		gologger.Error().Msgf("Could not decode interactions: %v\n", err)
+		c.logger.Error().Msgf("Could not decode interactions: %v\n", err)
 		return err
 	}
 
 	for _, data := range response.Data {
 		plaintext, err := c.decryptMessage(response.AESKey, data)
 		if err != nil {
-			gologger.Error().Msgf("Could not decrypt interaction: %v\n", err)
+			c.logger.Error().Msgf("Could not decrypt interaction: %v\n", err)
 			continue
 		}
 		plaintext = bytes.TrimRight(plaintext, " \t\r\n")
 		interaction := &server.Interaction{}
 		if err := json.Unmarshal(plaintext, interaction); err != nil {
-			gologger.Error().Msgf("Could not unmarshal interaction data interaction: %v\n", err)
+			c.logger.Error().Msgf("Could not unmarshal interaction data interaction: %v\n", err)
 			continue
 		}
 		callback(interaction)
@@ -505,7 +514,7 @@ func (c *Client) getInteractions(callback InteractionCallback) error {
 	for _, plaintext := range response.Extra {
 		interaction := &server.Interaction{}
 		if err := json.Unmarshal([]byte(plaintext), interaction); err != nil {
-			gologger.Error().Msgf("Could not unmarshal interaction data interaction: %v\n", err)
+			c.logger.Error().Msgf("Could not unmarshal interaction data interaction: %v\n", err)
 			continue
 		}
 		callback(interaction)
@@ -518,7 +527,7 @@ func (c *Client) getInteractions(callback InteractionCallback) error {
 		}
 		interaction := &server.Interaction{}
 		if err := json.Unmarshal([]byte(data), interaction); err != nil {
-			gologger.Error().Msgf("Could not unmarshal interaction data interaction: %v\n", err)
+			c.logger.Error().Msgf("Could not unmarshal interaction data interaction: %v\n", err)
 			continue
 		}
 		callback(interaction)
