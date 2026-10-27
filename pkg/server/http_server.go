@@ -430,6 +430,12 @@ func (h *HTTPServer) registerHandler(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
+	if !h.options.isValidCorrelationID(r.CorrelationID) {
+		gologger.Warning().Msgf("Could not register invalid correlation ID %s\n", r.CorrelationID)
+		jsonError(w, fmt.Sprintf("invalid correlation-id: %s", r.CorrelationID), http.StatusBadRequest)
+		return
+	}
+
 	if err := h.options.Storage.SetIDPublicKey(r.CorrelationID, r.SecretKey, r.PublicKey); err != nil {
 		gologger.Warning().Msgf("Could not set id and public key for %s: %s\n", r.CorrelationID, err)
 		jsonError(w, fmt.Sprintf("could not set id and public key: %s", err), http.StatusBadRequest)
@@ -465,6 +471,12 @@ func (h *HTTPServer) deregisterHandler(w http.ResponseWriter, req *http.Request)
 	if err := json.NewDecoder(req.Body).Decode(r); err != nil {
 		gologger.Warning().Msgf("Could not decode json body: %s\n", err)
 		jsonError(w, fmt.Sprintf("could not decode json body: %s", err), http.StatusBadRequest)
+		return
+	}
+
+	if !h.options.isValidCorrelationID(r.CorrelationID) {
+		gologger.Warning().Msgf("Could not deregister invalid correlation ID %s\n", r.CorrelationID)
+		jsonError(w, fmt.Sprintf("invalid correlation-id: %s", r.CorrelationID), http.StatusBadRequest)
 		return
 	}
 
