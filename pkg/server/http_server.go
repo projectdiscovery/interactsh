@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"net"
 	"net/http"
@@ -135,6 +136,12 @@ func (h *HTTPServer) ListenAndServe(tlsConfig *tls.Config, httpAlive, httpsAlive
 
 func (h *HTTPServer) logger(handler http.Handler) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		// Keep at most MaxBodySize bytes of the body. The dump is stored in
+		// the interaction (and grows with JSON escaping), so an unbounded
+		// body would let anyone exhaust the server memory.
+		if r.Body != nil {
+			r.Body = io.NopCloser(io.LimitReader(r.Body, h.options.GetMaxBodySize()))
+		}
 		req, _ := httputil.DumpRequest(r, true)
 		reqString := string(req)
 
