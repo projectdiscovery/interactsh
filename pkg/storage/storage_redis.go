@@ -15,7 +15,6 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
-	"strings"
 	"sync/atomic"
 	"time"
 
@@ -306,7 +305,7 @@ func (s *StorageRedis) GetInteractions(correlationID, secret string) ([]string, 
 	}
 	atomic.AddUint64(&s.hitCount, 1)
 	storedSecret, _ := res[0].(string)
-	if !strings.EqualFold(storedSecret, secret) {
+	if !secretMatches(storedSecret, secret) {
 		return nil, "", errors.New("invalid secret key passed for user")
 	}
 	aesKeyEnc, _ := res[1].(string)
@@ -424,7 +423,7 @@ func (s *StorageRedis) RemoveID(correlationID, secret string) error {
 	if err != nil {
 		return fmt.Errorf("redis HGet secret failed: %w", err)
 	}
-	if !strings.EqualFold(storedSecret, secret) {
+	if !secretMatches(storedSecret, secret) {
 		return errors.New("invalid secret key passed for deregister")
 	}
 
