@@ -121,6 +121,8 @@ func (h *DNSServer) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 				h.handleSOA(domain, m)
 			case dns.TypeTXT:
 				h.handleTXT(domain, m)
+			default:
+				h.appendNoDataSOA(h.zoneApex(domain), m)
 			}
 		}
 	}
@@ -184,12 +186,7 @@ func (h *DNSServer) resultFunction(zone string, qtype uint16, m *dns.Msg) {
 
 	apex := h.zoneApex(zone)
 	if !answered {
-		// NODATA: without the SOA, clients that query us directly treat the empty
-		// answer as invalid and retry instead of caching it negatively (#1484).
-		m.Ns = append(m.Ns, &dns.SOA{
-			Hdr: dns.RR_Header{Name: apex, Rrtype: dns.TypeSOA, Class: dns.ClassINET, Ttl: h.timeToLive},
-			Ns:  h.nsDomains[apex][0], Mbox: acme.CertificateAuthority, Serial: 1, Expire: 60, Minttl: 60,
-		})
+		h.appendNoDataSOA(apex, m)
 		return
 	}
 
@@ -198,6 +195,16 @@ func (h *DNSServer) resultFunction(zone string, qtype uint16, m *dns.Msg) {
 		m.Ns = append(m.Ns, &dns.NS{Hdr: nsHeader, Ns: nsDomain})
 		h.appendGlueRecords(nsDomain, m)
 	}
+}
+
+// appendNoDataSOA adds the apex SOA to the authority section of an empty
+// answer (NODATA): without it, clients that query us directly treat the empty
+// answer as invalid and retry instead of caching it negatively (#1484).
+func (h *DNSServer) appendNoDataSOA(apex string, m *dns.Msg) {
+	m.Ns = append(m.Ns, &dns.SOA{
+		Hdr: dns.RR_Header{Name: apex, Rrtype: dns.TypeSOA, Class: dns.ClassINET, Ttl: h.timeToLive},
+		Ns:  h.nsDomains[apex][0], Mbox: acme.CertificateAuthority, Serial: 1, Expire: 60, Minttl: 60,
+	})
 }
 
 // matchesQtype reports whether ip belongs in the answer to a qtype question.
