@@ -11,6 +11,7 @@ import (
 	"encoding/pem"
 	"errors"
 	"io"
+	"strings"
 )
 
 // ParseB64RSAPublicKeyFromPEM parses a base64 encoded rsa pem to a public key structure
@@ -75,4 +76,12 @@ func AppendMany(sep string, slices ...[]byte) []byte {
 		final = append(final, slice)
 	}
 	return bytes.Join(final, []byte(sep))
+}
+
+// secretMatches reports whether secret matches the stored secret of a
+// correlation-id. Shared buckets created by SetID (root-tld domains, the
+// server token) have no secret, and an empty secret never matches, so they
+// cannot be polled, deregistered or uploaded to by a client.
+func secretMatches(stored, secret string) bool {
+	return stored != "" && secret != "" && strings.EqualFold(stored, secret)
 }
