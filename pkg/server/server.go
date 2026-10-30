@@ -110,6 +110,9 @@ type Options struct {
 	HeaderServer string
 	// DefaultHTTPResponseFile is a file to serve for all HTTP requests (takes priority over other options)
 	DefaultHTTPResponseFile string
+	// MaxBodySize is the maximum size in bytes of an HTTP request body or an
+	// SMTP message kept in an interaction. Zero means DefaultMaxBodySize.
+	MaxBodySize int64
 
 	// Ftp indicates the FTP server is enabled, so uploaded files are also
 	// reachable over ftp://
@@ -155,6 +158,17 @@ func (options *Options) UploadStorage() storage.UploadStorage {
 
 func (options *Options) GetIdLength() int {
 	return options.CorrelationIdLength + options.CorrelationIdNonceLength
+}
+
+// DefaultMaxBodySize is the default for Options.MaxBodySize.
+const DefaultMaxBodySize = 1 << 20
+
+// GetMaxBodySize returns the maximum size of a body kept in an interaction.
+func (options *Options) GetMaxBodySize() int64 {
+	if options.MaxBodySize <= 0 {
+		return DefaultMaxBodySize
+	}
+	return options.MaxBodySize
 }
 
 // URLReflection returns a reversed part of the URL payload

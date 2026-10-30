@@ -21,6 +21,13 @@ type SMTPServer struct {
 	smtpAutoTLSServer *smtp.Server
 }
 
+const (
+	// smtpMaxRecipients limits RCPT commands per message.
+	smtpMaxRecipients = 50
+	// smtpTimeout limits how long a read or a write may block.
+	smtpTimeout = 5 * time.Minute
+)
+
 // NewSMTPServer returns a new TLS & Non-TLS SMTP server.
 func NewSMTPServer(options *Options) (*SMTPServer, error) {
 	server := &SMTPServer{options: options}
@@ -32,6 +39,12 @@ func NewSMTPServer(options *Options) (*SMTPServer, error) {
 		s.Domain = options.Domains[0]
 		s.AllowInsecureAuth = true
 		s.TLSConfig = tlsConfig
+		// MaxMessageBytes is not set: go-smtp would reject a message whose
+		// MAIL SIZE is too large before RCPT, and the interaction would be
+		// lost. Data truncates the message instead.
+		s.MaxRecipients = smtpMaxRecipients
+		s.ReadTimeout = smtpTimeout
+		s.WriteTimeout = smtpTimeout
 		return s
 	}
 
@@ -78,12 +91,19 @@ func (h *SMTPServer) defaultHandler(remoteAddr net.Addr, from string, to []strin
 func (h *SMTPServer) storeSMTPRecipients(remoteAddr net.Addr, from, rawRequest string, recipients []string) {
 	host, _, _ := net.SplitHostPort(remoteAddr.String())
 
+	// A message is stored once per bucket, however many RCPT lines name it:
+	// one body with N recipients must not be kept N times.
 	if h.options.RootTLD {
+		storedDomains := make(map[string]struct{})
 		for _, addr := range recipients {
 			for _, domain := range h.options.Domains {
 				if !stringsutil.HasSuffixI(addr, domain) {
 					continue
 				}
+				if _, ok := storedDomains[domain]; ok {
+					continue
+				}
+				storedDomains[domain] = struct{}{}
 				address := addr[strings.LastIndex(addr, "@"):]
 				h.options.storeRootTLDInteraction(&Interaction{
 					Protocol:      "smtp",
@@ -102,6 +122,10 @@ func (h *SMTPServer) storeSMTPRecipients(remoteAddr net.Addr, from, rawRequest s
 	// captured a single uniqueID/fullID and stored it once after the loop, so
 	// later false-positive labels could overwrite the legitimate match and
 	// the interaction would be persisted under an unregistered id (issue #1362).
+	// A repeated unique id is skipped. Other unique ids of a correlation id
+	// that already has the message are kept without the raw message.
+	storedUniqueIDs := make(map[string]struct{})
+	storedCorrelationIDs := make(map[string]struct{})
 	for _, addr := range recipients {
 		if len(addr) <= h.options.GetIdLength() || !strings.Contains(addr, "@") {
 			continue
@@ -112,6 +136,16 @@ func (h *SMTPServer) storeSMTPRecipients(remoteAddr net.Addr, from, rawRequest s
 			if !h.options.isCorrelationID(normalizedPart) {
 				continue
 			}
+			if _, ok := storedUniqueIDs[normalizedPart]; ok {
+				continue
+			}
+			storedUniqueIDs[normalizedPart] = struct{}{}
+			correlationID := normalizedPart[:h.options.CorrelationIdLength]
+			raw := rawRequest
+			if _, ok := storedCorrelationIDs[correlationID]; ok {
+				raw = ""
+			}
+			storedCorrelationIDs[correlationID] = struct{}{}
 			fullID := part
 			if i+1 <= len(parts) {
 				fullID = strings.Join(parts[:i+1], ".")
@@ -120,11 +154,11 @@ func (h *SMTPServer) storeSMTPRecipients(remoteAddr net.Addr, from, rawRequest s
 				Protocol:      "smtp",
 				UniqueID:      normalizedPart,
 				FullId:        fullID,
-				RawRequest:    rawRequest,
+				RawRequest:    raw,
 				SMTPFrom:      from,
 				RemoteAddress: host,
 				Timestamp:     time.Now(),
-			}, normalizedPart[:h.options.CorrelationIdLength])
+			}, correlationID)
 		}
 	}
 }

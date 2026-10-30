@@ -61,8 +61,10 @@ func (s *interactshSession) Rcpt(to string, _ *smtp.RcptOptions) error {
 	return nil
 }
 
+// Data keeps at most MaxBodySize bytes of the message. The rest is read and
+// dropped by go-smtp, so a large message is still recorded, truncated.
 func (s *interactshSession) Data(r io.Reader) error {
-	body, err := io.ReadAll(r)
+	body, err := io.ReadAll(io.LimitReader(r, s.srv.options.GetMaxBodySize()))
 	if err != nil {
 		return err
 	}
