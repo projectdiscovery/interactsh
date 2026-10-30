@@ -291,32 +291,11 @@ func (h *DNSServer) handleTXT(zone string, m *dns.Msg) {
 	m.Answer = append(m.Answer, &dns.TXT{Hdr: dns.RR_Header{Name: zone, Rrtype: dns.TypeTXT, Class: dns.ClassINET, Ttl: 0}, Txt: []string{h.TxtRecord}})
 }
 
-func toQType(ttype uint16) (rtype string) {
-	switch ttype {
-	case dns.TypeA:
-		rtype = "A"
-	case dns.TypeNS:
-		rtype = "NS"
-	case dns.TypeCNAME:
-		rtype = "CNAME"
-	case dns.TypeSOA:
-		rtype = "SOA"
-	case dns.TypePTR:
-		rtype = "PTR"
-	case dns.TypeMX:
-		rtype = "MX"
-	case dns.TypeTXT:
-		rtype = "TXT"
-	case dns.TypeAAAA:
-		rtype = "AAAA"
-	}
-	return
-}
-
 // handleInteraction handles an interaction for the DNS server
 func (h *DNSServer) handleInteraction(domain string, w dns.ResponseWriter, r *dns.Msg, m *dns.Msg) {
 	requestMsg := r.String()
 	responseMsg := m.String()
+	qType := dns.Type(r.Question[0].Qtype).String()
 
 	gologger.Debug().Msgf("New DNS request: %s\n", requestMsg)
 
@@ -336,7 +315,7 @@ func (h *DNSServer) handleInteraction(domain string, w dns.ResponseWriter, r *dn
 			Protocol:      "dns",
 			UniqueID:      domain,
 			FullId:        domain,
-			QType:         toQType(r.Question[0].Qtype),
+			QType:         qType,
 			RawRequest:    requestMsg,
 			RawResponse:   responseMsg,
 			RemoteAddress: host,
@@ -357,7 +336,7 @@ func (h *DNSServer) handleInteraction(domain string, w dns.ResponseWriter, r *dn
 			Protocol:      "dns",
 			UniqueID:      uniqueID,
 			FullId:        fullID,
-			QType:         toQType(r.Question[0].Qtype),
+			QType:         qType,
 			RawRequest:    requestMsg,
 			RawResponse:   responseMsg,
 			RemoteAddress: host,
