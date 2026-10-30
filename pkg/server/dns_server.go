@@ -248,13 +248,7 @@ func (h *DNSServer) handleMX(zone string, m *dns.Msg) {
 
 	// Fall back to default MX records
 	nsHdr := dns.RR_Header{Name: zone, Rrtype: dns.TypeMX, Class: dns.ClassINET, Ttl: h.timeToLive}
-	dotDomains := []string{zone, dns.Fqdn(h.options.Domains[0])}
-	for _, dotDomain := range dotDomains {
-		if mxdomain, ok := h.mxDomains[dotDomain]; ok {
-			m.Answer = append(m.Answer, &dns.MX{Hdr: nsHdr, Mx: mxdomain, Preference: 1})
-			return
-		}
-	}
+	m.Answer = append(m.Answer, &dns.MX{Hdr: nsHdr, Mx: h.mxDomains[h.zoneApex(zone)], Preference: 1})
 }
 
 func (h *DNSServer) handleNS(zone string, m *dns.Msg) {
@@ -271,28 +265,14 @@ func (h *DNSServer) handleNS(zone string, m *dns.Msg) {
 
 	// Fall back to default NS records
 	nsHeader := dns.RR_Header{Name: zone, Rrtype: dns.TypeNS, Class: dns.ClassINET, Ttl: h.timeToLive}
-	dotDomains := []string{zone, dns.Fqdn(h.options.Domains[0])}
-	for _, dotDomain := range dotDomains {
-		if nsDomains, ok := h.nsDomains[dotDomain]; ok {
-			for _, nsDomain := range nsDomains {
-				m.Answer = append(m.Answer, &dns.NS{Hdr: nsHeader, Ns: nsDomain})
-			}
-			return
-		}
+	for _, nsDomain := range h.nsDomains[h.zoneApex(zone)] {
+		m.Answer = append(m.Answer, &dns.NS{Hdr: nsHeader, Ns: nsDomain})
 	}
 }
 
 func (h *DNSServer) handleSOA(zone string, m *dns.Msg) {
 	nsHdr := dns.RR_Header{Name: zone, Rrtype: dns.TypeSOA, Class: dns.ClassINET}
-	dotDomains := []string{zone, dns.Fqdn(h.options.Domains[0])}
-	for _, dotDomain := range dotDomains {
-		if nsDomains, ok := h.nsDomains[dotDomain]; ok {
-			for _, nsDomain := range nsDomains {
-				m.Answer = append(m.Answer, &dns.SOA{Hdr: nsHdr, Ns: nsDomain, Mbox: acme.CertificateAuthority, Serial: 1, Expire: 60, Minttl: 60})
-				return
-			}
-		}
-	}
+	m.Answer = append(m.Answer, &dns.SOA{Hdr: nsHdr, Ns: h.nsDomains[h.zoneApex(zone)][0], Mbox: acme.CertificateAuthority, Serial: 1, Expire: 60, Minttl: 60})
 }
 
 func (h *DNSServer) handleTXT(zone string, m *dns.Msg) {

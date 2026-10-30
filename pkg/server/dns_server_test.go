@@ -260,6 +260,45 @@ func TestDNSServerAuthorityOwnedByApex(t *testing.T) {
 	}
 }
 
+func TestDNSServerMXNSSOAPointToQueriedDomain(t *testing.T) {
+	opts := newTestOptions([]string{"192.0.2.1"}, "127.0.0.1")
+	opts.Domains = []string{"example.com", "example.org", "sub.example.com"}
+	dnsServer := NewDNSServer("udp", opts)
+
+	tests := []struct {
+		qname string
+		apex  string
+	}{
+		{"x.example.com", "example.com."},
+		{"x.example.org", "example.org."},
+		{"a.b.example.org", "example.org."},
+		{"ExAmPlE.oRg", "example.org."}, // some resolvers (e.g. Google Public DNS) randomise query case
+		{"x.sub.example.com", "sub.example.com."},
+	}
+	for _, tt := range tests {
+		t.Run(tt.qname, func(t *testing.T) {
+			zone := dns.Fqdn(tt.qname)
+			msg := new(dns.Msg)
+			dnsServer.handleMX(zone, msg)
+			dnsServer.handleNS(zone, msg)
+			dnsServer.handleSOA(zone, msg)
+
+			var hosts []string
+			for _, rr := range msg.Answer {
+				switch rr := rr.(type) {
+				case *dns.MX:
+					hosts = append(hosts, rr.Mx)
+				case *dns.NS:
+					hosts = append(hosts, rr.Ns)
+				case *dns.SOA:
+					hosts = append(hosts, rr.Ns)
+				}
+			}
+			require.Equal(t, []string{"mail." + tt.apex, "ns1." + tt.apex, "ns2." + tt.apex, "ns1." + tt.apex}, hosts)
+		})
+	}
+}
+
 func TestDNSServerNoDataForUnservedTypes(t *testing.T) {
 	opts := newTestOptions([]string{"192.0.2.1"}, "127.0.0.1")
 	opts.Domains = []string{"example.com", "example.org"}
