@@ -399,3 +399,27 @@ func TestFixedEvictionStrategy(t *testing.T) {
 	_, ok = mem.cache.GetIfPresent("test-fixed")
 	require.False(t, ok)
 }
+func TestEmptySecretRejectedForSharedBuckets(t *testing.T) {
+	mem, err := New(&Options{EvictionTTL: time.Hour})
+	require.Nil(t, err)
+	defer func() {
+		_ = mem.Close()
+	}()
+
+	sharedID := "shared-bucket"
+	require.NoError(t, mem.SetID(sharedID))
+
+	// GetInteractions with empty secret must fail
+	_, _, err = mem.GetInteractions(sharedID, "")
+	require.Error(t, err, "empty secret must not allow polling shared bucket")
+
+	// RemoveID with empty secret must fail
+	err = mem.RemoveID(sharedID, "")
+	require.Error(t, err, "empty secret must not allow deregistering shared bucket")
+
+	// UpdateUploads with empty secret must fail
+	err = mem.UpdateUploads(sharedID, "", func(f []UploadedFile) ([]UploadedFile, error) {
+		return f, nil
+	})
+	require.ErrorIs(t, err, ErrInvalidSecretKey, "empty secret must not allow uploads to shared bucket")
+}
