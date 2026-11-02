@@ -202,3 +202,56 @@ func newTestOptions(ips []string, listenIP string) *Options {
 		ListenIP:    listenIP,
 	}
 }
+
+func TestDNSServerRefusesOutOfZoneQueries(t *testing.T) {
+	opts := newTestOptions([]string{"192.0.2.1"}, "127.0.0.1")
+	dnsServer := NewDNSServer("udp", opts)
+
+	req := new(dns.Msg)
+	req.SetQuestion("anything.notours.org.", dns.TypeA)
+
+	rec := &testResponseWriter{}
+	dnsServer.ServeDNS(rec, req)
+
+	require.NotNil(t, rec.msg, "expected response message")
+	require.Equal(t, dns.RcodeRefused, rec.msg.Rcode, "out-of-zone queries must be refused")
+}
+
+func TestDNSServerToQTypeComprehensive(t *testing.T) {
+	testCases := []struct {
+		qtype    uint16
+		expected string
+	}{
+		{dns.TypeA, "A"},
+		{dns.TypeNS, "NS"},
+		{dns.TypeCNAME, "CNAME"},
+		{dns.TypeSOA, "SOA"},
+		{dns.TypePTR, "PTR"},
+		{dns.TypeMX, "MX"},
+		{dns.TypeTXT, "TXT"},
+		{dns.TypeAAAA, "AAAA"},
+		{65, "HTTPS"},
+		{dns.TypeCAA, "CAA"},
+		{dns.TypeSRV, "SRV"},
+		{dns.TypeANY, "ANY"},
+		{9999, "TYPE9999"},
+	}
+
+	for _, tc := range testCases {
+		require.Equal(t, tc.expected, toQType(tc.qtype))
+	}
+}
+
+type testResponseWriter struct {
+	dns.ResponseWriter
+	msg *dns.Msg
+}
+
+func (w *testResponseWriter) WriteMsg(m *dns.Msg) error {
+	w.msg = m
+	return nil
+}
+
+func (w *testResponseWriter) RemoteAddr() net.Addr {
+	return &net.UDPAddr{IP: net.ParseIP("127.0.0.1"), Port: 53535}
+}
