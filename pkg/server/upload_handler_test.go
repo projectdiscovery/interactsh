@@ -229,6 +229,18 @@ func TestUploadHandler(t *testing.T) {
 	})
 }
 
+func TestRegisterRejectsEmptySecret(t *testing.T) {
+	h, _, _ := uploadTestServer(t, true)
+	id := xid.New().String()
+	body := fmt.Sprintf(`{"public-key":%q,"secret-key":"","correlation-id":%q}`, testPublicKey(t), id)
+	w := httptest.NewRecorder()
+	h.registerHandler(w, httptest.NewRequest(http.MethodPost, "http://example.com/register", strings.NewReader(body)))
+	require.Equal(t, http.StatusBadRequest, w.Result().StatusCode)
+
+	_, _, err := h.options.Storage.GetInteractions(id, "")
+	require.Error(t, err, "empty secret must not create a session")
+}
+
 func TestRegisterAdvertisesCapabilities(t *testing.T) {
 	t.Run("uploads enabled", func(t *testing.T) {
 		h, _, _ := uploadTestServer(t, true)

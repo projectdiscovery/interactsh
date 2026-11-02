@@ -435,6 +435,11 @@ func (h *HTTPServer) registerHandler(w http.ResponseWriter, req *http.Request) {
 		jsonError(w, fmt.Sprintf("invalid correlation-id: %s", r.CorrelationID), http.StatusBadRequest)
 		return
 	}
+	if r.SecretKey == "" {
+		gologger.Warning().Msgf("Could not register without secret key for %s\n", r.CorrelationID)
+		jsonError(w, "no secret specified for register", http.StatusBadRequest)
+		return
+	}
 
 	if err := h.options.Storage.SetIDPublicKey(r.CorrelationID, r.SecretKey, r.PublicKey); err != nil {
 		gologger.Warning().Msgf("Could not set id and public key for %s: %s\n", r.CorrelationID, err)
