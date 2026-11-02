@@ -388,6 +388,7 @@ CONFIG:
    -rp, -redis-prefix string            redis key prefix (default "interactsh:")
    -csh, -server-header string          custom value of Server header in response
    -dv, -disable-version                disable publishing interactsh version in response header
+   -mbs, -max-body-size value           maximum size of an http request body or smtp message kept in an interaction (the rest is dropped) (default 1mb)
 
 UPDATE:
    -up, -update                 update interactsh-server to latest version
