@@ -79,6 +79,7 @@ func main() {
 		flagSet.StringVarP(&cliOptions.RedisKeyPrefix, "redis-prefix", "rp", "", "redis key prefix (default \"interactsh:\")"),
 		flagSet.StringVarP(&cliOptions.HeaderServer, "server-header", "csh", "", "custom value of Server header in response"),
 		flagSet.BoolVarP(&cliOptions.NoVersionHeader, "disable-version", "dv", false, "disable publishing interactsh version in response header"),
+		flagSet.SizeVarP(&cliOptions.MaxBodySize, "max-body-size", "mbs", "1mb", "maximum size of an http request body or smtp message kept in an interaction (the rest is dropped)"),
 	)
 
 	flagSet.CreateGroup("update", "Update",
