@@ -72,7 +72,9 @@ func (h *DNSServer) ListenAndServe(dnsAlive chan bool) {
 
 // ServeDNS is the default handler for DNS queries.
 func (h *DNSServer) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
-	atomic.AddUint64(&h.options.Stats.Dns, 1)
+	if h.options.Stats != nil {
+		atomic.AddUint64(&h.options.Stats.Dns, 1)
+	}
 
 	m := new(dns.Msg)
 	m.SetReply(r)
@@ -83,6 +85,20 @@ func (h *DNSServer) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 		return
 	}
 
+	// Refuse the whole message when any name is outside the configured zones.
+	// An ACME prefix does not bypass this: challenges for this server are in zone.
+	if len(h.options.Domains) > 0 {
+		for _, question := range r.Question {
+			if !h.isConfiguredDomain(question.Name) {
+				m.Rcode = dns.RcodeRefused
+				if err := w.WriteMsg(m); err != nil {
+					gologger.Warning().Msgf("Could not write DNS response: \n%s\n %s\n", m.String(), err)
+				}
+				return
+			}
+		}
+	}
+
 	isDNSChallenge := false
 	for _, question := range r.Question {
 		domain := question.Name
@@ -90,7 +106,6 @@ func (h *DNSServer) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 		// Handle DNS server cases for ACME server
 		if strings.HasPrefix(strings.ToLower(domain), acme.DNSChallengeString) {
 			isDNSChallenge = true
-
 			gologger.Debug().Msgf("Got acme dns request: \n%s\n", r.String())
 
 			switch question.Qtype {
@@ -132,6 +147,23 @@ func (h *DNSServer) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 	if err := w.WriteMsg(m); err != nil {
 		gologger.Warning().Msgf("Could not write DNS response: \n%s\n %s\n", m.String(), err)
 	}
+}
+
+// isConfiguredDomain reports whether domain is exactly a configured domain or one of its subdomains.
+func (h *DNSServer) isConfiguredDomain(domain string) bool {
+	return h.matchingDomain(domain) != ""
+}
+
+// matchingDomain returns the configured domain that contains domain, using a label boundary.
+func (h *DNSServer) matchingDomain(domain string) string {
+	domain = dns.Fqdn(domain)
+	for _, configuredDomain := range h.options.Domains {
+		configuredDotDomain := dns.Fqdn(configuredDomain)
+		if strings.EqualFold(domain, configuredDotDomain) || stringsutil.HasSuffixI(domain, "."+configuredDotDomain) {
+			return configuredDomain
+		}
+	}
+	return ""
 }
 
 // handleACMETXTChallenge handles solving of ACME TXT challenge with the given provider
@@ -276,26 +308,8 @@ func (h *DNSServer) handleTXT(zone string, m *dns.Msg) {
 	m.Answer = append(m.Answer, &dns.TXT{Hdr: dns.RR_Header{Name: zone, Rrtype: dns.TypeTXT, Class: dns.ClassINET, Ttl: 0}, Txt: []string{h.TxtRecord}})
 }
 
-func toQType(ttype uint16) (rtype string) {
-	switch ttype {
-	case dns.TypeA:
-		rtype = "A"
-	case dns.TypeNS:
-		rtype = "NS"
-	case dns.TypeCNAME:
-		rtype = "CNAME"
-	case dns.TypeSOA:
-		rtype = "SOA"
-	case dns.TypePTR:
-		rtype = "PTR"
-	case dns.TypeMX:
-		rtype = "MX"
-	case dns.TypeTXT:
-		rtype = "TXT"
-	case dns.TypeAAAA:
-		rtype = "AAAA"
-	}
-	return
+func toQType(ttype uint16) string {
+	return dns.Type(ttype).String()
 }
 
 // handleInteraction handles an interaction for the DNS server
@@ -305,14 +319,7 @@ func (h *DNSServer) handleInteraction(domain string, w dns.ResponseWriter, r *dn
 
 	gologger.Debug().Msgf("New DNS request: %s\n", requestMsg)
 
-	var foundDomain string
-	for _, configuredDomain := range h.options.Domains {
-		configuredDotDomain := dns.Fqdn(configuredDomain)
-		if stringsutil.HasSuffixI(domain, configuredDotDomain) {
-			foundDomain = configuredDomain
-			break
-		}
-	}
+	foundDomain := h.matchingDomain(domain)
 
 	host, _, _ := net.SplitHostPort(w.RemoteAddr().String())
 
