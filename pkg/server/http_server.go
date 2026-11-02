@@ -479,6 +479,11 @@ func (h *HTTPServer) deregisterHandler(w http.ResponseWriter, req *http.Request)
 		jsonError(w, fmt.Sprintf("invalid correlation-id: %s", r.CorrelationID), http.StatusBadRequest)
 		return
 	}
+	if r.SecretKey == "" {
+		gologger.Warning().Msgf("Could not deregister without secret key for %s\n", r.CorrelationID)
+		jsonError(w, "no secret specified for deregister", http.StatusBadRequest)
+		return
+	}
 
 	if err := h.options.Storage.RemoveID(r.CorrelationID, r.SecretKey); err != nil {
 		gologger.Warning().Msgf("Could not remove id for %s: %s\n", r.CorrelationID, err)

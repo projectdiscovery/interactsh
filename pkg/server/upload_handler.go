@@ -149,6 +149,10 @@ func (h *HTTPServer) uploadHandler(w http.ResponseWriter, req *http.Request) {
 		jsonError(w, fmt.Sprintf("too many files, limit is %d", store.MaxFiles()), http.StatusRequestEntityTooLarge)
 		return
 	}
+	if r.SecretKey == "" {
+		jsonError(w, "no secret specified for upload", http.StatusBadRequest)
+		return
+	}
 
 	// Decode and validate everything before touching storage, so a malformed
 	// request cannot leave a session half-populated.
