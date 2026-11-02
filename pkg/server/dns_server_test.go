@@ -215,6 +215,26 @@ func TestDNSServerRefusesOutOfZoneQueries(t *testing.T) {
 
 	require.NotNil(t, rec.msg, "expected response message")
 	require.Equal(t, dns.RcodeRefused, rec.msg.Rcode, "out-of-zone queries must be refused")
+
+	for _, name := range []string{"fooexample.com.", "_acme-challenge.notours.org."} {
+		req = new(dns.Msg)
+		req.SetQuestion(name, dns.TypeA)
+		rec = &testResponseWriter{}
+		dnsServer.ServeDNS(rec, req)
+		require.NotNil(t, rec.msg)
+		require.Equal(t, dns.RcodeRefused, rec.msg.Rcode, name)
+	}
+
+	mixed := new(dns.Msg)
+	mixed.SetQuestion("a.example.com.", dns.TypeA)
+	mixed.Question = append(mixed.Question, dns.Question{Name: "fooexample.com.", Qtype: dns.TypeA, Qclass: dns.ClassINET})
+	rec = &testResponseWriter{}
+	dnsServer.ServeDNS(rec, mixed)
+	require.Equal(t, dns.RcodeRefused, rec.msg.Rcode, "one out-of-zone question refuses the message")
+
+	require.True(t, dnsServer.isConfiguredDomain("example.com."))
+	require.True(t, dnsServer.isConfiguredDomain("a.example.com."))
+	require.False(t, dnsServer.isConfiguredDomain("fooexample.com."))
 }
 
 func TestDNSServerToQTypeComprehensive(t *testing.T) {
