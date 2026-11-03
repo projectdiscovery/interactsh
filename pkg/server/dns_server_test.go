@@ -275,3 +275,68 @@ func (w *testResponseWriter) WriteMsg(m *dns.Msg) error {
 func (w *testResponseWriter) RemoteAddr() net.Addr {
 	return &net.UDPAddr{IP: net.ParseIP("127.0.0.1"), Port: 53535}
 }
+
+func TestDNSServerAAAAQueryIPv4OnlyReturnsNODATA(t *testing.T) {
+	opts := newTestOptions([]string{"192.0.2.10"}, "127.0.0.1")
+	dnsServer := NewDNSServer("udp", opts)
+
+	msg := new(dns.Msg)
+	msg.Question = []dns.Question{{Name: "sub.example.com.", Qtype: dns.TypeAAAA, Qclass: dns.ClassINET}}
+	rec := &testResponseWriter{}
+	dnsServer.ServeDNS(rec, msg)
+
+	require.Equal(t, dns.RcodeSuccess, rec.msg.Rcode)
+	require.Empty(t, rec.msg.Answer, "expected empty answer section for AAAA query when only IPv4 configured")
+	require.Len(t, rec.msg.Ns, 1, "expected SOA record in authority section")
+	soa, ok := rec.msg.Ns[0].(*dns.SOA)
+	require.True(t, ok, "expected SOA record type")
+	require.Equal(t, "example.com.", soa.Hdr.Name, "SOA record owner should be zone apex")
+}
+
+func TestDNSServerNSAuthorityOwnedByApex(t *testing.T) {
+	opts := newTestOptions([]string{"192.0.2.10"}, "127.0.0.1")
+	dnsServer := NewDNSServer("udp", opts)
+
+	msg := new(dns.Msg)
+	msg.Question = []dns.Question{{Name: "deep.sub.example.com.", Qtype: dns.TypeA, Qclass: dns.ClassINET}}
+	rec := &testResponseWriter{}
+	dnsServer.ServeDNS(rec, msg)
+
+	require.Equal(t, dns.RcodeSuccess, rec.msg.Rcode)
+	require.Len(t, rec.msg.Answer, 1)
+	require.NotEmpty(t, rec.msg.Ns, "expected NS records in authority section")
+	for _, rr := range rec.msg.Ns {
+		ns, ok := rr.(*dns.NS)
+		require.True(t, ok, "expected NS record")
+		require.Equal(t, "example.com.", ns.Hdr.Name, "NS record must be owned by zone apex, not queried name")
+	}
+}
+
+func TestDNSServerDualStackFiltersQuestionType(t *testing.T) {
+	opts := newTestOptions([]string{"192.0.2.10", "2001:db8::1"}, "127.0.0.1")
+	dnsServer := NewDNSServer("udp", opts)
+
+	// A query should return only A
+	msgA := new(dns.Msg)
+	msgA.Question = []dns.Question{{Name: "sub.example.com.", Qtype: dns.TypeA, Qclass: dns.ClassINET}}
+	recA := &testResponseWriter{}
+	dnsServer.ServeDNS(recA, msgA)
+	require.True(t, hasRecord(recA.msg.Answer, dns.TypeA, "192.0.2.10"))
+	require.False(t, hasRecord(recA.msg.Answer, dns.TypeAAAA, "2001:db8::1"))
+
+	// AAAA query should return only AAAA
+	msgAAAA := new(dns.Msg)
+	msgAAAA.Question = []dns.Question{{Name: "sub.example.com.", Qtype: dns.TypeAAAA, Qclass: dns.ClassINET}}
+	recAAAA := &testResponseWriter{}
+	dnsServer.ServeDNS(recAAAA, msgAAAA)
+	require.False(t, hasRecord(recAAAA.msg.Answer, dns.TypeA, "192.0.2.10"))
+	require.True(t, hasRecord(recAAAA.msg.Answer, dns.TypeAAAA, "2001:db8::1"))
+
+	// ANY query should return both A and AAAA
+	msgANY := new(dns.Msg)
+	msgANY.Question = []dns.Question{{Name: "sub.example.com.", Qtype: dns.TypeANY, Qclass: dns.ClassINET}}
+	recANY := &testResponseWriter{}
+	dnsServer.ServeDNS(recANY, msgANY)
+	require.True(t, hasRecord(recANY.msg.Answer, dns.TypeA, "192.0.2.10"))
+	require.True(t, hasRecord(recANY.msg.Answer, dns.TypeAAAA, "2001:db8::1"))
+}

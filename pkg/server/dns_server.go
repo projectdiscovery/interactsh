@@ -208,20 +208,53 @@ func (h *DNSServer) handleACNAMEANY(zone string, m *dns.Msg) {
 }
 
 func (h *DNSServer) resultFunction(nsHeader dns.RR_Header, zone string, ipAddresses []net.IP, m *dns.Msg) {
+	qtype := uint16(dns.TypeANY)
+	if len(m.Question) > 0 {
+		qtype = m.Question[0].Qtype
+	}
+
 	unique := uniqueIPs(ipAddresses)
 	var answered bool
 	for _, ipAddress := range unique {
+		isV4 := ipAddress.To4() != nil
+		if (qtype == dns.TypeA && !isV4) || (qtype == dns.TypeAAAA && isV4) {
+			continue
+		}
 		if h.appendAnswerRecord(zone, ipAddress, m) {
 			answered = true
 		}
 	}
+
+	apex := ""
+	if matched := h.matchingDomain(zone); matched != "" {
+		apex = dns.Fqdn(matched)
+	} else if len(h.options.Domains) > 0 {
+		apex = dns.Fqdn(h.options.Domains[0])
+	} else {
+		apex = zone
+	}
+
 	if !answered {
+		// NODATA: return NOERROR with empty answer and SOA record in authority section
+		primaryNs := "ns1." + apex
+		if nsDomains, ok := h.nsDomains[apex]; ok && len(nsDomains) > 0 {
+			primaryNs = nsDomains[0]
+		}
+		m.Ns = append(m.Ns, &dns.SOA{
+			Hdr:    dns.RR_Header{Name: apex, Rrtype: dns.TypeSOA, Class: dns.ClassINET, Ttl: 60},
+			Ns:     primaryNs,
+			Mbox:   acme.CertificateAuthority,
+			Serial: 1,
+			Expire: 60,
+			Minttl: 60,
+		})
 		return
 	}
 
-	dotDomains := []string{zone, dns.Fqdn(h.options.Domains[0])}
+	dotDomains := []string{apex, zone}
 	for _, dotDomain := range dotDomains {
 		if nsDomains, ok := h.nsDomains[dotDomain]; ok {
+			nsHeader.Name = dotDomain
 			for _, nsDomain := range nsDomains {
 				m.Ns = append(m.Ns, &dns.NS{Hdr: nsHeader, Ns: nsDomain})
 				h.appendGlueRecords(nsDomain, m)

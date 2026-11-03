@@ -89,8 +89,10 @@ func (options *Options) storeInteraction(interaction *Interaction, correlationID
 		return
 	}
 	gologger.Debug().Msgf("%s Interaction: \n%s\n", strings.ToUpper(interaction.Protocol), string(data))
-	if err := options.Storage.AddInteraction(correlationID, data); err != nil {
-		gologger.Warning().Msgf("Could not store %s interaction: %s\n", interaction.Protocol, err)
+	if options.Storage != nil {
+		if err := options.Storage.AddInteraction(correlationID, data); err != nil {
+			gologger.Warning().Msgf("Could not store %s interaction: %s\n", interaction.Protocol, err)
+		}
 	}
 }
 
@@ -103,8 +105,10 @@ func (options *Options) storeRootTLDInteraction(interaction *Interaction, id str
 		return
 	}
 	gologger.Debug().Msgf("Root TLD %s Interaction: \n%s\n", strings.ToUpper(interaction.Protocol), string(data))
-	if err := options.Storage.AddInteractionWithId(id, data); err != nil {
-		gologger.Warning().Msgf("Could not store root tld %s interaction: %s\n", interaction.Protocol, err)
+	if options.Storage != nil {
+		if err := options.Storage.AddInteractionWithId(id, data); err != nil {
+			gologger.Warning().Msgf("Could not store root tld %s interaction: %s\n", interaction.Protocol, err)
+		}
 	}
 }
 
