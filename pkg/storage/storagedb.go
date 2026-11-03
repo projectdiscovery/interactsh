@@ -243,7 +243,7 @@ func (s *StorageDB) GetInteractions(correlationID, secret string) ([]string, str
 	if !ok {
 		return nil, "", errors.New("invalid correlation-id cache value found")
 	}
-	if !strings.EqualFold(value.SecretKey, secret) {
+	if !secretMatches(value.SecretKey, secret) {
 		return nil, "", errors.New("invalid secret key passed for user")
 	}
 	data, err := s.getInteractions(value, correlationID)
@@ -451,7 +451,7 @@ func (s *StorageDB) RemoveID(correlationID, secret string) error {
 	if !ok {
 		return errors.New("invalid correlation-id cache value found")
 	}
-	if !strings.EqualFold(value.SecretKey, secret) {
+	if !secretMatches(value.SecretKey, secret) {
 		return errors.New("invalid secret key passed for deregister")
 	}
 	value.Lock()
@@ -479,7 +479,7 @@ func (s *StorageDB) UpdateUploads(correlationID, secret string, fn func([]Upload
 	if !ok {
 		return errors.New("invalid correlation-id cache value found")
 	}
-	if !strings.EqualFold(value.SecretKey, secret) {
+	if !secretMatches(value.SecretKey, secret) {
 		return ErrInvalidSecretKey
 	}
 	value.Lock()
