@@ -5,6 +5,7 @@ import (
 	"crypto/rsa"
 	"crypto/x509"
 	"encoding/base64"
+	"encoding/json"
 	"encoding/pem"
 	"fmt"
 	"net"
@@ -135,6 +136,61 @@ func TestDNSInteractionNotStored_UnregisteredPreamble(t *testing.T) {
 	interactions, _, err := store.GetInteractions("d82", "secret")
 	require.NoError(t, err)
 	require.Empty(t, interactions, "queries that do not target a registered preamble must not be stored under another id")
+}
+
+// Every DNS interaction records its query type, including types without a
+// mnemonic (TYPE<n>). The client prints it for each one.
+func TestDNSInteractionQueryType(t *testing.T) {
+	store := newTestStorage(t)
+	require.NoError(t, store.SetID("example.com"))
+
+	port := freeUDPPort(t)
+	startTestDNSServer(t, &Options{
+		Domains:                  []string{"example.com"},
+		IPAddresses:              []net.IP{net.ParseIP("127.0.0.1")},
+		ListenIP:                 "127.0.0.1",
+		DnsPort:                  port,
+		Storage:                  store,
+		RootTLD:                  true,
+		CorrelationIdLength:      3,
+		CorrelationIdNonceLength: 3,
+		Stats:                    &Metrics{},
+	})
+
+	tests := []struct {
+		qtype uint16
+		want  string
+	}{
+		{dns.TypeA, "A"},
+		{dns.TypeAAAA, "AAAA"},
+		{dns.TypeANY, "ANY"},
+		{dns.TypeHTTPS, "HTTPS"},
+		{dns.TypeCAA, "CAA"},
+		{dns.TypeSRV, "SRV"},
+		{65280, "TYPE65280"}, // private use, no mnemonic
+	}
+	want := make(map[string]string)
+	client := &dns.Client{Net: "udp", Timeout: 2 * time.Second}
+	for _, tt := range tests {
+		name := fmt.Sprintf("q%d.example.com.", tt.qtype)
+		want[name] = tt.want
+		msg := new(dns.Msg)
+		msg.SetQuestion(name, tt.qtype)
+		_, _, err := client.Exchange(msg, fmt.Sprintf("127.0.0.1:%d", port))
+		require.NoError(t, err)
+	}
+
+	interactions, err := store.GetInteractionsWithIdForConsumer("example.com", "consumer")
+	require.NoError(t, err)
+	got := make(map[string]string)
+	for _, data := range interactions {
+		var interaction Interaction
+		require.NoError(t, json.Unmarshal([]byte(data), &interaction))
+		if _, ok := want[interaction.UniqueID]; ok { // skip startTestDNSServer's readiness probes
+			got[interaction.UniqueID] = interaction.QType
+		}
+	}
+	require.Equal(t, want, got)
 }
 
 func defaultQueryName(preamble, parent string) string {

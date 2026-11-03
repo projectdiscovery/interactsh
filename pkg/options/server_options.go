@@ -65,6 +65,7 @@ type CLIServerOptions struct {
 	NoVersionHeader         bool
 	HeaderServer            string
 	DefaultHTTPResponseFile string
+	MaxBodySize             goflags.Size
 	Upload                  bool
 	UploadDirectory         string
 	UploadMaxFileSize       goflags.Size
@@ -126,6 +127,7 @@ func (cliServerOptions *CLIServerOptions) AsServerOptions() *server.Options {
 		NoVersionHeader:          cliServerOptions.NoVersionHeader,
 		HeaderServer:             cliServerOptions.HeaderServer,
 		DefaultHTTPResponseFile:  cliServerOptions.DefaultHTTPResponseFile,
+		MaxBodySize:              int64(cliServerOptions.MaxBodySize),
 		Ftp:                      cliServerOptions.Ftp,
 		Upload:                   cliServerOptions.Upload,
 		UploadDirectory:          cliServerOptions.UploadDirectory,

@@ -121,6 +121,8 @@ func (h *DNSServer) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 				h.handleSOA(domain, m)
 			case dns.TypeTXT:
 				h.handleTXT(domain, m)
+			default:
+				h.appendNoDataSOA(h.zoneApex(domain), m)
 			}
 		}
 	}
@@ -184,12 +186,7 @@ func (h *DNSServer) resultFunction(zone string, qtype uint16, m *dns.Msg) {
 
 	apex := h.zoneApex(zone)
 	if !answered {
-		// NODATA: without the SOA, clients that query us directly treat the empty
-		// answer as invalid and retry instead of caching it negatively (#1484).
-		m.Ns = append(m.Ns, &dns.SOA{
-			Hdr: dns.RR_Header{Name: apex, Rrtype: dns.TypeSOA, Class: dns.ClassINET, Ttl: h.timeToLive},
-			Ns:  h.nsDomains[apex][0], Mbox: acme.CertificateAuthority, Serial: 1, Expire: 60, Minttl: 60,
-		})
+		h.appendNoDataSOA(apex, m)
 		return
 	}
 
@@ -198,6 +195,16 @@ func (h *DNSServer) resultFunction(zone string, qtype uint16, m *dns.Msg) {
 		m.Ns = append(m.Ns, &dns.NS{Hdr: nsHeader, Ns: nsDomain})
 		h.appendGlueRecords(nsDomain, m)
 	}
+}
+
+// appendNoDataSOA adds the apex SOA to the authority section of an empty
+// answer (NODATA): without it, clients that query us directly treat the empty
+// answer as invalid and retry instead of caching it negatively (#1484).
+func (h *DNSServer) appendNoDataSOA(apex string, m *dns.Msg) {
+	m.Ns = append(m.Ns, &dns.SOA{
+		Hdr: dns.RR_Header{Name: apex, Rrtype: dns.TypeSOA, Class: dns.ClassINET, Ttl: h.timeToLive},
+		Ns:  h.nsDomains[apex][0], Mbox: acme.CertificateAuthority, Serial: 1, Expire: 60, Minttl: 60,
+	})
 }
 
 // matchesQtype reports whether ip belongs in the answer to a qtype question.
@@ -241,13 +248,7 @@ func (h *DNSServer) handleMX(zone string, m *dns.Msg) {
 
 	// Fall back to default MX records
 	nsHdr := dns.RR_Header{Name: zone, Rrtype: dns.TypeMX, Class: dns.ClassINET, Ttl: h.timeToLive}
-	dotDomains := []string{zone, dns.Fqdn(h.options.Domains[0])}
-	for _, dotDomain := range dotDomains {
-		if mxdomain, ok := h.mxDomains[dotDomain]; ok {
-			m.Answer = append(m.Answer, &dns.MX{Hdr: nsHdr, Mx: mxdomain, Preference: 1})
-			return
-		}
-	}
+	m.Answer = append(m.Answer, &dns.MX{Hdr: nsHdr, Mx: h.mxDomains[h.zoneApex(zone)], Preference: 1})
 }
 
 func (h *DNSServer) handleNS(zone string, m *dns.Msg) {
@@ -264,28 +265,14 @@ func (h *DNSServer) handleNS(zone string, m *dns.Msg) {
 
 	// Fall back to default NS records
 	nsHeader := dns.RR_Header{Name: zone, Rrtype: dns.TypeNS, Class: dns.ClassINET, Ttl: h.timeToLive}
-	dotDomains := []string{zone, dns.Fqdn(h.options.Domains[0])}
-	for _, dotDomain := range dotDomains {
-		if nsDomains, ok := h.nsDomains[dotDomain]; ok {
-			for _, nsDomain := range nsDomains {
-				m.Answer = append(m.Answer, &dns.NS{Hdr: nsHeader, Ns: nsDomain})
-			}
-			return
-		}
+	for _, nsDomain := range h.nsDomains[h.zoneApex(zone)] {
+		m.Answer = append(m.Answer, &dns.NS{Hdr: nsHeader, Ns: nsDomain})
 	}
 }
 
 func (h *DNSServer) handleSOA(zone string, m *dns.Msg) {
 	nsHdr := dns.RR_Header{Name: zone, Rrtype: dns.TypeSOA, Class: dns.ClassINET}
-	dotDomains := []string{zone, dns.Fqdn(h.options.Domains[0])}
-	for _, dotDomain := range dotDomains {
-		if nsDomains, ok := h.nsDomains[dotDomain]; ok {
-			for _, nsDomain := range nsDomains {
-				m.Answer = append(m.Answer, &dns.SOA{Hdr: nsHdr, Ns: nsDomain, Mbox: acme.CertificateAuthority, Serial: 1, Expire: 60, Minttl: 60})
-				return
-			}
-		}
-	}
+	m.Answer = append(m.Answer, &dns.SOA{Hdr: nsHdr, Ns: h.nsDomains[h.zoneApex(zone)][0], Mbox: acme.CertificateAuthority, Serial: 1, Expire: 60, Minttl: 60})
 }
 
 func (h *DNSServer) handleTXT(zone string, m *dns.Msg) {
@@ -304,32 +291,11 @@ func (h *DNSServer) handleTXT(zone string, m *dns.Msg) {
 	m.Answer = append(m.Answer, &dns.TXT{Hdr: dns.RR_Header{Name: zone, Rrtype: dns.TypeTXT, Class: dns.ClassINET, Ttl: 0}, Txt: []string{h.TxtRecord}})
 }
 
-func toQType(ttype uint16) (rtype string) {
-	switch ttype {
-	case dns.TypeA:
-		rtype = "A"
-	case dns.TypeNS:
-		rtype = "NS"
-	case dns.TypeCNAME:
-		rtype = "CNAME"
-	case dns.TypeSOA:
-		rtype = "SOA"
-	case dns.TypePTR:
-		rtype = "PTR"
-	case dns.TypeMX:
-		rtype = "MX"
-	case dns.TypeTXT:
-		rtype = "TXT"
-	case dns.TypeAAAA:
-		rtype = "AAAA"
-	}
-	return
-}
-
 // handleInteraction handles an interaction for the DNS server
 func (h *DNSServer) handleInteraction(domain string, w dns.ResponseWriter, r *dns.Msg, m *dns.Msg) {
 	requestMsg := r.String()
 	responseMsg := m.String()
+	qType := dns.Type(r.Question[0].Qtype).String()
 
 	gologger.Debug().Msgf("New DNS request: %s\n", requestMsg)
 
@@ -349,7 +315,7 @@ func (h *DNSServer) handleInteraction(domain string, w dns.ResponseWriter, r *dn
 			Protocol:      "dns",
 			UniqueID:      domain,
 			FullId:        domain,
-			QType:         toQType(r.Question[0].Qtype),
+			QType:         qType,
 			RawRequest:    requestMsg,
 			RawResponse:   responseMsg,
 			RemoteAddress: host,
@@ -370,7 +336,7 @@ func (h *DNSServer) handleInteraction(domain string, w dns.ResponseWriter, r *dn
 			Protocol:      "dns",
 			UniqueID:      uniqueID,
 			FullId:        fullID,
-			QType:         toQType(r.Question[0].Qtype),
+			QType:         qType,
 			RawRequest:    requestMsg,
 			RawResponse:   responseMsg,
 			RemoteAddress: host,

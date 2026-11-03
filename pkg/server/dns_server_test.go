@@ -3,6 +3,7 @@ package server
 import (
 	"net"
 	"testing"
+	"time"
 
 	"github.com/miekg/dns"
 	"github.com/projectdiscovery/interactsh/pkg/server/acme"
@@ -256,6 +257,88 @@ func TestDNSServerAuthorityOwnedByApex(t *testing.T) {
 			require.Equal(t, apex, ns.Hdr.Name)
 			require.True(t, dns.IsSubDomain(apex, ns.Ns), "nameserver %s not under %s", ns.Ns, apex)
 		}
+	}
+}
+
+func TestDNSServerMXNSSOAPointToQueriedDomain(t *testing.T) {
+	opts := newTestOptions([]string{"192.0.2.1"}, "127.0.0.1")
+	opts.Domains = []string{"example.com", "example.org", "sub.example.com"}
+	dnsServer := NewDNSServer("udp", opts)
+
+	tests := []struct {
+		qname string
+		apex  string
+	}{
+		{"x.example.com", "example.com."},
+		{"x.example.org", "example.org."},
+		{"a.b.example.org", "example.org."},
+		{"ExAmPlE.oRg", "example.org."}, // some resolvers (e.g. Google Public DNS) randomise query case
+		{"x.sub.example.com", "sub.example.com."},
+	}
+	for _, tt := range tests {
+		t.Run(tt.qname, func(t *testing.T) {
+			zone := dns.Fqdn(tt.qname)
+			msg := new(dns.Msg)
+			dnsServer.handleMX(zone, msg)
+			dnsServer.handleNS(zone, msg)
+			dnsServer.handleSOA(zone, msg)
+
+			var hosts []string
+			for _, rr := range msg.Answer {
+				switch rr := rr.(type) {
+				case *dns.MX:
+					hosts = append(hosts, rr.Mx)
+				case *dns.NS:
+					hosts = append(hosts, rr.Ns)
+				case *dns.SOA:
+					hosts = append(hosts, rr.Ns)
+				}
+			}
+			require.Equal(t, []string{"mail." + tt.apex, "ns1." + tt.apex, "ns2." + tt.apex, "ns1." + tt.apex}, hosts)
+		})
+	}
+}
+
+func TestDNSServerNoDataForUnservedTypes(t *testing.T) {
+	opts := newTestOptions([]string{"192.0.2.1"}, "127.0.0.1")
+	opts.Domains = []string{"example.com", "example.org"}
+	opts.DnsPort = freeUDPPort(t)
+	// ServeDNS records interactions, so it needs storage and id lengths
+	opts.Storage = newTestStorage(t)
+	opts.CorrelationIdLength = 20
+	opts.CorrelationIdNonceLength = 13
+	opts.Stats = &Metrics{}
+	startTestDNSServer(t, opts)
+
+	tests := []struct {
+		qname string
+		qtype uint16
+		apex  string
+	}{
+		{"x.example.com", dns.TypeHTTPS, "example.com."},
+		{"x.example.com", dns.TypeSVCB, "example.com."},
+		{"x.example.com", dns.TypeCAA, "example.com."},
+		{"x.example.com", dns.TypeSRV, "example.com."},
+		{"a.b.example.org", dns.TypeHTTPS, "example.org."},
+	}
+	for _, tt := range tests {
+		t.Run(tt.qname+" "+dns.TypeToString[tt.qtype], func(t *testing.T) {
+			msg := new(dns.Msg)
+			msg.SetQuestion(dns.Fqdn(tt.qname), tt.qtype)
+			client := &dns.Client{Net: "udp", Timeout: 2 * time.Second}
+			resp, _, err := client.Exchange(msg, formatAddress(opts.ListenIP, opts.DnsPort))
+			require.NoError(t, err)
+
+			require.Equal(t, dns.RcodeSuccess, resp.Rcode)
+			require.True(t, resp.Authoritative)
+			require.Empty(t, resp.Answer)
+			require.Len(t, resp.Ns, 1)
+			soa, ok := resp.Ns[0].(*dns.SOA)
+			require.True(t, ok, "expected SOA in authority")
+			require.Equal(t, tt.apex, soa.Hdr.Name)
+			require.Equal(t, "ns1."+tt.apex, soa.Ns)
+			require.NotZero(t, soa.Minttl, "zero MINIMUM defeats negative caching")
+		})
 	}
 }
 
