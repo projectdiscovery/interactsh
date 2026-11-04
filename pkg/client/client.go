@@ -92,7 +92,9 @@ type Options struct {
 	CorrelationIdLength int
 	// CorrelationIdNonceLengthLength of the nonce
 	CorrelationIdNonceLength int
-	// HTTPClient use a custom http client
+	// HTTPClient use a custom http client. With INTERACTSH_TLS_VERIFY=true its
+	// custom TLS dialers (DialTLSContext, DialTLS) are removed, so trust roots
+	// and client certificates must be set in TLSClientConfig.
 	HTTPClient *retryablehttp.Client
 	// SessionInfo to resume an existing session
 	SessionInfo *options.SessionInfo
@@ -123,6 +125,8 @@ func verifyTLS(t *http.Transport) error {
 	if t.TLSClientConfig != nil {
 		t.TLSClientConfig.InsecureSkipVerify = false
 	}
+	// idle connections may come from the old, unverified TLS setup
+	t.CloseIdleConnections()
 	return nil
 }
 

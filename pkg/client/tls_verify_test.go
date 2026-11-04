@@ -47,6 +47,10 @@ func TestNewTLSVerifyEnv(t *testing.T) {
 
 		c, err := New(&Options{ServerURL: srv.URL, Token: "test-token", HTTPClient: httpClient})
 		require.NoError(t, err)
+		tr := httpClient.HTTPClient2.Transport.(*http.Transport)
+		require.Nil(t, tr.DialTLSContext)
+		require.Nil(t, tr.DialTLS) //nolint:staticcheck // DialTLS is deprecated but still used
+		require.True(t, tr.TLSClientConfig == nil || !tr.TLSClientConfig.InsecureSkipVerify)
 		_ = c.Close()
 	})
 }
