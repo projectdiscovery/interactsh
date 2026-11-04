@@ -50,7 +50,9 @@ func TestNewTLSVerifyEnv(t *testing.T) {
 		tr := httpClient.HTTPClient2.Transport.(*http.Transport)
 		require.Nil(t, tr.DialTLSContext)
 		require.Nil(t, tr.DialTLS) //nolint:staticcheck // DialTLS is deprecated but still used
-		require.True(t, tr.TLSClientConfig == nil || !tr.TLSClientConfig.InsecureSkipVerify)
+		require.False(t, tr.TLSClientConfig.InsecureSkipVerify)
+		require.Same(t, roots, tr.TLSClientConfig.RootCAs, "the fallback client must trust the primary roots")
+		require.True(t, c.disableHTTPFallback, "the cleartext fallback must be off")
 		_ = c.Close()
 	})
 }

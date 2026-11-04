@@ -8,6 +8,7 @@ import (
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/sha256"
+	"crypto/tls"
 	"crypto/x509"
 	"encoding/base64"
 	"encoding/json"
@@ -157,8 +158,10 @@ func New(options *Options) (*Client, error) {
 	}
 
 	// INTERACTSH_TLS_VERIFY enforces TLS (cleartext is a fatal error)
-	if os.Getenv("INTERACTSH_TLS_VERIFY") == "true" {
-		for _, c := range []*http.Client{httpclient.HTTPClient, httpclient.HTTPClient2} {
+	tlsVerify := os.Getenv("INTERACTSH_TLS_VERIFY") == "true"
+	if tlsVerify {
+		var primaryTLS *tls.Config
+		for i, c := range []*http.Client{httpclient.HTTPClient, httpclient.HTTPClient2} {
 			if c == nil {
 				continue
 			}
@@ -169,6 +172,12 @@ func New(options *Options) (*Client, error) {
 			verifying, err := verifyTLS(t)
 			if err != nil {
 				return nil, err
+			}
+			// the fallback client trusts the same roots as the primary one
+			if i == 0 {
+				primaryTLS = verifying.TLSClientConfig
+			} else if primaryTLS != nil {
+				verifying.TLSClientConfig = primaryTLS.Clone()
 			}
 			c.Transport = verifying
 		}
@@ -220,7 +229,7 @@ func New(options *Options) (*Client, error) {
 		correlationID:            correlationID,
 		httpClient:               httpclient,
 		token:                    token,
-		disableHTTPFallback:      options.DisableHTTPFallback,
+		disableHTTPFallback:      options.DisableHTTPFallback || tlsVerify,
 		correlationIdLength:      options.CorrelationIdLength,
 		CorrelationIdNonceLength: options.CorrelationIdNonceLength,
 	}
