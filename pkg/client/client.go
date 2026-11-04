@@ -182,6 +182,7 @@ func New(options *Options) (*Client, error) {
 					verifying.TLSClientConfig = &tls.Config{}
 				}
 				verifying.TLSClientConfig.RootCAs = primaryTLS.RootCAs
+				verifying.TLSClientConfig.ServerName = primaryTLS.ServerName
 				verifying.TLSClientConfig.Certificates = primaryTLS.Certificates
 				verifying.TLSClientConfig.GetClientCertificate = primaryTLS.GetClientCertificate
 			}
@@ -242,7 +243,7 @@ func New(options *Options) (*Client, error) {
 
 	if options.SessionInfo != nil {
 		if tlsVerify {
-			if serverURL, err := parseServerURL(options.SessionInfo.ServerURL); err != nil || !strings.EqualFold(serverURL.Scheme, "https") {
+			if serverURL, err := parseServerURL(options.SessionInfo.ServerURL); err != nil || !strings.EqualFold(serverURL.Scheme, "https") || serverURL.Host == "" {
 				return nil, errors.New("tls enforced - session server URL is not https")
 			}
 		}
