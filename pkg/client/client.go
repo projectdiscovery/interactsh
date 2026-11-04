@@ -8,6 +8,7 @@ import (
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/sha256"
+	"crypto/tls"
 	"crypto/x509"
 	"encoding/base64"
 	"encoding/json"
@@ -92,7 +93,9 @@ type Options struct {
 	CorrelationIdLength int
 	// CorrelationIdNonceLengthLength of the nonce
 	CorrelationIdNonceLength int
-	// HTTPClient use a custom http client
+	// HTTPClient use a custom http client. With INTERACTSH_TLS_VERIFY=true its
+	// custom TLS dialers (DialTLSContext, DialTLS) are removed, so trust roots
+	// and client certificates must be set in TLSClientConfig.
 	HTTPClient *retryablehttp.Client
 	// SessionInfo to resume an existing session
 	SessionInfo *options.SessionInfo
@@ -107,6 +110,24 @@ var DefaultOptions = &Options{
 	ServerURL:                "oast.pro,oast.live,oast.site,oast.online,oast.fun,oast.me",
 	CorrelationIdLength:      settings.CorrelationIdLengthDefault,
 	CorrelationIdNonceLength: settings.CorrelationIdNonceLengthDefault,
+}
+
+// verifyTLS returns a copy of t that verifies the server certificate. A custom
+// TLS dialer, such as the fastdialer one of retryablehttp, ignores
+// TLSClientConfig, so it is dropped: the copy dials with DialContext and does
+// the TLS handshake itself. The copy has its own connection pool, so no
+// connection from the old, unverified TLS setup is reused.
+func verifyTLS(t *http.Transport) (*http.Transport, error) {
+	if (t.DialTLSContext != nil || t.DialTLS != nil) && t.DialContext == nil && t.Dial == nil { //nolint:staticcheck // DialTLS and Dial are deprecated but still used
+		return nil, errors.New("tls enforced - transport has a custom TLS dialer only")
+	}
+	verifying := t.Clone()
+	verifying.DialTLSContext = nil
+	verifying.DialTLS = nil //nolint:staticcheck // DialTLS is deprecated but still used
+	if verifying.TLSClientConfig != nil {
+		verifying.TLSClientConfig.InsecureSkipVerify = false
+	}
+	return verifying, nil
 }
 
 // New creates a new client instance based on provided options
@@ -137,12 +158,36 @@ func New(options *Options) (*Client, error) {
 	}
 
 	// INTERACTSH_TLS_VERIFY enforces TLS (cleartext is a fatal error)
-	if os.Getenv("INTERACTSH_TLS_VERIFY") == "true" {
-		t, ok := httpclient.HTTPClient.Transport.(*http.Transport)
-		if !ok {
-			return nil, errors.New("could not get http transport")
+	tlsVerify := os.Getenv("INTERACTSH_TLS_VERIFY") == "true"
+	if tlsVerify {
+		var primaryTLS *tls.Config
+		for i, c := range []*http.Client{httpclient.HTTPClient, httpclient.HTTPClient2} {
+			if c == nil {
+				continue
+			}
+			t, ok := c.Transport.(*http.Transport)
+			if !ok {
+				return nil, errors.New("could not get http transport")
+			}
+			verifying, err := verifyTLS(t)
+			if err != nil {
+				return nil, err
+			}
+			// the fallback client trusts the same roots as the primary one
+			if i == 0 {
+				primaryTLS = verifying.TLSClientConfig
+			} else if primaryTLS != nil {
+				// copy only the trust material: the fallback keeps its own ALPN settings
+				if verifying.TLSClientConfig == nil {
+					verifying.TLSClientConfig = &tls.Config{}
+				}
+				verifying.TLSClientConfig.RootCAs = primaryTLS.RootCAs
+				verifying.TLSClientConfig.ServerName = primaryTLS.ServerName
+				verifying.TLSClientConfig.Certificates = primaryTLS.Certificates
+				verifying.TLSClientConfig.GetClientCertificate = primaryTLS.GetClientCertificate
+			}
+			c.Transport = verifying
 		}
-		t.TLSClientConfig.InsecureSkipVerify = false
 		if stringsutil.HasPrefixI(options.ServerURL, "http://") {
 			return nil, errors.New("tls enforced - invalid URL with cleartext http")
 		}
@@ -191,12 +236,17 @@ func New(options *Options) (*Client, error) {
 		correlationID:            correlationID,
 		httpClient:               httpclient,
 		token:                    token,
-		disableHTTPFallback:      options.DisableHTTPFallback,
+		disableHTTPFallback:      options.DisableHTTPFallback || tlsVerify,
 		correlationIdLength:      options.CorrelationIdLength,
 		CorrelationIdNonceLength: options.CorrelationIdNonceLength,
 	}
 
 	if options.SessionInfo != nil {
+		if tlsVerify {
+			if serverURL, err := parseServerURL(options.SessionInfo.ServerURL); err != nil || !strings.EqualFold(serverURL.Scheme, "https") || serverURL.Host == "" {
+				return nil, errors.New("tls enforced - session server URL is not https")
+			}
+		}
 		privKey, err := x509.ParsePKCS1PrivateKey([]byte(options.SessionInfo.PrivateKey))
 		if err == nil {
 			client.privKey = privKey
