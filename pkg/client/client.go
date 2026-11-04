@@ -109,6 +109,23 @@ var DefaultOptions = &Options{
 	CorrelationIdNonceLength: settings.CorrelationIdNonceLengthDefault,
 }
 
+// verifyTLS makes t verify the server certificate. A custom TLS dialer, such
+// as the fastdialer one of retryablehttp, ignores TLSClientConfig, so it is
+// dropped: t dials with DialContext and does the TLS handshake itself.
+func verifyTLS(t *http.Transport) error {
+	if t.DialTLSContext != nil || t.DialTLS != nil { //nolint:staticcheck // DialTLS is deprecated but still used
+		if t.DialContext == nil && t.Dial == nil { //nolint:staticcheck // Dial is deprecated but still used
+			return errors.New("tls enforced - transport has a custom TLS dialer only")
+		}
+		t.DialTLSContext = nil
+		t.DialTLS = nil //nolint:staticcheck // DialTLS is deprecated but still used
+	}
+	if t.TLSClientConfig != nil {
+		t.TLSClientConfig.InsecureSkipVerify = false
+	}
+	return nil
+}
+
 // New creates a new client instance based on provided options
 func New(options *Options) (*Client, error) {
 	// if correlation id lengths and nonce are not specified fallback to default:
@@ -138,11 +155,18 @@ func New(options *Options) (*Client, error) {
 
 	// INTERACTSH_TLS_VERIFY enforces TLS (cleartext is a fatal error)
 	if os.Getenv("INTERACTSH_TLS_VERIFY") == "true" {
-		t, ok := httpclient.HTTPClient.Transport.(*http.Transport)
-		if !ok {
-			return nil, errors.New("could not get http transport")
+		for _, c := range []*http.Client{httpclient.HTTPClient, httpclient.HTTPClient2} {
+			if c == nil {
+				continue
+			}
+			t, ok := c.Transport.(*http.Transport)
+			if !ok {
+				return nil, errors.New("could not get http transport")
+			}
+			if err := verifyTLS(t); err != nil {
+				return nil, err
+			}
 		}
-		t.TLSClientConfig.InsecureSkipVerify = false
 		if stringsutil.HasPrefixI(options.ServerURL, "http://") {
 			return nil, errors.New("tls enforced - invalid URL with cleartext http")
 		}
