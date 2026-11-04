@@ -177,7 +177,13 @@ func New(options *Options) (*Client, error) {
 			if i == 0 {
 				primaryTLS = verifying.TLSClientConfig
 			} else if primaryTLS != nil {
-				verifying.TLSClientConfig = primaryTLS.Clone()
+				// copy only the trust material: the fallback keeps its own ALPN settings
+				if verifying.TLSClientConfig == nil {
+					verifying.TLSClientConfig = &tls.Config{}
+				}
+				verifying.TLSClientConfig.RootCAs = primaryTLS.RootCAs
+				verifying.TLSClientConfig.Certificates = primaryTLS.Certificates
+				verifying.TLSClientConfig.GetClientCertificate = primaryTLS.GetClientCertificate
 			}
 			c.Transport = verifying
 		}
@@ -235,6 +241,11 @@ func New(options *Options) (*Client, error) {
 	}
 
 	if options.SessionInfo != nil {
+		if tlsVerify {
+			if serverURL, err := parseServerURL(options.SessionInfo.ServerURL); err != nil || !strings.EqualFold(serverURL.Scheme, "https") {
+				return nil, errors.New("tls enforced - session server URL is not https")
+			}
+		}
 		privKey, err := x509.ParsePKCS1PrivateKey([]byte(options.SessionInfo.PrivateKey))
 		if err == nil {
 			client.privKey = privKey

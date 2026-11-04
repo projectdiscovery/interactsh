@@ -7,6 +7,7 @@ import (
 	"sync/atomic"
 	"testing"
 
+	"github.com/projectdiscovery/interactsh/pkg/options"
 	"github.com/projectdiscovery/retryablehttp-go"
 	"github.com/stretchr/testify/require"
 )
@@ -53,6 +54,20 @@ func TestNewTLSVerifyEnv(t *testing.T) {
 		require.False(t, tr.TLSClientConfig.InsecureSkipVerify)
 		require.Same(t, roots, tr.TLSClientConfig.RootCAs, "the fallback client must trust the primary roots")
 		require.True(t, c.disableHTTPFallback, "the cleartext fallback must be off")
+		require.Equal(t, []string{"h2", "http/1.1"}, tr.TLSClientConfig.NextProtos, "the fallback client must keep its HTTP/2 ALPN offer")
 		_ = c.Close()
+	})
+
+	t.Run("cleartext session URL is refused", func(t *testing.T) {
+		httpClient := retryablehttp.NewClient(retryablehttp.DefaultOptionsSpraying)
+		roots := x509.NewCertPool()
+		roots.AddCert(srv.Certificate())
+		httpClient.HTTPClient.Transport.(*http.Transport).TLSClientConfig.RootCAs = roots
+
+		_, err := New(&Options{ServerURL: srv.URL, Token: "test-token", HTTPClient: httpClient, SessionInfo: &options.SessionInfo{
+			ServerURL: "http://" + srv.Listener.Addr().String(),
+			PublicKey: "unused",
+		}})
+		require.ErrorContains(t, err, "session server URL is not https")
 	})
 }
