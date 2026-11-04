@@ -111,23 +111,22 @@ var DefaultOptions = &Options{
 	CorrelationIdNonceLength: settings.CorrelationIdNonceLengthDefault,
 }
 
-// verifyTLS makes t verify the server certificate. A custom TLS dialer, such
-// as the fastdialer one of retryablehttp, ignores TLSClientConfig, so it is
-// dropped: t dials with DialContext and does the TLS handshake itself.
-func verifyTLS(t *http.Transport) error {
-	if t.DialTLSContext != nil || t.DialTLS != nil { //nolint:staticcheck // DialTLS is deprecated but still used
-		if t.DialContext == nil && t.Dial == nil { //nolint:staticcheck // Dial is deprecated but still used
-			return errors.New("tls enforced - transport has a custom TLS dialer only")
-		}
-		t.DialTLSContext = nil
-		t.DialTLS = nil //nolint:staticcheck // DialTLS is deprecated but still used
+// verifyTLS returns a copy of t that verifies the server certificate. A custom
+// TLS dialer, such as the fastdialer one of retryablehttp, ignores
+// TLSClientConfig, so it is dropped: the copy dials with DialContext and does
+// the TLS handshake itself. The copy has its own connection pool, so no
+// connection from the old, unverified TLS setup is reused.
+func verifyTLS(t *http.Transport) (*http.Transport, error) {
+	if (t.DialTLSContext != nil || t.DialTLS != nil) && t.DialContext == nil && t.Dial == nil { //nolint:staticcheck // DialTLS and Dial are deprecated but still used
+		return nil, errors.New("tls enforced - transport has a custom TLS dialer only")
 	}
-	if t.TLSClientConfig != nil {
-		t.TLSClientConfig.InsecureSkipVerify = false
+	verifying := t.Clone()
+	verifying.DialTLSContext = nil
+	verifying.DialTLS = nil //nolint:staticcheck // DialTLS is deprecated but still used
+	if verifying.TLSClientConfig != nil {
+		verifying.TLSClientConfig.InsecureSkipVerify = false
 	}
-	// idle connections may come from the old, unverified TLS setup
-	t.CloseIdleConnections()
-	return nil
+	return verifying, nil
 }
 
 // New creates a new client instance based on provided options
@@ -167,9 +166,11 @@ func New(options *Options) (*Client, error) {
 			if !ok {
 				return nil, errors.New("could not get http transport")
 			}
-			if err := verifyTLS(t); err != nil {
+			verifying, err := verifyTLS(t)
+			if err != nil {
 				return nil, err
 			}
+			c.Transport = verifying
 		}
 		if stringsutil.HasPrefixI(options.ServerURL, "http://") {
 			return nil, errors.New("tls enforced - invalid URL with cleartext http")
