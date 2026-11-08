@@ -10,7 +10,6 @@ on:
 jobs:  
   build:
     name: Test Builds
-    if: ${{ !endsWith(github.actor, '[bot]') }}
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
