@@ -635,6 +635,16 @@ func (c *customDNSRecords) checkCustomResponse(zone string, recordType uint16) [
 		}
 	}
 
+	// A name with a CNAME has no other data (RFC 1034 3.6.2), so its CNAME answers every query type
+	// and resolvers follow it. ACM's DNS validation, for one, looks up TXT through its CNAME.
+	if len(filtered) == 0 {
+		for _, config := range configs {
+			if config.Type == "CNAME" {
+				filtered = append(filtered, config)
+			}
+		}
+	}
+
 	return filtered
 }
 

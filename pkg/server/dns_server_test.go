@@ -90,6 +90,31 @@ func TestDNSServerCustomIPv4Record(t *testing.T) {
 	require.False(t, hasRecord(msg.Answer, dns.TypeA, "192.0.2.50"), "default address should be overridden")
 }
 
+func TestDNSServerCustomCNAMEAnswersEveryQueryType(t *testing.T) {
+	opts := newTestOptions([]string{"192.0.2.50"}, "127.0.0.1")
+	dnsServer := NewDNSServer("udp", opts)
+	dnsServer.customRecords.records["_validation"] = []CustomRecordConfig{{Type: "CNAME", Value: "_token.validation.example.net."}}
+	name := dns.Fqdn("_validation.example.com")
+
+	handlers := map[uint16]func(string, *dns.Msg){
+		dns.TypeA:     dnsServer.handleACNAMEANY,
+		dns.TypeAAAA:  dnsServer.handleACNAMEANY,
+		dns.TypeCNAME: dnsServer.handleACNAMEANY,
+		dns.TypeTXT:   dnsServer.handleTXT,
+		dns.TypeMX:    dnsServer.handleMX,
+	}
+	for qtype, handle := range handlers {
+		msg := new(dns.Msg)
+		msg.Question = []dns.Question{{Name: name, Qtype: qtype}}
+		handle(name, msg)
+
+		require.Len(t, msg.Answer, 1, dns.TypeToString[qtype])
+		cname, ok := msg.Answer[0].(*dns.CNAME)
+		require.True(t, ok, "expected a CNAME for a %s query", dns.TypeToString[qtype])
+		require.Equal(t, "_token.validation.example.net.", cname.Target)
+	}
+}
+
 func TestDNSServerHandleMX(t *testing.T) {
 	opts := newTestOptions([]string{"192.0.2.50"}, "127.0.0.1")
 	dnsServer := NewDNSServer("udp", opts)
