@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"syscall"
 	"testing"
 
 	"github.com/spf13/afero"
@@ -96,6 +97,45 @@ func TestFTPSessionHidesUploadsDir(t *testing.T) {
 	})
 }
 
+// ftpserverlib quotes driver errors in its replies, so errors from a file that
+// opened fine must not give the on-disk path either.
+func TestFTPFileErrorsGiveClientPath(t *testing.T) {
+	fs := afero.NewMemMapFs()
+	require.NoError(t, fs.Mkdir("/pub", 0o700))
+	session := &ftpSession{Fs: brokenFs{fs}}
+
+	_, err := session.ReadDir("/pub")
+	require.ErrorIs(t, err, syscall.EIO)
+	require.NotContains(t, err.Error(), "/srv/ftp")
+
+	f, err := session.Open("/pub")
+	require.NoError(t, err)
+	_, err = downloadFile{File: f, name: "/pub"}.Read(make([]byte, 1))
+	require.ErrorIs(t, err, syscall.EIO)
+	require.NotContains(t, err.Error(), "/srv/ftp")
+}
+
+// brokenFs opens files that fail every read with an error that names an
+// on-disk path.
+type brokenFs struct{ afero.Fs }
+
+func (fs brokenFs) Open(name string) (afero.File, error) {
+	f, err := fs.Fs.Open(name)
+	if err != nil {
+		return nil, err
+	}
+	return brokenFile{f}, nil
+}
+
+type brokenFile struct{ afero.File }
+
+func (brokenFile) Read([]byte) (int, error)           { return 0, errOnDisk("read") }
+func (brokenFile) Readdir(int) ([]os.FileInfo, error) { return nil, errOnDisk("readdirent") }
+
+func errOnDisk(op string) error {
+	return &os.PathError{Op: op, Path: "/srv/ftp/pub", Err: syscall.EIO}
+}
+
 // TestFTPServerSession drives a real client session, because ftpserverlib
 // picks up the driver's hooks by type assertion and only a session shows that
 // each one is reached.
@@ -133,9 +173,8 @@ func TestFTPServerSession(t *testing.T) {
 		require.NoError(t, err, format)
 		return msg
 	}
-	// transfer runs a data command over EPSV, sending upload if it is not nil,
-	// and returns what the server sent.
-	transfer := func(upload []byte, format string, args ...any) []byte {
+	// dial opens a data connection over EPSV.
+	dial := func() net.Conn {
 		t.Helper()
 		msg := send(229, "EPSV")
 		_, rest, ok := strings.Cut(msg, "|||")
@@ -143,6 +182,13 @@ func TestFTPServerSession(t *testing.T) {
 		dataPort, _, _ := strings.Cut(rest, "|")
 		data, err := net.Dial("tcp", net.JoinHostPort("127.0.0.1", dataPort))
 		require.NoError(t, err)
+		return data
+	}
+	// transfer runs a data command, sending upload if it is not nil, and
+	// returns what the server sent.
+	transfer := func(upload []byte, format string, args ...any) []byte {
+		t.Helper()
+		data := dial()
 		send(150, format, args...)
 		var got []byte
 		if upload != nil {
@@ -196,6 +242,24 @@ func TestFTPServerSession(t *testing.T) {
 	require.NoDirExists(t, filepath.Join(root, "made"))
 	require.NoFileExists(t, filepath.Join(root, "renamed.html"))
 
+	// Error replies give the client's path, never where the root is on disk.
+	for _, cmd := range []string{"SIZE /nope", "MDTM /nope", "MLST /nope", "RNFR /nope"} {
+		require.NotContains(t, send(550, "%s", cmd), root, cmd)
+	}
+	require.NotContains(t, send(450, "STAT /nope"), root)
+	send(229, "EPSV")
+	require.NotContains(t, send(450, "NLST /nope"), root)
+	send(229, "EPSV")
+	require.NotContains(t, send(550, "RETR /nope"), root)
+	send(350, "REST -1")
+	send(229, "EPSV")
+	require.NotContains(t, send(550, "RETR /index.html"), root, "a seek that fails")
+	// The data connection is ready, so a transfer would start at once with a
+	// 150 instead of the refusal.
+	data := dial()
+	require.NotContains(t, send(550, "RETR /"), root, "a directory is refused before any read")
+	require.NoError(t, data.Close())
+
 	// ftpserverlib has no hook for these: Stat records them.
 	send(250, "CWD /%s", uploadsDirName)
 	send(250, "CDUP")
@@ -223,6 +287,9 @@ func TestFTPServerSession(t *testing.T) {
 		"MKD /made\ncreating directory /made",
 		"RMD /made\ndeleting directory /made",
 		"DELE /index.html\ndeleting /index.html",
+		"RETR /nope\ndownloading file /nope",
+		"RETR /index.html\ndownloading file /index.html",
+		"RETR /\ndownloading file /",
 		"CWD /" + uploadsDirName + "\nchanging directory from / to /" + uploadsDirName,
 		"CWD ..\nchanging directory from /" + uploadsDirName + " to /",
 		"CWD /" + uploadsDirName + "\nchanging directory from / to /" + uploadsDirName,

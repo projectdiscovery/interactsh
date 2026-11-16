@@ -11,6 +11,7 @@ import (
 	"strings"
 	"sync"
 	"sync/atomic"
+	"syscall"
 	"time"
 
 	"encoding/json"
@@ -262,11 +263,24 @@ func (s *ftpSession) record(command, name, event, dstPath string) {
 }
 
 // Open and Stat are the only ways this driver reads the root, so they are
-// where client paths are cleaned (see ftpCleanPath). The embedded OpenFile
+// where client paths are cleaned (see ftpCleanPath) and where their errors
+// lose the on-disk path (see withClientPath). ReadDir and downloadFile do
+// the same for errors from the files Open returns. The embedded OpenFile
 // would read too, but ftpserverlib calls it only for drivers without
 // GetHandle.
 func (s *ftpSession) Open(name string) (afero.File, error) {
-	return s.Fs.Open(ftpCleanPath(name))
+	f, err := s.Fs.Open(ftpCleanPath(name))
+	return f, withClientPath(err, name)
+}
+
+// withClientPath puts the client's path in place of the on-disk one in a file
+// system error. ftpserverlib quotes the error in its reply, and the on-disk
+// path would tell any anonymous client where the FTP root is on the server.
+func withClientPath(err error, name string) error {
+	if pathErr, ok := errors.AsType[*os.PathError](err); ok {
+		return &os.PathError{Op: pathErr.Op, Path: name, Err: pathErr.Err}
+	}
+	return err
 }
 
 // Stat also records CWD and CDUP, which ftpserverlib carries out as a Stat of
@@ -278,7 +292,10 @@ func (s *ftpSession) Open(name string) (afero.File, error) {
 // which is how interactsh has always stored them.
 func (s *ftpSession) Stat(name string) (os.FileInfo, error) {
 	info, err := s.Fs.Stat(ftpCleanPath(name))
-	if err == nil && info.IsDir() {
+	if err != nil {
+		return nil, withClientPath(err, name)
+	}
+	if info.IsDir() {
 		event := "changing directory from " + s.cc.Path() + " to " + name
 		switch s.cc.GetLastCommand() {
 		case "CWD", "XCWD":
@@ -287,7 +304,7 @@ func (s *ftpSession) Stat(name string) (os.FileInfo, error) {
 			s.record("CWD", "..", event, "")
 		}
 	}
-	return info, err
+	return info, nil
 }
 
 // ReadDir hides interactsh's own upload storage, and nothing else.
@@ -308,7 +325,7 @@ func (s *ftpSession) ReadDir(name string) ([]os.FileInfo, error) {
 	}
 	entries, err := afero.ReadDir(s, name)
 	if err != nil || !isFTPRoot(name) {
-		return entries, err
+		return entries, withClientPath(err, name)
 	}
 	return slices.DeleteFunc(entries, func(info os.FileInfo) bool {
 		return info.Name() == uploadsDirName
@@ -368,7 +385,7 @@ func (s *ftpSession) Mkdir(name string, _ os.FileMode) error {
 func (s *ftpSession) GetHandle(name string, flags int, _ int64) (ftpserver.FileTransfer, error) {
 	if flags&os.O_WRONLY == 0 {
 		s.record("RETR", name, "downloading file "+name, name)
-		return s.Open(name)
+		return s.openDownload(name)
 	}
 	command := "STOR"
 	if flags&os.O_APPEND != 0 {
@@ -376,6 +393,43 @@ func (s *ftpSession) GetHandle(name string, flags int, _ int64) (ftpserver.FileT
 	}
 	s.record(command, name, "uploading "+name, "")
 	return discardFile{}, nil
+}
+
+// openDownload opens a file for RETR. It refuses a directory itself, so that
+// hiding the uploads directory never depends on the OS refusing to read one:
+// where reading is allowed, its raw entries would list correlation ids.
+func (s *ftpSession) openDownload(name string) (ftpserver.FileTransfer, error) {
+	f, err := s.Open(name)
+	if err != nil {
+		return nil, err
+	}
+	info, err := f.Stat()
+	if err == nil && info.IsDir() {
+		err = &os.PathError{Op: "open", Path: name, Err: syscall.EISDIR}
+	}
+	if err != nil {
+		_ = f.Close()
+		return nil, withClientPath(err, name)
+	}
+	return downloadFile{File: f, name: name}, nil
+}
+
+// downloadFile is a file being sent for RETR. Its Seek and Read errors give
+// the client's path, as Open's do, because ftpserverlib quotes them in its
+// replies. Seek, for one, fails after a negative REST.
+type downloadFile struct {
+	afero.File
+	name string
+}
+
+func (f downloadFile) Seek(offset int64, whence int) (int64, error) {
+	n, err := f.File.Seek(offset, whence)
+	return n, withClientPath(err, f.name)
+}
+
+func (f downloadFile) Read(p []byte) (int, error) {
+	n, err := f.File.Read(p)
+	return n, withClientPath(err, f.name)
 }
 
 // discardFile is where uploads go: it accepts whatever is sent and keeps none.
