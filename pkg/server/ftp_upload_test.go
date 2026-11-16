@@ -2,13 +2,17 @@ package server
 
 import (
 	"encoding/json"
+	"io"
+	"net"
 	"net/http"
+	"net/textproto"
 	"os"
+	"path/filepath"
+	"strings"
 	"testing"
-	"time"
 
+	"github.com/spf13/afero"
 	"github.com/stretchr/testify/require"
-	ftpserver "goftp.io/server/v2"
 )
 
 func TestIsFTPRoot(t *testing.T) {
@@ -20,34 +24,6 @@ func TestIsFTPRoot(t *testing.T) {
 	}
 }
 
-// countingDriver records which paths reached the wrapped driver, and reports the
-// entries it was configured with for each of them.
-type countingDriver struct {
-	ftpserver.Driver
-	listed  []string
-	entries []string
-}
-
-func (d *countingDriver) ListDir(c *ftpserver.Context, s string, f func(os.FileInfo) error) error {
-	d.listed = append(d.listed, s)
-	for _, name := range d.entries {
-		if err := f(dirEntryInfo(name)); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-// dirEntryInfo is a minimal os.FileInfo standing in for a directory entry.
-type dirEntryInfo string
-
-func (d dirEntryInfo) Name() string       { return string(d) }
-func (d dirEntryInfo) Size() int64        { return 0 }
-func (d dirEntryInfo) Mode() os.FileMode  { return os.ModeDir | 0o700 }
-func (d dirEntryInfo) ModTime() time.Time { return time.Time{} }
-func (d dirEntryInfo) IsDir() bool        { return true }
-func (d dirEntryInfo) Sys() interface{}   { return nil }
-
 func TestIsUploadsDir(t *testing.T) {
 	for _, p := range []string{
 		"/" + uploadsDirName,
@@ -56,6 +32,8 @@ func TestIsUploadsDir(t *testing.T) {
 		"/./" + uploadsDirName,
 		"/other/../" + uploadsDirName,
 		"/" + uploadsDirName + "/.",
+		// Backslashes on Windows, where the file system splits on them too.
+		filepath.FromSlash("/other/../") + uploadsDirName,
 	} {
 		require.True(t, isUploadsDir(p), "expected %q to resolve to the uploads directory", p)
 	}
@@ -69,9 +47,32 @@ func TestIsUploadsDir(t *testing.T) {
 	}
 }
 
-// NopAuth accepts any credentials, so an unauthenticated client must not be able
-// to enumerate the correlation ids that currently have hosted files.
-func TestNopDriverHidesUploadsDir(t *testing.T) {
+// AuthUser accepts any credentials, so an unauthenticated client must not be
+// able to enumerate the correlation ids that currently have hosted files.
+func TestFTPSessionHidesUploadsDir(t *testing.T) {
+	const id = "c6rj61aciaeutn2ae680"
+	fs := afero.NewMemMapFs()
+	for _, p := range []string{
+		"/index.html",
+		"/assets/app.js",
+		"/" + uploadsDirName + "/" + id + "/evil.dtd",
+		"/" + uploadsDirName + "/c6rj61aciaeutn2ae681/evil.dtd",
+	} {
+		require.NoError(t, afero.WriteFile(fs, p, nil, 0o600))
+	}
+	session := &ftpSession{Fs: fs}
+
+	list := func(t *testing.T, p string) []string {
+		t.Helper()
+		entries, err := session.ReadDir(p)
+		require.NoError(t, err)
+		var names []string
+		for _, entry := range entries {
+			names = append(names, entry.Name())
+		}
+		return names
+	}
+
 	t.Run("the uploads directory never enumerates", func(t *testing.T) {
 		for _, p := range []string{
 			"/" + uploadsDirName,
@@ -79,46 +80,155 @@ func TestNopDriverHidesUploadsDir(t *testing.T) {
 			"//" + uploadsDirName,
 			"/./" + uploadsDirName,
 			"/pub/../" + uploadsDirName,
+			filepath.FromSlash("/pub/../") + uploadsDirName,
 		} {
-			inner := &countingDriver{entries: []string{"c6rj61aciaeutn2ae680", "c6rj61aciaeutn2ae681"}}
-			driver := NewNopDriver(inner)
-
-			var seen []string
-			require.NoError(t, driver.ListDir(nil, p, func(fi os.FileInfo) error {
-				seen = append(seen, fi.Name())
-				return nil
-			}))
-			require.Empty(t, seen, "%q must not enumerate correlation ids", p)
-			require.Empty(t, inner.listed, "%q must not even reach the filesystem", p)
+			require.Empty(t, list(t, p), "%q must not enumerate correlation ids", p)
 		}
 	})
 
 	t.Run("the root lists operator content without the uploads directory", func(t *testing.T) {
-		inner := &countingDriver{entries: []string{"index.html", uploadsDirName, "assets"}}
-		driver := NewNopDriver(inner)
-
-		var seen []string
-		require.NoError(t, driver.ListDir(nil, "/", func(fi os.FileInfo) error {
-			seen = append(seen, fi.Name())
-			return nil
-		}))
-		require.Equal(t, []string{"index.html", "assets"}, seen,
+		require.Equal(t, []string{"assets", "index.html"}, list(t, "/"),
 			"-ftp-dir is documented as serving the operator's directory, minus our own")
 	})
 
 	t.Run("a session directory still lists for a client that knows its id", func(t *testing.T) {
-		inner := &countingDriver{entries: []string{"evil.dtd"}}
-		driver := NewNopDriver(inner)
-		p := "/" + uploadsDirName + "/c6rj61aciaeutn2ae680"
-
-		var seen []string
-		require.NoError(t, driver.ListDir(nil, p, func(fi os.FileInfo) error {
-			seen = append(seen, fi.Name())
-			return nil
-		}))
-		require.Equal(t, []string{"evil.dtd"}, seen)
-		require.Equal(t, []string{p}, inner.listed)
+		require.Equal(t, []string{"evil.dtd"}, list(t, "/"+uploadsDirName+"/"+id))
 	})
+}
+
+// TestFTPServerSession drives a real client session, because ftpserverlib
+// picks up the driver's hooks by type assertion and only a session shows that
+// each one is reached.
+func TestFTPServerSession(t *testing.T) {
+	h, id, secret := uploadTestServer(t, true)
+	options := h.options
+	options.Token = "shared-token"
+	require.NoError(t, options.Storage.SetID(options.Token))
+	// Line breaks show whether a download is converted to CRLF.
+	payload := "<!ENTITY % a \"b\">\n<!ENTITY % c \"d\">\n"
+	resp := doUpload(t, h, uploadBody(t, id, secret, map[string][]byte{"evil.dtd": []byte(payload)}))
+	require.Equal(t, http.StatusOK, resp.StatusCode)
+
+	root := options.UploadStore.Root()
+	index := filepath.Join(root, "index.html")
+	require.NoError(t, os.WriteFile(index, []byte("operator"), 0o600))
+	options.FTPDirectory = root
+
+	ftp, err := NewFTPServer(options)
+	require.NoError(t, err)
+	require.NoError(t, ftp.ftpServer.Listen())
+	go func() { _ = ftp.ftpServer.Serve() }()
+	t.Cleanup(ftp.Close)
+
+	_, port, err := net.SplitHostPort(ftp.ftpServer.Addr())
+	require.NoError(t, err)
+	c, err := textproto.Dial("tcp", net.JoinHostPort("127.0.0.1", port))
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = c.Close() })
+
+	send := func(code int, format string, args ...any) string {
+		t.Helper()
+		require.NoError(t, c.PrintfLine(format, args...))
+		_, msg, err := c.ReadResponse(code)
+		require.NoError(t, err, format)
+		return msg
+	}
+	// transfer runs a data command over EPSV, sending upload if it is not nil,
+	// and returns what the server sent.
+	transfer := func(upload []byte, format string, args ...any) []byte {
+		t.Helper()
+		msg := send(229, "EPSV")
+		_, rest, ok := strings.Cut(msg, "|||")
+		require.True(t, ok, msg)
+		dataPort, _, _ := strings.Cut(rest, "|")
+		data, err := net.Dial("tcp", net.JoinHostPort("127.0.0.1", dataPort))
+		require.NoError(t, err)
+		send(150, format, args...)
+		var got []byte
+		if upload != nil {
+			_, err = data.Write(upload)
+		} else {
+			got, err = io.ReadAll(data)
+		}
+		require.NoError(t, err)
+		require.NoError(t, data.Close())
+		_, _, err = c.ReadResponse(226)
+		require.NoError(t, err, format)
+		return got
+	}
+	names := func(listing []byte) []string {
+		return strings.Fields(string(listing))
+	}
+
+	_, _, err = c.ReadResponse(220)
+	require.NoError(t, err)
+	send(331, "USER anonymous")
+	send(230, "PASS hunter2")
+
+	require.Equal(t, []string{"index.html"}, names(transfer(nil, "NLST /")),
+		"the uploads directory must not be discoverable")
+	require.Empty(t, names(transfer(nil, "NLST /%s", uploadsDirName)),
+		"the uploads directory must not enumerate correlation ids")
+
+	hosted := "/" + uploadsDirName + "/" + id + "/evil.dtd"
+	require.Equal(t, payload, string(transfer(nil, "RETR %s", hosted)),
+		"a hosted file must arrive byte for byte, even without TYPE I")
+
+	// Writes succeed for the client and change nothing on disk.
+	transfer([]byte("overwritten"), "STOR /index.html")
+	transfer([]byte("appended"), "APPE /index.html")
+	send(257, "MKD /made")
+	send(257, "XMKD /made")
+	send(250, "RMD /made")
+	send(250, "DELE /index.html")
+	send(350, "RNFR /index.html")
+	send(250, "RNTO /renamed.html")
+	// Writes the driver does not fake are refused.
+	before, err := os.Stat(index)
+	require.NoError(t, err)
+	send(550, "SITE CHMOD 755 /index.html")
+	after, err := os.Stat(index)
+	require.NoError(t, err)
+	require.Equal(t, before.Mode(), after.Mode())
+	content, err := os.ReadFile(index)
+	require.NoError(t, err)
+	require.Equal(t, "operator", string(content))
+	require.NoDirExists(t, filepath.Join(root, "made"))
+	require.NoFileExists(t, filepath.Join(root, "renamed.html"))
+
+	// ftpserverlib has no hook for these: Stat records them.
+	send(250, "CWD /%s", uploadsDirName)
+	send(250, "CDUP")
+	send(250, "XCWD /%s", uploadsDirName)
+
+	requests := func(token string) []string {
+		t.Helper()
+		item, err := options.Storage.GetCacheItem(token)
+		require.NoError(t, err)
+		var raw []string
+		for _, data := range item.Data {
+			interaction := &Interaction{}
+			require.NoError(t, json.Unmarshal([]byte(data), interaction))
+			require.Equal(t, "ftp", interaction.Protocol)
+			raw = append(raw, interaction.RawRequest)
+		}
+		return raw
+	}
+	require.Equal(t, []string{
+		"USER anonymous\nanonymous logging in",
+		"PASS hunter2\nuser anonymous logged in with password hunter2",
+		"STOR /index.html\nuploading /index.html",
+		"APPE /index.html\nuploading /index.html",
+		"MKD /made\ncreating directory /made",
+		"MKD /made\ncreating directory /made",
+		"RMD /made\ndeleting directory /made",
+		"DELE /index.html\ndeleting /index.html",
+		"CWD /" + uploadsDirName + "\nchanging directory from / to /" + uploadsDirName,
+		"CWD ..\nchanging directory from /" + uploadsDirName + " to /",
+		"CWD /" + uploadsDirName + "\nchanging directory from / to /" + uploadsDirName,
+	}, requests(options.Token))
+	require.Equal(t, []string{"RETR " + hosted + "\ndownloading file " + hosted}, requests(id),
+		"a hosted file's download belongs to its session")
 }
 
 func TestFTPDownloadCorrelation(t *testing.T) {

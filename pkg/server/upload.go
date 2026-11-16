@@ -30,7 +30,8 @@ const (
 	// amount of coincidence between an operator's directory name and a
 	// correlation id can put their content at risk. The leading dot keeps it out
 	// of the way of an operator listing their own FTP root; it is not a security
-	// measure, since NopDriver is what actually hides it (see ftp_server.go).
+	// measure, since ftpSession.ReadDir is what actually hides it (see
+	// ftp_server.go).
 	uploadsDirName = ".interactsh-user-uploads"
 
 	// deleteQueueSize bounds the backlog of session directories awaiting
