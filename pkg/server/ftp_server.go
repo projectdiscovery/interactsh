@@ -2,27 +2,30 @@ package server
 
 import (
 	"crypto/tls"
-	"fmt"
+	"errors"
 	"io"
 	"os"
 	"path"
+	"path/filepath"
+	"slices"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"time"
 
 	"encoding/json"
 
 	"github.com/asaskevich/govalidator"
+	ftpserver "github.com/fclairamb/ftpserverlib"
 	"github.com/projectdiscovery/gologger"
-	ftpserver "goftp.io/server/v2"
-	"goftp.io/server/v2/driver/file"
+	"github.com/spf13/afero"
 )
 
 // FTPServer is a ftp server instance
 type FTPServer struct {
 	options    *Options
-	ftpServer  *ftpserver.Server
-	ftpsServer *ftpserver.Server
+	ftpServer  *ftpserver.FtpServer
+	ftpsServer *ftpserver.FtpServer
 }
 
 // NewFTPServer returns a new TLS & Non-TLS FTP server.
@@ -38,57 +41,39 @@ func NewFTPServer(options *Options) (*FTPServer, error) {
 		}
 	}
 
-	driver, err := file.NewDriver(ftpFolder)
+	// BasePathFs confines paths with a string-prefix check, which a relative
+	// root breaks: under ".", "/index.html" becomes "index.html" and fails
+	// the check.
+	root, err := filepath.Abs(ftpFolder)
 	if err != nil {
 		return nil, err
 	}
+	// The read-only layer refuses every write that ftpSession does not
+	// already turn into a no-op.
+	fs := afero.NewReadOnlyFs(afero.NewBasePathFs(afero.NewOsFs(), root))
 
-	nopDriver := NewNopDriver(driver)
-
-	opt := &ftpserver.Options{
-		Name:   "interactsh-ftp",
-		Driver: nopDriver,
-		Port:   options.FtpPort,
-		Perm:   ftpserver.NewSimplePerm("root", "root"),
-		Logger: server,
-		Auth:   &NopAuth{},
-	}
-
-	// start ftp server
-	ftpServer, err := ftpserver.NewServer(opt)
-	if err != nil {
-		return nil, err
-	}
-	server.ftpServer = ftpServer
-	ftpServer.RegisterNotifer(server)
+	server.ftpServer = ftpserver.NewFtpServer(&ftpDriver{server: server, fs: fs, port: options.FtpPort})
 
 	if options.CertificatePath != "" && options.PrivateKeyPath != "" || len(options.CertFiles) > 0 {
 		// attempt to retrieve certificates for the first domain automatically
-		optsTls := &ftpserver.Options{
-			Name:   "interactsh-ftp",
-			Driver: nopDriver,
-			Port:   options.FtpsPort,
-			Perm:   ftpserver.NewSimplePerm("root", "root"),
-			Logger: server,
-			Auth:   &NopAuth{},
-		}
-		optsTls.TLS = true
-		optsTls.Port = options.FtpsPort
+		certFile, keyFile := options.CertificatePath, options.PrivateKeyPath
 		if len(options.CertFiles) > 0 {
-			optsTls.CertFile = options.CertFiles[0].CertPath
-			optsTls.KeyFile = options.CertFiles[0].PrivKeyPath
-		} else {
-			optsTls.CertFile = options.CertificatePath
-			optsTls.KeyFile = options.PrivateKeyPath
+			certFile, keyFile = options.CertFiles[0].CertPath, options.CertFiles[0].PrivKeyPath
 		}
-
-		// start ftp server
-		ftpsServer, err := ftpserver.NewServer(optsTls)
-		if err != nil {
-			return nil, err
-		}
-		server.ftpsServer = ftpsServer
-		ftpsServer.RegisterNotifer(server)
+		server.ftpsServer = ftpserver.NewFtpServer(&ftpDriver{
+			server: server,
+			fs:     fs,
+			port:   options.FtpsPort,
+			// Loaded when FTPS starts listening, so that a bad key pair stops
+			// FTPS alone, and loaded once, because every FEAT asks for it.
+			tlsConfig: sync.OnceValues(func() (*tls.Config, error) {
+				cert, err := tls.LoadX509KeyPair(certFile, keyFile)
+				if err != nil {
+					return nil, err
+				}
+				return &tls.Config{Certificates: []tls.Certificate{cert}, NextProtos: []string{"ftp"}}, nil
+			}),
+		})
 	}
 
 	return server, nil
@@ -115,9 +100,9 @@ func (h *FTPServer) ListenAndServe(tlsConfig *tls.Config, ftpAlive chan bool, ft
 }
 
 func (h *FTPServer) Close() {
-	_ = h.ftpServer.Shutdown()
+	_ = h.ftpServer.Stop()
 	if h.ftpsServer != nil {
-		_ = h.ftpsServer.Shutdown()
+		_ = h.ftpsServer.Stop()
 	}
 }
 
@@ -195,163 +180,119 @@ func (h *FTPServer) correlationIDFromPath(dstPath string) string {
 	return segment
 }
 
-func (h *FTPServer) Print(sessionID string, message interface{})              {}
-func (h *FTPServer) Printf(sessionID string, format string, v ...interface{}) {}
-func (h *FTPServer) PrintCommand(sessionID string, command string, params string) {
-	h.Print(sessionID, fmt.Sprintf("%s %s", command, params))
-}
-func (h *FTPServer) PrintResponse(sessionID string, code int, message string) {
-	h.Print(sessionID, fmt.Sprintf("%d %s", code, message))
-}
-
-func (h *FTPServer) BeforeLoginUser(ctx *ftpserver.Context, userName string) {
-	var b strings.Builder
-	b.WriteString(ctx.Cmd)
-	b.WriteString(" ")
-	b.WriteString(ctx.Param)
-	b.WriteString("\n")
-	b.WriteString(userName + " logging in")
-	h.recordInteraction(ctx.Sess.RemoteAddr().String(), b.String())
-}
-func (h *FTPServer) BeforePutFile(ctx *ftpserver.Context, dstPath string) {
-	var b strings.Builder
-	b.WriteString(ctx.Cmd)
-	b.WriteString(" ")
-	b.WriteString(ctx.Param)
-	b.WriteString("\n")
-	b.WriteString("uploading " + dstPath)
-	h.recordInteraction(ctx.Sess.RemoteAddr().String(), b.String())
-}
-func (h *FTPServer) BeforeDeleteFile(ctx *ftpserver.Context, dstPath string) {
-	var b strings.Builder
-	b.WriteString(ctx.Cmd)
-	b.WriteString(" ")
-	b.WriteString(ctx.Param)
-	b.WriteString("\n")
-	b.WriteString("deleting " + dstPath)
-	h.recordInteraction(ctx.Sess.RemoteAddr().String(), b.String())
-}
-func (h *FTPServer) BeforeChangeCurDir(ctx *ftpserver.Context, oldCurDir, newCurDir string) {
-	var b strings.Builder
-	b.WriteString(ctx.Cmd)
-	b.WriteString(" ")
-	b.WriteString(ctx.Param)
-	b.WriteString("\n")
-	b.WriteString("changing directory from " + oldCurDir + " to " + newCurDir)
-	h.recordInteraction(ctx.Sess.RemoteAddr().String(), b.String())
-}
-func (h *FTPServer) BeforeCreateDir(ctx *ftpserver.Context, dstPath string) {
-	var b strings.Builder
-	b.WriteString(ctx.Cmd)
-	b.WriteString(" ")
-	b.WriteString(ctx.Param)
-	b.WriteString("\n")
-	b.WriteString("creating directory " + dstPath)
-	h.recordInteraction(ctx.Sess.RemoteAddr().String(), b.String())
-}
-func (h *FTPServer) BeforeDeleteDir(ctx *ftpserver.Context, dstPath string) {
-	var b strings.Builder
-	b.WriteString(ctx.Cmd)
-	b.WriteString(" ")
-	b.WriteString(ctx.Param)
-	b.WriteString("\n")
-	b.WriteString("deleting directory " + dstPath)
-	h.recordInteraction(ctx.Sess.RemoteAddr().String(), b.String())
-}
-func (h *FTPServer) BeforeDownloadFile(ctx *ftpserver.Context, dstPath string) {
-	var b strings.Builder
-	b.WriteString(ctx.Cmd)
-	b.WriteString(" ")
-	b.WriteString(ctx.Param)
-	b.WriteString("\n")
-	b.WriteString("downloading file " + dstPath)
-	h.recordInteractionForPath(ctx.Sess.RemoteAddr().String(), b.String(), dstPath)
-}
-func (h *FTPServer) AfterUserLogin(ctx *ftpserver.Context, userName, password string, passMatched bool, err error) {
-	var b strings.Builder
-	b.WriteString(ctx.Cmd)
-	b.WriteString(" ")
-	b.WriteString(ctx.Param)
-	b.WriteString("\n")
-	b.WriteString("user " + userName + " logged in with password " + password)
-	h.recordInteraction(ctx.Sess.RemoteAddr().String(), b.String())
-}
-func (h *FTPServer) AfterFilePut(ctx *ftpserver.Context, dstPath string, size int64, err error) {
-	var b strings.Builder
-	b.WriteString(ctx.Cmd)
-	b.WriteString(" ")
-	b.WriteString(ctx.Param)
-	b.WriteString("\n")
-	b.WriteString("uploaded " + dstPath)
-	h.recordInteraction(ctx.Sess.RemoteAddr().String(), b.String())
-}
-func (h *FTPServer) AfterFileDeleted(ctx *ftpserver.Context, dstPath string, err error) {
-	var b strings.Builder
-	b.WriteString(ctx.Cmd)
-	b.WriteString(" ")
-	b.WriteString(ctx.Param)
-	b.WriteString("\n")
-	b.WriteString("deleted " + dstPath)
-	h.recordInteraction(ctx.Sess.RemoteAddr().String(), b.String())
-}
-func (h *FTPServer) AfterFileDownloaded(ctx *ftpserver.Context, dstPath string, size int64, err error) {
-	var b strings.Builder
-	b.WriteString(ctx.Cmd)
-	b.WriteString(" ")
-	b.WriteString(ctx.Param)
-	b.WriteString("\n")
-	b.WriteString("downloaded file " + dstPath)
-	h.recordInteractionForPath(ctx.Sess.RemoteAddr().String(), b.String(), dstPath)
-}
-func (h *FTPServer) AfterCurDirChanged(ctx *ftpserver.Context, oldCurDir, newCurDir string, err error) {
-	var b strings.Builder
-	b.WriteString(ctx.Cmd)
-	b.WriteString(" ")
-	b.WriteString(ctx.Param)
-	b.WriteString("\n")
-	b.WriteString("changed directory from " + oldCurDir + " to " + newCurDir)
-	h.recordInteraction(ctx.Sess.RemoteAddr().String(), b.String())
-}
-func (h *FTPServer) AfterDirCreated(ctx *ftpserver.Context, dstPath string, err error) {
-	var b strings.Builder
-	b.WriteString(ctx.Cmd)
-	b.WriteString(" ")
-	b.WriteString(ctx.Param)
-	b.WriteString("\n")
-	b.WriteString("created directory " + dstPath)
-	h.recordInteraction(ctx.Sess.RemoteAddr().String(), b.String())
-}
-func (h *FTPServer) AfterDirDeleted(ctx *ftpserver.Context, dstPath string, err error) {
-	var b strings.Builder
-	b.WriteString(ctx.Cmd)
-	b.WriteString(" ")
-	b.WriteString(ctx.Param)
-	b.WriteString("\n")
-	b.WriteString("delete directory " + dstPath)
-	h.recordInteraction(ctx.Sess.RemoteAddr().String(), b.String())
+// ftpDriver serves one FTP port. Any login succeeds: recording it is the point.
+type ftpDriver struct {
+	server *FTPServer
+	fs     afero.Fs
+	port   int
+	// tlsConfig is set on the implicit-TLS port and nil on plain FTP.
+	tlsConfig func() (*tls.Config, error)
 }
 
-type NopAuth struct{}
+// ftpserverlib finds these extensions by type assertion and silently does
+// without any that is missing. Without ReadDir, it would list the uploads
+// directory.
+var (
+	_ ftpserver.MainDriverExtensionUserVerifier   = (*ftpDriver)(nil)
+	_ ftpserver.ClientDriverExtensionFileList     = (*ftpSession)(nil)
+	_ ftpserver.ClientDriverExtentionFileTransfer = (*ftpSession)(nil)
+	_ ftpserver.ClientDriverExtensionRemoveDir    = (*ftpSession)(nil)
+)
 
-func (a *NopAuth) CheckPasswd(ctx *ftpserver.Context, name, pass string) (bool, error) {
-	return true, nil
+var errFTPNoTLS = errors.New("TLS is not enabled on this port")
+
+func (d *ftpDriver) GetSettings() (*ftpserver.Settings, error) {
+	settings := &ftpserver.Settings{
+		ListenAddr: formatAddress("", d.port),
+		// Dialing active-mode data connections from port 20 needs a privilege
+		// the server may not have.
+		ActiveTransferPortNon20: true,
+		// Hosted payloads must arrive byte for byte, whatever TYPE the client
+		// asked for.
+		DisableASCIIConversion: true,
+		// Seconds a data connection may take to arrive: the 60 that clients
+		// of interactsh have always had, rather than the default 30.
+		ConnectionTimeout: 60,
+	}
+	if d.tlsConfig != nil {
+		settings.TLSRequired = ftpserver.ImplicitEncryption
+	}
+	return settings, nil
 }
 
-type NopDriver struct {
-	driver ftpserver.Driver
+func (d *ftpDriver) GetTLSConfig() (*tls.Config, error) {
+	if d.tlsConfig == nil {
+		return nil, errFTPNoTLS
+	}
+	return d.tlsConfig()
 }
 
-func NewNopDriver(driver ftpserver.Driver) *NopDriver {
-	return &NopDriver{driver: driver}
+func (d *ftpDriver) ClientConnected(ftpserver.ClientContext) (string, error) {
+	return "Welcome to the Go FTP Server", nil
 }
 
-func (n *NopDriver) Stat(c *ftpserver.Context, s string) (os.FileInfo, error) {
-	return n.driver.Stat(c, s)
+func (d *ftpDriver) ClientDisconnected(ftpserver.ClientContext) {}
+
+// PreAuthUser records the USER command.
+func (d *ftpDriver) PreAuthUser(cc ftpserver.ClientContext, user string) error {
+	d.server.recordInteraction(cc.RemoteAddr().String(), "USER "+user+"\n"+user+" logging in")
+	return nil
 }
 
-// ListDir hides interactsh's own upload storage, and nothing else.
+func (d *ftpDriver) AuthUser(cc ftpserver.ClientContext, user, pass string) (ftpserver.ClientDriver, error) {
+	d.server.recordInteraction(cc.RemoteAddr().String(), "PASS "+pass+"\nuser "+user+" logged in with password "+pass)
+	return &ftpSession{Fs: d.fs, server: d.server, cc: cc}, nil
+}
+
+// ftpSession is the file system a logged-in client sees: the FTP root,
+// read-only. MKD, RMD, DELE, RNTO, STOR and APPE report success without
+// changing anything, so that the client carries on and its next commands are
+// recorded too; every other write is refused.
+type ftpSession struct {
+	afero.Fs
+	server *FTPServer
+	cc     ftpserver.ClientContext
+}
+
+// record stores an interaction as "<command> <name>\n<event>". dstPath, set
+// only for downloads, attributes it to the session owning that hosted file.
+func (s *ftpSession) record(command, name, event, dstPath string) {
+	data := command + " " + name + "\n" + event
+	s.server.recordInteractionForPath(s.cc.RemoteAddr().String(), data, dstPath)
+}
+
+// Open and Stat are the only ways this driver reads the root, so they are
+// where client paths are cleaned (see ftpCleanPath). The embedded OpenFile
+// would read too, but ftpserverlib calls it only for drivers without
+// GetHandle.
+func (s *ftpSession) Open(name string) (afero.File, error) {
+	return s.Fs.Open(ftpCleanPath(name))
+}
+
+// Stat also records CWD and CDUP, which ftpserverlib carries out as a Stat of
+// the target with no driver call of their own. ftpserverlib waits for any
+// transfer to finish before it runs either, so a Stat made while one of them
+// is the last command is that command's.
 //
-// NopAuth accepts any credentials, so an anonymous client must not be able to
+// XCWD and CDUP are recorded as the CWD they stand for, CDUP as "CWD ..",
+// which is how interactsh has always stored them.
+func (s *ftpSession) Stat(name string) (os.FileInfo, error) {
+	info, err := s.Fs.Stat(ftpCleanPath(name))
+	if err == nil && info.IsDir() {
+		event := "changing directory from " + s.cc.Path() + " to " + name
+		switch s.cc.GetLastCommand() {
+		case "CWD", "XCWD":
+			s.record("CWD", name, event, "")
+		case "CDUP":
+			s.record("CWD", "..", event, "")
+		}
+	}
+	return info, err
+}
+
+// ReadDir hides interactsh's own upload storage, and nothing else.
+//
+// AuthUser accepts any credentials, so an anonymous client must not be able to
 // read off every correlation id that currently has uploaded files and then walk
 // into each one. Two rules close that off: the uploads directory never lists its
 // own contents, and it is filtered out of the root listing so that it cannot be
@@ -361,19 +302,17 @@ func (n *NopDriver) Stat(c *ftpserver.Context, s string) (os.FileInfo, error) {
 // Only those two rules, deliberately: the root itself lists normally, because
 // -ftp-dir is documented as serving the operator's own directory and a blanket
 // refusal there would silently break that.
-func (n *NopDriver) ListDir(c *ftpserver.Context, s string, f func(os.FileInfo) error) error {
-	if isUploadsDir(s) {
-		return nil
+func (s *ftpSession) ReadDir(name string) ([]os.FileInfo, error) {
+	if isUploadsDir(name) {
+		return nil, nil
 	}
-	if isFTPRoot(s) {
-		return n.driver.ListDir(c, s, func(info os.FileInfo) error {
-			if info.Name() == uploadsDirName {
-				return nil
-			}
-			return f(info)
-		})
+	entries, err := afero.ReadDir(s, name)
+	if err != nil || !isFTPRoot(name) {
+		return entries, err
 	}
-	return n.driver.ListDir(c, s, f)
+	return slices.DeleteFunc(entries, func(info os.FileInfo) bool {
+		return info.Name() == uploadsDirName
+	}), nil
 }
 
 // isUploadsDir reports whether an FTP path refers to the uploads directory
@@ -392,32 +331,57 @@ func isFTPRoot(p string) bool {
 }
 
 // ftpCleanPath resolves an FTP path to an absolute, traversal-free form. Every
-// path decision in this file goes through it, so "/a/../b", "//b" and "/./b" can
-// never be treated differently from "/b".
+// path decision in this file goes through it, and so does every read of the
+// root, so "/a/../b", "//b" and "/./b" can never be treated differently from
+// "/b". On Windows "\" is a separator as well, but ftpserverlib cleans paths on
+// "/" alone, so without this conversion "/x/..\.interactsh-user-uploads" would
+// slip past isUploadsDir, and "/..\ftp2" would pass BasePathFs's prefix check
+// for a root of "C:\ftp".
 func ftpCleanPath(p string) string {
-	return path.Clean("/" + strings.TrimPrefix(p, "/"))
+	return path.Clean("/" + strings.TrimPrefix(filepath.ToSlash(p), "/"))
 }
 
-func (n *NopDriver) DeleteDir(c *ftpserver.Context, s string) error {
+func (s *ftpSession) RemoveDir(name string) error {
+	s.record(s.cc.GetLastCommand(), name, "deleting directory "+name, "")
 	return nil
 }
 
-func (n *NopDriver) DeleteFile(c *ftpserver.Context, s string) error {
+func (s *ftpSession) Remove(name string) error {
+	s.record(s.cc.GetLastCommand(), name, "deleting "+name, "")
 	return nil
 }
 
-func (n *NopDriver) Rename(c *ftpserver.Context, s1 string, s2 string) error {
+func (s *ftpSession) Rename(string, string) error {
 	return nil
 }
 
-func (n *NopDriver) MakeDir(c *ftpserver.Context, s string) error {
+// Mkdir records MKD. XMKD, the only other command that calls it, is recorded
+// as MKD too, which is how interactsh has always stored it.
+func (s *ftpSession) Mkdir(name string, _ os.FileMode) error {
+	s.record("MKD", name, "creating directory "+name, "")
 	return nil
 }
 
-func (n *NopDriver) GetFile(c *ftpserver.Context, s1 string, k int64) (int64, io.ReadCloser, error) {
-	return n.driver.GetFile(c, s1, k)
+// GetHandle records RETR, STOR and APPE. Uploads are read and thrown away.
+// The command is named from flags rather than GetLastCommand: a transfer runs
+// on its own goroutine, and the client may have sent another command by then.
+func (s *ftpSession) GetHandle(name string, flags int, _ int64) (ftpserver.FileTransfer, error) {
+	if flags&os.O_WRONLY == 0 {
+		s.record("RETR", name, "downloading file "+name, name)
+		return s.Open(name)
+	}
+	command := "STOR"
+	if flags&os.O_APPEND != 0 {
+		command = "APPE"
+	}
+	s.record(command, name, "uploading "+name, "")
+	return discardFile{}, nil
 }
 
-func (n *NopDriver) PutFile(c *ftpserver.Context, s string, r io.Reader, k int64) (int64, error) {
-	return k, nil
-}
+// discardFile is where uploads go: it accepts whatever is sent and keeps none.
+type discardFile struct{}
+
+func (discardFile) Read([]byte) (int, error)                { return 0, io.EOF }
+func (discardFile) Write(p []byte) (int, error)             { return len(p), nil }
+func (discardFile) Seek(offset int64, _ int) (int64, error) { return offset, nil }
+func (discardFile) Close() error                            { return nil }
