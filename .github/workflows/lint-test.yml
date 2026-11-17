@@ -12,7 +12,6 @@ on:
 jobs:
   lint:
     name: Lint Test
-    if: ${{ !endsWith(github.actor, '[bot]') }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
