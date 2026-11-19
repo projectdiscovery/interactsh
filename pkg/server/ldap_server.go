@@ -89,8 +89,6 @@ func (ldapServer *LDAPServer) handleBind(w ldap.ResponseWriter, m *ldap.Message)
 func (ldapServer *LDAPServer) handleSearch(w ldap.ResponseWriter, m *ldap.Message) {
 	atomic.AddUint64(&ldapServer.options.Stats.Ldap, 1)
 
-	var uniqueID, fullID string
-
 	host := m.Client.Addr().String()
 
 	r := m.GetSearchRequest()
@@ -116,18 +114,40 @@ func (ldapServer *LDAPServer) handleSearch(w ldap.ResponseWriter, m *ldap.Messag
 	res := ldap.NewSearchResultDoneResponse(ldap.LDAPResultSuccess)
 	w.Write(res)
 
-	for _, part := range stringsutil.SplitAny(string(baseObject), "=,") {
+	ldapServer.handleSearchInteractions(string(baseObject), message.String(), host)
+}
+
+// maxLDAPSearchInteractions bounds the interactions one search request can
+// record, since the base DN can be up to 1 MiB and every match serializes it.
+const maxLDAPSearchInteractions = 16
+
+// handleSearchInteractions records an interaction for each distinct
+// correlation id in baseDN, up to maxLDAPSearchInteractions.
+func (ldapServer *LDAPServer) handleSearchInteractions(baseDN, reqString, host string) {
+	type match struct{ uniqueID, fullID string }
+	seen := make(map[match]struct{})
+	for _, part := range stringsutil.SplitAny(baseDN, "=,") {
 		partChunks := strings.Split(part, ".")
 		for i, partChunk := range partChunks {
+			// fullID is the same for every window of partChunk, so join once.
+			fullID := ""
 			for scanChunk := range stringsutil.SlideWithLength(partChunk, ldapServer.options.GetIdLength()) {
-				if ldapServer.options.isCorrelationID(scanChunk) {
-					uniqueID = scanChunk
-					fullID = partChunk
-					if i+1 <= len(partChunks) {
-						fullID = strings.Join(partChunks[:i+1], ".")
-					}
-					ldapServer.handleInteraction(uniqueID, fullID, message.String(), host)
+				if !ldapServer.options.isCorrelationID(scanChunk) {
+					continue
 				}
+				if fullID == "" {
+					fullID = strings.Join(partChunks[:i+1], ".")
+				}
+				m := match{uniqueID: scanChunk, fullID: fullID}
+				if _, ok := seen[m]; ok {
+					continue
+				}
+				if len(seen) == maxLDAPSearchInteractions {
+					gologger.Debug().Msgf("LDAP search from %s has more than %d correlation ids, ignoring the rest\n", host, maxLDAPSearchInteractions)
+					return
+				}
+				seen[m] = struct{}{}
+				ldapServer.handleInteraction(m.uniqueID, m.fullID, reqString, host)
 			}
 		}
 	}
