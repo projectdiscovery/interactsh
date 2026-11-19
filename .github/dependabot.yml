@@ -19,6 +19,9 @@ updates:
       - "Type: Maintenance"
     allow:
       - dependency-name: "github.com/projectdiscovery/*"
+    groups:
+      projectdiscovery:
+        patterns: ["github.com/projectdiscovery/*"]
 
 #  # Maintain dependencies for docker
 #  - package-ecosystem: "docker"
