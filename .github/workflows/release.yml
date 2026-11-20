@@ -8,28 +8,14 @@ on:
 
 jobs:
   release:
-    runs-on: ubuntu-latest-16-cores
-    steps:
-      - name: Check out code
-        uses: actions/checkout@v6
-        with: 
-          fetch-depth: 0
-      
-      - name: Set up Go
-        uses: projectdiscovery/actions/setup/go@v1
-
-      - name: Login to DockerHub
-        uses: docker/login-action@v4
-        with:
-          username: ${{ secrets.DOCKER_USERNAME }}
-          password: ${{ secrets.DOCKER_TOKEN }}
-
-      - name: Create release on GitHub
-        uses: projectdiscovery/actions/goreleaser@v1
-        with:
-          release: true
-        env:
-          GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
-          SLACK_WEBHOOK: "${{ secrets.RELEASE_SLACK_WEBHOOK }}"
-          DISCORD_WEBHOOK_ID: "${{ secrets.DISCORD_WEBHOOK_ID }}"
-          DISCORD_WEBHOOK_TOKEN: "${{ secrets.DISCORD_WEBHOOK_TOKEN }}"
+    uses: projectdiscovery/workflows/.github/workflows/goreleaser-publish.yaml@v1
+    with:
+      runs-on: ubuntu-latest-16-cores
+    permissions:
+      contents: write
+    secrets:
+      docker-username: ${{ secrets.DOCKER_USERNAME }}
+      docker-token: ${{ secrets.DOCKER_TOKEN }}
+      slack-webhook: ${{ secrets.RELEASE_SLACK_WEBHOOK }}
+      discord-webhook-id: ${{ secrets.DISCORD_WEBHOOK_ID }}
+      discord-webhook-token: ${{ secrets.DISCORD_WEBHOOK_TOKEN }}
