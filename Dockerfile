@@ -7,7 +7,7 @@ LABEL org.opencontainers.image.title="interactsh-client"
 LABEL org.opencontainers.image.url="https://github.com/projectdiscovery/interactsh"
 
 RUN apk -U upgrade --no-cache \
-    && apk add --no-cache bind-tools~=9.20 ca-certificates=20260909-r0
+    && apk add --no-cache bind-tools ca-certificates
 
 ARG TARGETPLATFORM
 COPY $TARGETPLATFORM/interactsh-client /usr/local/bin/
@@ -23,7 +23,7 @@ LABEL org.opencontainers.image.title="interactsh-server"
 LABEL org.opencontainers.image.url="https://github.com/projectdiscovery/interactsh"
 
 RUN apk -U upgrade --no-cache \
-    && apk add --no-cache bind-tools~=9.20 ca-certificates=20260909-r0 curl~=8.22
+    && apk add --no-cache bind-tools ca-certificates curl
 WORKDIR "/usr/local/bin"
 
 ARG TARGETPLATFORM
